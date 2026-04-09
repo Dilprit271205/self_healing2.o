@@ -1,15 +1,19 @@
-def update_trust(trust, anomalies, alpha=0.6, recovery_rate=0.15):
-    for dim in trust:
-        A = anomalies[dim]
+def update_trust(trust, anomalies):
+    decay = 0.1
+    penalty = 0.2
 
-        # Normal update
-        trust[dim] = alpha * trust[dim] + (1 - alpha) * (1 - A)
+    no_anomaly = not any(anomalies.values())
 
-        # 🔥 Faster recovery when system is normal
-        if A < 0.2:
-            trust[dim] += recovery_rate
+    for key in trust:
+        if anomalies[key]:
+            trust[key] -= penalty
+        else:
+            trust[key] += decay
 
-        # Clamp
-        trust[dim] = max(0.0, min(1.0, trust[dim]))
+        # 🔥 HARD RECOVERY BOOST
+        if no_anomaly:
+            trust[key] += 0.1
+
+        trust[key] = max(0, min(1, trust[key]))
 
     return trust

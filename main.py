@@ -27,6 +27,15 @@ def monitor_loop():
         processes = get_process_data()
         network = get_network_data()
 
+        # ✅ ADD IT HERE
+        active_pids = set(p["pid"] for p in processes)
+
+        from analysis.trust.trust_vector import trust_db
+
+        for pid in list(trust_db.keys()):
+            if pid not in active_pids:
+                del trust_db[pid]
+
         connection_map = map_connections(network)
         file_map = get_file_map()
 

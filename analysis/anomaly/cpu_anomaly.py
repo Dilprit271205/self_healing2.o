@@ -1,9 +1,9 @@
+from collections import deque
+
+CPU_THRESHOLD = 80  # 🔥 increase this
+cpu_window = deque(maxlen=5)
+
 def cpu_anomaly(cpu):
-    if cpu > 90:
-        return 1.0
-    elif cpu > 70:
-        return 0.7
-    elif cpu > 50:
-        return 0.4
-    else:
-        return 0.1
+    cpu_window.append(cpu)
+    avg_cpu = sum(cpu_window) / len(cpu_window)
+    return avg_cpu > CPU_THRESHOLD

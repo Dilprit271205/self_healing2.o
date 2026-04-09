@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import json
-import time
+
+from streamlit_autorefresh import st_autorefresh
 
 LOG_FILE = "logs/system_log.json"
 
@@ -9,6 +10,11 @@ LOG_FILE = "logs/system_log.json"
 # PAGE CONFIG
 # ---------------------------
 st.set_page_config(page_title="Cyber Defense Dashboard", layout="wide")
+
+# ---------------------------
+# AUTO REFRESH (1 sec)
+# ---------------------------
+st_autorefresh(interval=1000, key="refresh")
 
 # ---------------------------
 # DARK THEME STYLE
@@ -30,121 +36,150 @@ body {
 
 st.title("🛡️ Self-Healing Cyber Defense System")
 
-REFRESH = 2
-
 # ---------------------------
-# LOAD DATA
+# LOAD DATA (FAST)
 # ---------------------------
+@st.cache_data(ttl=1)
 def load_logs():
     data = []
     try:
         with open(LOG_FILE, "r") as f:
-            for line in f:
+            lines = f.readlines()[-500:]  # only last 500 logs
+            for line in lines:
                 data.append(json.loads(line))
     except:
         pass
     return pd.DataFrame(data)
 
 
-while True:
-    df = load_logs()
+df = load_logs()
 
-    if df.empty:
-        st.warning("No logs yet...")
-        time.sleep(REFRESH)
-        st.rerun()
+# ---------------------------
+# EMPTY STATE
+# ---------------------------
+if df.empty:
+    st.warning("No logs yet...")
+    st.stop()
 
-    df = df[df["pid"].notnull()]
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+# ---------------------------
+# CLEAN DATA
+# ---------------------------
+df = df[df["pid"].notnull()]
+df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-    latest = df.sort_values("timestamp").groupby("pid").tail(1)
+latest = df.sort_values("timestamp").groupby("pid").tail(1)
 
-    # ---------------------------
-    # 🔥 KPI CARDS
-    # ---------------------------
-    col1, col2, col3, col4 = st.columns(4)
+# ---------------------------
+# KPI SECTION
+# ---------------------------
+col1, col2, col3, col4, col5 = st.columns(5)
 
-    avg_cpu = round(latest["cpu"].mean(), 2)
-    avg_mem = round(latest["memory"].mean(), 2)
+avg_cpu = round(latest["cpu"].mean(), 2)
+avg_mem = round(latest["memory"].mean(), 2)
 
-    flagged = latest[latest["actions"].apply(lambda x: x["cpu"] != "normal")]
+flagged = latest[
+    (latest["actions"].apply(lambda x: x["cpu"] != "normal")) |
+    (latest["actions"].apply(lambda x: x["net"] != "normal")) |
+    (latest["actions"].apply(lambda x: x["file"] != "normal"))
+]
 
-    col1.metric("💻 Avg CPU", f"{avg_cpu}%")
-    col2.metric("🧠 Avg Memory", f"{avg_mem}%")
-    col3.metric("🚨 Threats", len(flagged))
-    col4.metric("⚙️ Processes", len(latest))
+# System Health Score
+health = round(
+    latest["trust"].apply(lambda x: sum(x.values()) / len(x)).mean() * 100, 2
+)
 
-    st.markdown("---")
+col1.metric("💻 Avg CPU", f"{avg_cpu}%")
+col2.metric("🧠 Avg Memory", f"{avg_mem}%")
+col3.metric("🚨 Threats", len(flagged))
+col4.metric("⚙️ Processes", len(latest))
+col5.metric("🟢 Health", f"{health}%")
 
-    # ---------------------------
-    # 📊 LIVE TABLE
-    # ---------------------------
-    st.subheader("📊 Live Processes")
+st.markdown("---")
 
-    latest = latest.sort_values("cpu", ascending=False)
+# ---------------------------
+# GLOBAL CPU TREND
+# ---------------------------
+st.subheader("🔥 System CPU Load")
 
-    def highlight(row):
-        if row["actions"]["cpu"] != "normal":
-            return ["background-color: red"] * len(row)
-        return [""] * len(row)
+cpu_trend = df.groupby("timestamp")["cpu"].mean()
+st.line_chart(cpu_trend)
 
-    st.dataframe(latest[[
+# ---------------------------
+# LIVE PROCESS TABLE
+# ---------------------------
+st.subheader("📊 Live Processes")
+
+latest = latest.sort_values("cpu", ascending=False)
+
+def highlight(row):
+    if row["cpu"] > 70:
+        return ["background-color: rgba(255,0,0,0.3)"] * len(row)
+    return [""] * len(row)
+
+st.dataframe(
+    latest[[
         "pid", "name", "cpu", "memory", "connections", "file_events"
-    ]])
+    ]].style.apply(highlight, axis=1),
+    height=400,
+    width="stretch"
+)
 
-    # ---------------------------
-    # 🚨 ALERT PANEL
-    # ---------------------------
-    st.subheader("🚨 Threat Monitor")
+# ---------------------------
+# ALERT PANEL
+# ---------------------------
+st.subheader("🚨 Threat Monitor")
 
-    if not flagged.empty:
-        for _, row in flagged.iterrows():
-            st.error(f"⚠️ PID {row['pid']} | CPU: {row['cpu']} | STATUS: {row['actions']['cpu']}")
-    else:
-        st.success("System Stable")
+if not flagged.empty:
+    for _, row in flagged.iterrows():
+        st.error(
+            f"⚠️ PID {row['pid']} | CPU: {row['cpu']} | STATUS: {row['actions']}"
+        )
+else:
+    st.success("✅ System Stable")
 
-    # ---------------------------
-    # 📈 CHARTS
-    # ---------------------------
-    st.subheader("📈 Process Analytics")
+# ---------------------------
+# PROCESS ANALYTICS
+# ---------------------------
+st.subheader("📈 Process Analytics")
 
-    pid_list = latest["pid"].tolist()
-    selected_pid = st.selectbox("Select Process", pid_list)
+pid_list = latest["pid"].tolist()
+selected_pid = st.selectbox("Select Process", pid_list)
 
-    proc_df = df[df["pid"] == selected_pid].sort_values("timestamp")
+proc_df = df[df["pid"] == selected_pid].sort_values("timestamp")
 
-    col1, col2 = st.columns(2)
+col1, col2 = st.columns(2)
 
-    with col1:
-        st.subheader("CPU Trend")
-        st.line_chart(proc_df.set_index("timestamp")["cpu"])
+with col1:
+    st.subheader("CPU Trend")
+    st.line_chart(proc_df.set_index("timestamp")["cpu"])
 
-    with col2:
-        st.subheader("Memory Trend")
-        st.line_chart(proc_df.set_index("timestamp")["memory"])
+with col2:
+    st.subheader("Memory Trend")
+    st.line_chart(proc_df.set_index("timestamp")["memory"])
 
-    # ---------------------------
-    # ANOMALY & TRUST
-    # ---------------------------
-    col1, col2 = st.columns(2)
+# ---------------------------
+# ANOMALY & TRUST
+# ---------------------------
+col1, col2 = st.columns(2)
 
-    with col1:
-        st.subheader("Anomaly Trend")
-        anomaly_df = proc_df["anomalies"].apply(pd.Series)
-        anomaly_df.index = proc_df["timestamp"]
-        st.line_chart(anomaly_df)
+with col1:
+    st.subheader("Anomaly Trend")
+    anomaly_df = proc_df["anomalies"].apply(pd.Series)
+    anomaly_df.index = proc_df["timestamp"]
+    st.line_chart(anomaly_df)
 
-    with col2:
-        st.subheader("Trust Evolution")
-        trust_df = proc_df["trust"].apply(pd.Series)
-        trust_df.index = proc_df["timestamp"]
-        st.line_chart(trust_df)
+with col2:
+    st.subheader("Trust Evolution")
+    trust_df = proc_df["trust"].apply(pd.Series)
+    trust_df.index = proc_df["timestamp"]
+    st.line_chart(trust_df)
 
-    # ---------------------------
-    # 🔍 DETAILS PANEL
-    # ---------------------------
-    st.subheader("🔍 Deep Inspection")
+# ---------------------------
+# DEEP INSPECTION
+# ---------------------------
+st.subheader("🔍 Deep Inspection")
 
+if not proc_df.empty:
     latest_row = proc_df.iloc[-1]
 
     st.json({
@@ -158,6 +193,3 @@ while True:
         "trust": latest_row["trust"],
         "actions": latest_row["actions"]
     })
-
-    time.sleep(REFRESH)
-    st.rerun()

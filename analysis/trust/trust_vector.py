@@ -9,4 +9,4 @@ def initialize_trust(pid):
         }
 
 def get_trust(pid):
-    return trust_db.get(pid)
+    return trust_db.get(pid, {"cpu": 1, "file": 1, "net": 1})
