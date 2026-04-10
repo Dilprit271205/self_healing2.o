@@ -1,6 +1,6 @@
 def file_anomaly(file_events):
     # 🔥 simple and effective thresholds
-    if file_events > 20:
+    if file_events > 5:
         return True
 
     if file_events > 10:

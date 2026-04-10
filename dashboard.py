@@ -58,18 +58,32 @@ latest = pd.concat([latest, trust_expanded, anomaly_expanded], axis=1)
 # 🔥 FIX 2: Remove duplicate columns
 latest = latest.loc[:, ~latest.columns.duplicated()]
 
-# ---------------------------
-# THREAT CLASSIFICATION (NEW 🔥)
-# ---------------------------
-suspicious = latest[
-    latest["actions"].apply(lambda x: x["level"] == "suspicious")
-]
 
-critical = latest[
-    latest["actions"].apply(lambda x: x["level"] == "critical")
-]
+import ast
 
-# total threats
+def get_level(action):
+    try:
+        if isinstance(action, dict):
+            return action.get("level", "normal")
+
+        if isinstance(action, str):
+            action_dict = ast.literal_eval(action)
+            return action_dict.get("level", "normal")
+
+    except:
+        return "normal"
+
+    return "normal"
+
+
+# ---------------------------
+# THREAT CLASSIFICATION 🔥
+# ---------------------------
+latest["level"] = latest["actions"].apply(get_level)
+
+suspicious = latest[latest["level"] == "suspicious"]
+critical = latest[latest["level"] == "critical"]
+
 threats = len(suspicious) + len(critical)
 
 # ---------------------------
@@ -155,12 +169,19 @@ except:
 # ---------------------------
 st.subheader("🚨 Threat Monitor")
 
-danger = table_df[table_df["final_trust"] < 0.7]
+if not critical.empty:
+    for _, row in critical.iterrows():
+        st.error(
+            f"🔥 CRITICAL | PID {row['pid']} ({row['name']}) | Trust: {row['final_trust']}"
+        )
 
-if not danger.empty:
-    for _, row in danger.iterrows():
-        st.error(f"⚠️ PID {row['pid']} ({row['name']}) | Trust: {row['final_trust']}")
-else:
+if not suspicious.empty:
+    for _, row in suspicious.iterrows():
+        st.warning(
+            f"⚠️ SUSPICIOUS | PID {row['pid']} ({row['name']}) | Trust: {row['final_trust']}"
+        )
+
+if critical.empty and suspicious.empty:
     st.success("✅ System Stable")
 
 # ---------------------------

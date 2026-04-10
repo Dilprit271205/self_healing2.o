@@ -46,7 +46,7 @@ def update_static_trust(pid, static_score):
     trust_db[pid]["static_trust"] = round(static_score, 3)
 
 
-def compute_final_trust(pid, alpha=0.2):
+def compute_final_trust(pid, alpha=0.1):
     """
     alpha = weight of static trust
     (1 - alpha) = weight of dynamic trust
