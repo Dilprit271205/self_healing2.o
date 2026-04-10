@@ -1,150 +1,104 @@
-import multiprocessing
 import threading
 import time
 import socket
-import os
 import random
-import subprocess
+import os
 
 RUN = True
 
-BASE_DIR = "stress_dir"
-
-
 # -----------------------------
-# SETUP DIRECTORY
+# BURST CPU (SPIKY)
 # -----------------------------
-def setup():
-    if not os.path.exists(BASE_DIR):
-        os.makedirs(BASE_DIR)
-
-
-# -----------------------------
-# CPU STRESS
-# -----------------------------
-def cpu_stress():
+def cpu_spike():
     while RUN:
-        for _ in range(5 * 10**5):
+        for _ in range(5 * 10**6):
             pass
-        time.sleep(0.01)
+        time.sleep(random.uniform(0.1, 0.5))  # spike pattern
 
 
 # -----------------------------
-# MEMORY STRESS
+# MEMORY BURST
 # -----------------------------
-def memory_stress():
-    memory = []
+def memory_spike():
+    data = []
     while RUN:
-        memory.append("X" * 2_000_000)  # 2MB chunks
-        if len(memory) > 30:
-            memory.pop(0)
-        time.sleep(0.1)
+        for _ in range(20):
+            data.append("X" * 10**6)  # ~1MB each
+        time.sleep(0.2)
+        data.clear()  # sudden drop (important for anomaly)
 
 
 # -----------------------------
-# FILE STRESS (🔥 FIXED)
+# NETWORK BURST (VERY IMPORTANT)
 # -----------------------------
-def file_stress():
+def network_spike():
     while RUN:
-        try:
-            # 🔥 create new files (important)
-            filename = os.path.join(
-                BASE_DIR, f"temp_{random.randint(1,10000)}.txt"
-            )
-
-            with open(filename, "w") as f:
-                f.write("malicious_data\n" * 50)
-
-                # 🔥 force write to disk (VERY IMPORTANT)
-                f.flush()
-                os.fsync(f.fileno())
-
-            # 🔥 randomly delete files (more events)
-            if random.random() < 0.3:
-                os.remove(filename)
-
-        except:
-            pass
-
-        time.sleep(0.02)
-
-
-# -----------------------------
-# NETWORK STRESS (🔥 STRONGER)
-# -----------------------------
-def network_stress():
-    while RUN:
-        try:
-            for _ in range(3):  # multiple connections burst
+        for _ in range(50):  # burst connections
+            try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(0.1)
+                s.settimeout(0.05)
                 s.connect(("8.8.8.8", 53))
                 s.close()
-        except:
-            pass
-
-        time.sleep(0.02)
+            except:
+                pass
+        time.sleep(0.2)
 
 
 # -----------------------------
-# PROCESS SPAWNING (WORM-LIKE)
+# FILE STORM (KEY TRIGGER)
 # -----------------------------
-def spawn_process():
+def file_storm():
     while RUN:
-        try:
-            subprocess.Popen(["sleep", "0.3"])
-        except:
-            pass
+        for i in range(50):
+            try:
+                filename = f"temp_attack_{random.randint(1,100000)}.txt"
+                with open(filename, "w") as f:
+                    f.write("ATTACK\n" * 100)
+                os.remove(filename)
+            except:
+                pass
+        time.sleep(0.2)
 
-        time.sleep(0.1)
+
+# -----------------------------
+# RANDOM BEHAVIOR (IMPORTANT)
+# -----------------------------
+def chaos_controller():
+    while RUN:
+        choice = random.choice([cpu_spike, memory_spike, network_spike, file_storm])
+        t = threading.Thread(target=choice)
+        t.start()
+        time.sleep(0.3)
 
 
 # -----------------------------
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    setup()
+    print("🔥 Aggressive Attack Simulation Started")
 
-    processes = []
+    threads = []
 
-    print("🔥 Starting REALISTIC attack simulation...")
+    for _ in range(3):
+        threads.append(threading.Thread(target=cpu_spike))
 
-    # CPU (controlled)
-    for _ in range(max(1, multiprocessing.cpu_count() // 3)):
-        p = multiprocessing.Process(target=cpu_stress)
-        p.start()
-        processes.append(p)
+    for _ in range(2):
+        threads.append(threading.Thread(target=memory_spike))
 
-    # Memory
-    mem = multiprocessing.Process(target=memory_stress)
-    mem.start()
-    processes.append(mem)
+    for _ in range(3):
+        threads.append(threading.Thread(target=network_spike))
 
-    # File (CRITICAL)
-    file_p = multiprocessing.Process(target=file_stress)
-    file_p.start()
-    processes.append(file_p)
+    for _ in range(2):
+        threads.append(threading.Thread(target=file_storm))
 
-    # Network threads
-    for _ in range(5):
-        t = threading.Thread(target=network_stress, daemon=True)
+    threads.append(threading.Thread(target=chaos_controller))
+
+    for t in threads:
         t.start()
 
-    # Process spawning
-    spawner = multiprocessing.Process(target=spawn_process)
-    spawner.start()
-    processes.append(spawner)
-
-    print("🚀 Running... Press CTRL + C to stop")
-
     try:
-        for p in processes:
-            p.join()
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
-        print("\n🛑 Stopping...")
-
         RUN = False
-        time.sleep(1)
-
-        for p in processes:
-            p.terminate()
+        print("🛑 Attack stopped")
