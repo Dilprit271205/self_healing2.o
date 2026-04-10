@@ -1,19 +1,58 @@
-def update_trust(trust, anomalies):
-    decay = 0.1
-    penalty = 0.2
+from analysis.trust.trust_vector import (
+    initialize_trust,
+    update_dynamic_trust,
+    update_static_trust,
+    compute_final_trust,
+    get_trust
+)
 
+
+def update_trust(pid, current_trust, anomalies, static_score):
+    """
+    Updates trust values based on anomalies + static score
+    """
+
+    decay = 0.05
+    penalty = 0.4
+
+    initialize_trust(pid)
+
+    # 🔹 Check if system is clean
     no_anomaly = not any(anomalies.values())
 
-    for key in trust:
-        if anomalies[key]:
-            trust[key] -= penalty
+    updated = {}
+
+    # 🔹 Update per-metric trust (cpu, file, net)
+    for key in ["cpu", "file", "net"]:
+        value = current_trust.get(key, 1.0)
+
+        if anomalies.get(key, False):
+            value -= penalty
         else:
-            trust[key] += decay
+            value += decay
 
-        # 🔥 HARD RECOVERY BOOST
+        # 🔥 Recovery boost
         if no_anomaly:
-            trust[key] += 0.1
+            value += 0.1
 
-        trust[key] = max(0, min(1, trust[key]))
+        # Clamp between 0 and 1
+        value = max(0, min(1, value))
 
-    return trust
+        updated[key] = round(value, 3)
+
+    # 🔹 Update dynamic trust vector
+    update_dynamic_trust(
+        pid,
+        cpu=updated["cpu"],
+        file=updated["file"],
+        net=updated["net"]
+    )
+
+    # 🔹 Update static trust
+    update_static_trust(pid, static_score)
+
+    # 🔹 Compute final hybrid trust
+    final_score = compute_final_trust(pid)
+
+    # 🔹 Return full trust state
+    return get_trust(pid)

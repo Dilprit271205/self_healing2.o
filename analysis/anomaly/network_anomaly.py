@@ -1,3 +1,8 @@
-def network_anomaly(connections, mu=2, sigma=2, k=3):
-    score = abs(connections - mu) / (k * sigma)
-    return score > 0.7
+def network_anomaly(connections):
+    if connections > 10:
+        return True
+
+    if connections > 5:
+        return True
+
+    return False

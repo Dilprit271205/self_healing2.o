@@ -14,7 +14,7 @@ from analysis.anomaly.cpu_anomaly import cpu_anomaly
 from analysis.anomaly.file_anomaly import file_anomaly
 from analysis.anomaly.network_anomaly import network_anomaly
 
-from analysis.trust.trust_vector import initialize_trust, get_trust
+from analysis.trust.trust_vector import initialize_trust, get_trust, trust_db
 from analysis.trust.trust_update import update_trust
 
 from analysis.decision.decision_engine import decide_action
@@ -27,10 +27,8 @@ def monitor_loop():
         processes = get_process_data()
         network = get_network_data()
 
-        # ✅ ADD IT HERE
+        # 🔹 Clean dead processes from trust_db
         active_pids = set(p["pid"] for p in processes)
-
-        from analysis.trust.trust_vector import trust_db
 
         for pid in list(trust_db.keys()):
             if pid not in active_pids:
@@ -42,25 +40,38 @@ def monitor_loop():
         for process in processes:
             pid = process["pid"]
 
+            # 🔹 Initialize trust
             initialize_trust(pid)
 
+            # 🔹 Extract hybrid features (dynamic + static)
             features = extract_features(process, connection_map, file_map)
 
+            # 🔹 Detect anomalies (dynamic)
             anomalies = {
                 "cpu": cpu_anomaly(features["cpu"]),
                 "file": file_anomaly(features["file_events"]),
                 "net": network_anomaly(features["connections"])
             }
 
-            trust = get_trust(pid)
-            trust = update_trust(trust, anomalies)
+            # 🔹 Get current trust
+            current_trust = get_trust(pid)
 
-            actions = decide_action(trust)
+            # 🔹 UPDATE TRUST (NEW HYBRID VERSION)
+            updated_trust = update_trust(
+                pid=pid,
+                current_trust=current_trust,
+                anomalies=anomalies,
+                static_score=features["static_trust"]   # 🔥 KEY ADDITION
+            )
 
+            # 🔹 Decision engine uses FINAL trust
+            actions = decide_action(updated_trust)
+
+            # 🔹 Logging everything
             log_data({
                 **features,
                 "anomalies": anomalies,
-                "trust": trust,
+                "trust": updated_trust,
                 "actions": actions
             })
 

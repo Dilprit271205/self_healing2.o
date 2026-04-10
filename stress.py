@@ -1,36 +1,68 @@
 import multiprocessing
+import threading
 import time
+import socket
+import os
+import random
+import subprocess
+
+RUN = True
 
 # -----------------------------
-# CPU STRESS
+# CPU STRESS (CONTROLLED)
 # -----------------------------
 def cpu_stress():
-    while True:
-        _ = 9999999 * 9999999
+    while RUN:
+        for _ in range(10**6):
+            pass
+        time.sleep(0.01)  # 🔥 IMPORTANT
 
 
 # -----------------------------
-# MEMORY STRESS
+# MEMORY STRESS (LIMITED)
 # -----------------------------
 def memory_stress():
     memory = []
-    try:
-        while True:
-            # Allocate ~20MB each iteration
-            memory.append("X" * 20_000_000)
-            time.sleep(0.2)
-    except MemoryError:
-        print("Memory exhausted")
+    while RUN:
+        memory.append("X" * 5_000_000)  # 5MB
+        if len(memory) > 20:  # cap at ~100MB
+            memory.pop(0)
+        time.sleep(0.1)
 
 
 # -----------------------------
-# FILE STRESS (optional)
+# FILE STRESS (CONTROLLED)
 # -----------------------------
 def file_stress():
-    while True:
+    while RUN:
         with open("temp_stress.txt", "a") as f:
-            f.write("stress_data\n")
-        time.sleep(0.01)
+            for _ in range(20):
+                f.write("malicious_data\n")
+        time.sleep(0.05)
+
+
+# -----------------------------
+# NETWORK STRESS (CONTROLLED)
+# -----------------------------
+def network_stress():
+    while RUN:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.1)
+            s.connect(("8.8.8.8", 53))
+            s.close()
+        except:
+            pass
+        time.sleep(0.05)
+
+
+# -----------------------------
+# PROCESS SPAWNING (LIMITED)
+# -----------------------------
+def spawn_process():
+    while RUN:
+        subprocess.Popen(["sleep", "0.5"])
+        time.sleep(0.2)  # 🔥 limit spawn rate
 
 
 # -----------------------------
@@ -39,23 +71,33 @@ def file_stress():
 if __name__ == "__main__":
     processes = []
 
-    print("🔥 Starting stress test...")
+    print("🔥 Starting CONTROLLED attack simulation...")
 
-    # CPU stress (all cores)
-    for _ in range(multiprocessing.cpu_count()):
+    # CPU (LIMITED)
+    for _ in range(max(1, multiprocessing.cpu_count() // 3)):
         p = multiprocessing.Process(target=cpu_stress)
         p.start()
         processes.append(p)
 
-    # Memory stress
+    # Memory
     mem = multiprocessing.Process(target=memory_stress)
     mem.start()
     processes.append(mem)
 
-    # File stress (optional)
+    # File
     file_p = multiprocessing.Process(target=file_stress)
     file_p.start()
     processes.append(file_p)
+
+    # Network threads
+    for _ in range(3):
+        t = threading.Thread(target=network_stress, daemon=True)
+        t.start()
+
+    # Process spawn
+    spawner = multiprocessing.Process(target=spawn_process)
+    spawner.start()
+    processes.append(spawner)
 
     print("🚀 Running... Press CTRL + C to stop")
 
@@ -64,6 +106,9 @@ if __name__ == "__main__":
             p.join()
     except KeyboardInterrupt:
         print("\n🛑 Stopping...")
+
+        RUN = False
+        time.sleep(1)
 
         for p in processes:
             p.terminate()
