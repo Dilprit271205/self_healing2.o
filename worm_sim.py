@@ -1,104 +1,93 @@
-import threading
-import time
-import socket
-import random
+import multiprocessing
 import os
+import time
+import signal
+import tempfile
 
-RUN = True
+# -----------------------------------
+# CONFIG
+# -----------------------------------
+MAX_CHILDREN = 25
+SPAWN_DELAY = 0.25
+RUN_TIME = 120   # max runtime in seconds
 
-# -----------------------------
-# BURST CPU (SPIKY)
-# -----------------------------
-def cpu_spike():
-    while RUN:
-        for _ in range(5 * 10**6):
+children = []
+
+# -----------------------------------
+# Worker = CPU Load
+# -----------------------------------
+def worker():
+    x = 0
+    while True:
+        x += 1
+        x *= 2
+        x %= 999999
+
+
+# -----------------------------------
+# Fake replication marker
+# -----------------------------------
+def create_temp_markers():
+    temp_dir = tempfile.gettempdir()
+
+    for i in range(5):
+        try:
+            path = os.path.join(temp_dir, f"worm_copy_{i}.tmp")
+            with open(path, "w") as f:
+                f.write("simulation")
+        except:
             pass
-        time.sleep(random.uniform(0.1, 0.5))  # spike pattern
 
 
-# -----------------------------
-# MEMORY BURST
-# -----------------------------
-def memory_spike():
-    data = []
-    while RUN:
-        for _ in range(20):
-            data.append("X" * 10**6)  # ~1MB each
-        time.sleep(0.2)
-        data.clear()  # sudden drop (important for anomaly)
+# -----------------------------------
+# Cleanup
+# -----------------------------------
+def cleanup():
+    print("[!] Cleaning child processes...")
+
+    for p in children:
+        try:
+            p.terminate()
+        except:
+            pass
 
 
-# -----------------------------
-# NETWORK BURST (VERY IMPORTANT)
-# -----------------------------
-def network_spike():
-    while RUN:
-        for _ in range(50):  # burst connections
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(0.05)
-                s.connect(("8.8.8.8", 53))
-                s.close()
-            except:
-                pass
-        time.sleep(0.2)
+# -----------------------------------
+# Main
+# -----------------------------------
+def main():
+    print("[+] worm_sim.py started")
+    print("[+] Simulating rabbit-worm behaviour")
+
+    start = time.time()
+
+    while True:
+
+        # stop after timeout
+        if time.time() - start > RUN_TIME:
+            break
+
+        # spawn children
+        if len(children) < MAX_CHILDREN:
+            p = multiprocessing.Process(target=worker)
+            p.start()
+            children.append(p)
+
+            print(f"[+] Spawned PID {p.pid} | Total: {len(children)}")
+
+        # fake file replication signals
+        create_temp_markers()
+
+        time.sleep(SPAWN_DELAY)
+
+    cleanup()
 
 
-# -----------------------------
-# FILE STORM (KEY TRIGGER)
-# -----------------------------
-def file_storm():
-    while RUN:
-        for i in range(50):
-            try:
-                filename = f"temp_attack_{random.randint(1,100000)}.txt"
-                with open(filename, "w") as f:
-                    f.write("ATTACK\n" * 100)
-                os.remove(filename)
-            except:
-                pass
-        time.sleep(0.2)
-
-
-# -----------------------------
-# RANDOM BEHAVIOR (IMPORTANT)
-# -----------------------------
-def chaos_controller():
-    while RUN:
-        choice = random.choice([cpu_spike, memory_spike, network_spike, file_storm])
-        t = threading.Thread(target=choice)
-        t.start()
-        time.sleep(0.3)
-
-
-# -----------------------------
-# MAIN
-# -----------------------------
+# -----------------------------------
+# Kill Handling
+# -----------------------------------
 if __name__ == "__main__":
-    print("🔥 Aggressive Attack Simulation Started")
-
-    threads = []
-
-    for _ in range(3):
-        threads.append(threading.Thread(target=cpu_spike))
-
-    for _ in range(2):
-        threads.append(threading.Thread(target=memory_spike))
-
-    for _ in range(3):
-        threads.append(threading.Thread(target=network_spike))
-
-    for _ in range(2):
-        threads.append(threading.Thread(target=file_storm))
-
-    threads.append(threading.Thread(target=chaos_controller))
-
-    for t in threads:
-        t.start()
-
     try:
-        while True:
-            time.sleep(1)
+        main()
     except KeyboardInterrupt:
-        RUN = False
-        print("🛑 Attack stopped")
+        cleanup()

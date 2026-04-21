@@ -1,207 +1,457 @@
 import streamlit as st
 import pandas as pd
-import ast
-
+import plotly.express as px
+import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh
 
-LOG_FILE = "logs/system_log.json"
+# ---------------------------------------------------
+# FILES
+# ---------------------------------------------------
+PROCESS_LOG = "logs/system_log.json"
+ENTITY_LOG = "logs/entity_log.json"
 
-# ---------------------------
+IGNORE_ROOTS = [1, 2]
+
+# ---------------------------------------------------
 # CONFIG
-# ---------------------------
-st.set_page_config(page_title="Cyber Defense Dashboard", layout="wide")
+# ---------------------------------------------------
+st.set_page_config(
+    page_title="Cyber Defense Command Center",
+    layout="wide"
+)
 
-# ✅ Balanced refresh (no lag)
-st_autorefresh(interval=5000, key="refresh")
+st_autorefresh(interval=3000, key="refresh")
 
 st.title("🛡️ Self-Healing Cyber Defense System")
+st.caption("Executive Cyber Resilience Dashboard")
 
-# ---------------------------
-# LOAD DATA
-# ---------------------------
-@st.cache_data(ttl=5)
-def load_logs():
+# ---------------------------------------------------
+# LOADERS
+# ---------------------------------------------------
+@st.cache_data(ttl=3)
+def load_process_logs():
     try:
-        df = pd.read_json(LOG_FILE, lines=True)
-        return df.tail(300)
+        return pd.read_json(PROCESS_LOG, lines=True).tail(4000)
     except:
         return pd.DataFrame()
 
-df = load_logs()
+
+@st.cache_data(ttl=3)
+def load_entity_logs():
+    try:
+        return pd.read_json(ENTITY_LOG, lines=True).tail(4000)
+    except:
+        return pd.DataFrame()
+
+
+df = load_process_logs()
+entity_df = load_entity_logs()
 
 if df.empty:
-    st.warning("No logs yet...")
+    st.warning("No logs found.")
     st.stop()
 
-# ---------------------------
+# ---------------------------------------------------
 # CLEAN
-# ---------------------------
-df = df[df["pid"].notnull()]
+# ---------------------------------------------------
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-latest = df.sort_values("timestamp").groupby("pid").tail(1)
-latest = latest.reset_index(drop=True)
+latest = (
+    df.sort_values("timestamp")
+    .groupby("pid")
+    .tail(1)
+    .reset_index(drop=True)
+)
 
-# ---------------------------
-# EXPAND JSON
-# ---------------------------
-trust_expanded = pd.json_normalize(latest["trust"])
-anomaly_expanded = pd.json_normalize(latest["anomalies"])
+# ---------------------------------------------------
+# EXPAND TRUST / ANOMALIES
+# ---------------------------------------------------
+if "trust" in latest.columns:
+    try:
+        trust_df = pd.json_normalize(latest["trust"])
+        latest = pd.concat([latest, trust_df], axis=1)
+    except:
+        pass
 
-latest = pd.concat([latest, trust_expanded, anomaly_expanded], axis=1)
+if "anomalies" in latest.columns:
+    try:
+        anom_df = pd.json_normalize(latest["anomalies"])
+        latest = pd.concat([latest, anom_df], axis=1)
+    except:
+        pass
+
 latest = latest.loc[:, ~latest.columns.duplicated()]
 
-# ---------------------------
-# ACTION LEVEL
-# ---------------------------
-def get_level(action):
+# ---------------------------------------------------
+# SAFE DEFAULTS
+# ---------------------------------------------------
+defaults = {
+    "final_trust": 1.0,
+    "cmdline": "",
+    "worm_score": 0,
+    "f_proc_spawn": 0,
+    "f_proc_tree": 0,
+    "f_process_trend": 0,
+    "cpu": 0,
+    "memory": 0,
+    "connections": 0,
+    "file_events": 0
+}
+
+for col, val in defaults.items():
+    if col not in latest.columns:
+        latest[col] = val
+
+# ---------------------------------------------------
+# SAFE SYSTEM LIST
+# ---------------------------------------------------
+SAFE_SYSTEM = [
+    "chrome", "chrome_crashpad_handler",
+    "kdeconnectd", "code", "firefox",
+    "discord", "slack", "teams",
+    "streamlit",
+    "systemd", "kthreadd", "kworker",
+    "dnsmasq", "gdm", "gdm3",
+    "gdm-session-worker",
+    "sshd", "sd-pam",
+    "fusermount", "pipewire",
+    "dbus", "networkmanager",
+    "gnome-keyring",
+    "mariadb", "mariadbd",
+    "packagekit", "polkit",
+    "prometheus",
+    "python3"
+]
+
+# ---------------------------------------------------
+# FINAL CLASSIFIER
+# ---------------------------------------------------
+def classify(row):
     try:
-        if isinstance(action, dict):
-            return action.get("level", "normal")
-        if isinstance(action, str):
-            return ast.literal_eval(action).get("level", "normal")
+        name = str(row["name"]).lower()
+
+        trust = float(row["final_trust"])
+        worm = float(row["worm_score"])
+        spawn = float(row["f_proc_spawn"])
+        trend = float(row["f_process_trend"])
+        tree = float(row["f_proc_tree"])
+        cpu = float(row["cpu"])
+        mem = float(row["memory"])
+
+        safe = any(app in name for app in SAFE_SYSTEM)
+
+        idle = (
+            cpu <= 0.1 and
+            mem < 0.20 and
+            worm < 25 and
+            spawn == 0
+        )
+
+        if idle:
+            return "normal"
+
+        # SAFE APPS
+        if safe:
+            if (
+                worm > 90 or
+                (spawn > 10 and trend > 0) or
+                tree > 250
+            ):
+                return "critical"
+
+            elif (
+                worm > 70 or
+                trust < 0.18
+            ):
+                return "watchlist"
+
+            else:
+                return "normal"
+
+        # UNKNOWN APPS
+        if (
+            worm > 80 or
+            trust < 0.15
+        ):
+            return "critical"
+
+        elif (
+            worm > 45 or
+            trust < 0.30
+        ):
+            return "watchlist"
+
+        return "normal"
+
     except:
         return "normal"
-    return "normal"
 
-latest["level"] = latest["actions"].apply(get_level)
 
-suspicious = latest[latest["level"] == "suspicious"]
+latest["level"] = latest.apply(classify, axis=1)
+
 critical = latest[latest["level"] == "critical"]
+watchlist = latest[latest["level"] == "watchlist"]
+normal = latest[latest["level"] == "normal"]
 
-# ---------------------------
-# KPIs
-# ---------------------------
-col1, col2, col3, col4, col5 = st.columns(5)
+# ---------------------------------------------------
+# HEALTH SCORE (FINAL FIXED LOGIC)
+# ---------------------------------------------------
+total = len(latest)
 
-col1.metric("💻 Avg CPU", f"{round(latest['cpu'].mean(), 2)}%")
-col2.metric("🧠 Avg Memory", f"{round(latest['memory'].mean(), 2)}%")
-col3.metric("🚨 Threats", len(latest[latest["level"] != "normal"]))
-col4.metric("⚙️ Processes", len(latest))
-col5.metric("🟢 Health", f"{round(latest['final_trust'].mean()*100, 2)}%")
+critical_count = len(critical)
+watch_count = len(watchlist)
+
+if total == 0:
+    health_score = 100
+
+else:
+    # weighted penalties
+    critical_penalty = (critical_count / total) * 70
+    watch_penalty = (watch_count / total) * 25
+
+    # average trust effect (small influence only)
+    avg_trust = latest["final_trust"].mean() * 10
+
+    health_score = (
+        100
+        - critical_penalty
+        - watch_penalty
+        - (10 - avg_trust)
+    )
+
+    health_score = round(
+        max(0, min(100, health_score)),
+        2
+    )
+
+# ---------------------------------------------------
+# KPI
+# ---------------------------------------------------
+c1, c2, c3, c4, c5 = st.columns(5)
+
+c1.metric("⚙️ Active Processes", len(latest))
+c2.metric("🚨 Risk Processes", len(critical) + len(watchlist))
+c3.metric("🔥 Avg CPU", round(latest["cpu"].mean(), 2))
+c4.metric("🧠 Avg Memory", round(latest["memory"].mean(), 2))
+c5.metric("🟢 Health", f"{health_score}%")
 
 st.markdown("---")
 
-# ---------------------------
-# GLOBAL TRENDS (FIXED)
-# ---------------------------
-col1, col2 = st.columns(2)
+# ---------------------------------------------------
+# VISUALS
+# ---------------------------------------------------
+v1, v2 = st.columns(2)
 
-df_sorted = df.sort_values("timestamp")
+with v1:
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=health_score,
+        title={"text": "System Health"},
+        gauge={"axis": {"range": [0, 100]}}
+    ))
 
-with col1:
-    st.subheader("🔥 CPU Load Over Time")
-    st.line_chart(df_sorted.set_index("timestamp")["cpu"])
+    st.plotly_chart(fig, width="stretch")
 
-with col2:
-    st.subheader("🧠 Memory Usage Over Time")
-    st.line_chart(df_sorted.set_index("timestamp")["memory"])
+with v2:
+    counts = latest["level"].value_counts()
 
-# ---------------------------
-# TRUST DISTRIBUTION
-# ---------------------------
-st.subheader("🧠 Trust Score Distribution")
-st.bar_chart(latest[["static_trust", "dynamic_trust", "final_trust"]])
-
-# ---------------------------
-# PROCESS TABLE
-# ---------------------------
-st.subheader("📊 Process Trust Table")
-
-display_cols = [
-    "pid", "name",
-    "cpu", "memory",
-    "connections", "file_events",
-    "static_trust", "dynamic_trust", "final_trust"
-]
-
-def highlight(row):
-    if row["final_trust"] < 0.4:
-        return ["background-color: rgba(255,0,0,0.3)"] * len(row)
-    elif row["final_trust"] < 0.7:
-        return ["background-color: rgba(255,165,0,0.3)"] * len(row)
-    return [""] * len(row)
-
-try:
-    styled = latest[display_cols].sort_values("final_trust").style.apply(highlight, axis=1)
-    st.dataframe(styled, height=400, use_container_width=True)
-except:
-    st.dataframe(
-        latest[display_cols].sort_values("final_trust"),
-        height=400,
-        use_container_width=True
+    fig = px.pie(
+        values=counts.values,
+        names=counts.index,
+        title="Risk Distribution"
     )
 
-# ---------------------------
-# ALERT PANEL
-# ---------------------------
-st.subheader("🚨 Threat Monitor")
+    st.plotly_chart(fig, width="stretch")
 
-if not critical.empty:
-    for _, row in critical.iterrows():
-        st.error(f"🔥 CRITICAL | PID {row['pid']} ({row['name']}) | Trust: {row['final_trust']}")
+# ---------------------------------------------------
+# TABS
+# ---------------------------------------------------
+tab1, tab2, tab3 = st.tabs([
+    "💻 Operations",
+    "🧬 Threat Intelligence",
+    "🐇 Worm Lab"
+])
 
-if not suspicious.empty:
-    for _, row in suspicious.iterrows():
-        st.warning(f"⚠️ SUSPICIOUS | PID {row['pid']} ({row['name']}) | Trust: {row['final_trust']}")
+# ===================================================
+# TAB 1
+# ===================================================
+with tab1:
 
-if critical.empty and suspicious.empty:
-    st.success("✅ System Stable")
+    st.subheader("📊 Process Trust Table")
 
-# ---------------------------
-# PROCESS ANALYTICS
-# ---------------------------
-st.subheader("📈 Process Deep Dive")
+    cols = [
+        "pid", "name", "cpu", "memory",
+        "connections", "file_events",
+        "final_trust", "level"
+    ]
 
-pid_list = latest["pid"].tolist()
-selected_pid = st.selectbox("Select Process", pid_list)
+    cols = [c for c in cols if c in latest.columns]
 
-proc_df = df[df["pid"] == selected_pid].sort_values("timestamp")
+    st.dataframe(
+        latest[cols].sort_values("final_trust"),
+        width="stretch",
+        height=520
+    )
 
-if not proc_df.empty:
-    trust_df = pd.json_normalize(proc_df["trust"])
-    trust_df.index = proc_df["timestamp"]
+    st.subheader("🔥 Top CPU Consumers")
 
-    anomaly_df = pd.json_normalize(proc_df["anomalies"])
-    anomaly_df.index = proc_df["timestamp"]
+    top_cpu = latest.sort_values(
+        "cpu",
+        ascending=False
+    ).head(10)
 
-    col1, col2 = st.columns(2)
+    fig = px.bar(
+        top_cpu,
+        x="name",
+        y="cpu",
+        color="cpu"
+    )
 
-    with col1:
-        st.subheader("CPU Trend")
-        st.line_chart(proc_df.set_index("timestamp")["cpu"])
+    st.plotly_chart(fig, width="stretch")
 
-    with col2:
-        st.subheader("Memory Trend")
-        st.line_chart(proc_df.set_index("timestamp")["memory"])
+# ===================================================
+# TAB 2
+# ===================================================
+with tab2:
 
-    col1, col2 = st.columns(2)
+    st.subheader("🧬 Process Family Analysis")
 
-    with col1:
-        st.subheader("Trust Evolution")
-        st.line_chart(trust_df[["static_trust", "dynamic_trust", "final_trust"]])
+    if entity_df.empty:
+        st.info("No entity logs found.")
 
-    with col2:
-        st.subheader("Anomaly Signals")
-        st.line_chart(anomaly_df)
+    else:
+        entity_df["timestamp"] = pd.to_datetime(
+            entity_df["timestamp"]
+        )
 
-# ---------------------------
-# DEEP INSPECTION
-# ---------------------------
-st.subheader("🔍 Deep Inspection")
+        fam = (
+            entity_df.sort_values("timestamp")
+            .groupby("entity_root")
+            .tail(1)
+        )
 
-if not proc_df.empty:
-    latest_row = proc_df.iloc[-1]
+        fam = fam[
+            ~fam["entity_root"].isin(IGNORE_ROOTS)
+        ]
 
-    st.json({
-        "features": {
-            "cpu": latest_row["cpu"],
-            "memory": latest_row["memory"],
-            "connections": latest_row["connections"],
-            "file_events": latest_row["file_events"],
-            "static_trust": latest_row["trust"]["static_trust"]
-        },
-        "anomalies": latest_row["anomalies"],
-        "trust": latest_row["trust"],
-        "actions": latest_row["actions"]
-    })
+        st.dataframe(
+            fam[[
+                "entity_root",
+                "children_count"
+            ]].sort_values(
+                "children_count",
+                ascending=False
+            ),
+            width="stretch",
+            height=420
+        )
+
+        fig = px.bar(
+            fam.sort_values(
+                "children_count",
+                ascending=False
+            ).head(10),
+            x="entity_root",
+            y="children_count",
+            title="Largest Families"
+        )
+
+        st.plotly_chart(fig, width="stretch")
+
+# ===================================================
+# TAB 3
+# ===================================================
+with tab3:
+
+    st.subheader("🐇 Worm Simulation & Attack Lab")
+
+    st.info(
+        "Only worm_sim.py or correlated "
+        "spawn + growth + trust collapse "
+        "is flagged."
+    )
+
+    latest["name_lower"] = (
+        latest["name"]
+        .astype(str)
+        .str.lower()
+    )
+
+    suspects = latest[
+        (
+            latest["cmdline"]
+            .astype(str)
+            .str.contains(
+                "worm_sim.py|stress.py",
+                case=False,
+                na=False
+            )
+        )
+        |
+        (
+            (latest["f_proc_spawn"] > 10)
+            &
+            (latest["f_process_trend"] > 0)
+            &
+            (latest["worm_score"] > 80)
+        )
+    ].sort_values(
+        "worm_score",
+        ascending=False
+    )
+
+    a, b, c = st.columns(3)
+
+    a.metric("🐇 Active Worm Signals", len(suspects))
+
+    b.metric(
+        "⚠️ Highest Worm Score",
+        round(
+            suspects["worm_score"].max(),
+            2
+        ) if not suspects.empty else 0
+    )
+
+    c.metric(
+        "🛡️ Containment",
+        "ACTIVE" if not suspects.empty else "STABLE"
+    )
+
+    st.markdown("---")
+
+    if suspects.empty:
+        st.success("✅ No active worm signatures.")
+        st.info("Run worm_sim.py to simulate.")
+
+    else:
+        st.error("🚨 Worm replication detected")
+
+        cols = [
+            "pid", "name",
+            "worm_score",
+            "f_proc_spawn",
+            "f_proc_tree",
+            "f_process_trend",
+            "final_trust"
+        ]
+
+        cols = [
+            c for c in cols
+            if c in suspects.columns
+        ]
+
+        st.dataframe(
+            suspects[cols],
+            width="stretch",
+            height=350
+        )
+
+        fig = px.bar(
+            suspects.head(10),
+            x="name",
+            y="worm_score",
+            color="worm_score",
+            text="worm_score"
+        )
+
+        st.plotly_chart(fig, width="stretch")
