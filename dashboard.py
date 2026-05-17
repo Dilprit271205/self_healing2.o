@@ -266,16 +266,20 @@ with v2:
 # ---------------------------------------------------
 # TABS
 # ---------------------------------------------------
-tab1, tab2, tab3 = st.tabs([
-    "💻 Operations",
-    "🧬 Threat Intelligence",
-    "🐇 Worm Lab"
-])
+page = st.radio(
+    "Navigation",
+    [
+        "💻 Operations",
+        "🧬 Threat Intelligence",
+        "🐇 Worm Lab"
+    ],
+    horizontal=True
+)
 
 # ===================================================
 # TAB 1
 # ===================================================
-with tab1:
+if page == "💻 Operations":
 
     st.subheader("📊 Process Trust Table")
 
@@ -312,7 +316,7 @@ with tab1:
 # ===================================================
 # TAB 2
 # ===================================================
-with tab2:
+elif page == "🧬 Threat Intelligence":
 
     st.subheader("🧬 Process Family Analysis")
 
@@ -361,7 +365,7 @@ with tab2:
 # ===================================================
 # TAB 3
 # ===================================================
-with tab3:
+elif page == "🐇 Worm Lab":
 
     st.subheader("🐇 Worm Simulation & Attack Lab")
 
