@@ -42,13 +42,13 @@ SAFE_SYSTEM = [
     "dbus-daemon", "networkmanager",
     "pipewire", "pulseaudio",
     "chrome", "firefox", "code",
-    "kdeconnectd", "streamlit",
-    "python3"
+    "kdeconnectd", "streamlit"
 ]
 
 TARGET_FILES = [
     "worm_sim.py",
-    "stress.py"
+    "stress.py",
+    "Test_Worm.py"
 ]
 
 
@@ -94,26 +94,56 @@ def should_kill_process(pid, proc_name, cmdline, worm_score):
         return False
 
     # Never kill trusted apps
+    explicit = any(
+        x.lower() in cmdline.lower()
+        for x in TARGET_FILES
+    )
+
     for safe in SAFE_SYSTEM:
-        if safe in proc_name:
+
+        # Allow test worms to bypass safe list
+        if safe in proc_name and not explicit:
             return False
 
     # Must belong to current user
     try:
-        owner = psutil.Process(pid).username()
+        proc = psutil.Process(pid)
+
+        owner = proc.username()
+
         if CURRENT_USER not in owner:
             return False
+
+        # ==================================
+        # NEW: detect child explosion
+        # ==================================
+        child_count = len(
+            proc.children(recursive=True)
+        )
+
+        # Instant kill trigger
+        if child_count >= 4:
+            print(
+                f"[SELF-HEAL] "
+                f"Fork-bomb behavior "
+                f"detected ({child_count} children)"
+            )
+            return True
+
     except:
         return False
 
     # Must explicitly be simulator file
-    explicit = any(x in cmdline for x in TARGET_FILES)
+    explicit = any(
+        x in cmdline
+        for x in TARGET_FILES
+    )
 
     if not explicit:
         return False
 
     # Must actually look malicious
-    if worm_score < 18:
+    if worm_score < 8:
         return False
 
     return True
@@ -249,6 +279,12 @@ def monitor_loop():
                     ):
 
                         killed = terminate_process_tree(pid)
+
+                        print(
+                            f"[SELF-HEAL] "
+                            f"Killed PID {pid} "
+                            f"({proc_name}) -> {killed}"
+                        )
 
                         updated_trust["final_trust"] = 0.0
 
