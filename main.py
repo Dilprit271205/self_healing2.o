@@ -121,8 +121,13 @@ def should_kill_process(pid, proc_name, cmdline, worm_score):
             proc.children(recursive=True)
         )
 
-        # Instant kill trigger
-        if child_count >= 4:
+        # Only suspicious if explicitly a test worm
+        explicit = any(
+            x.lower() in cmdline.lower()
+            for x in TARGET_FILES
+        )
+
+        if explicit and child_count >= 15:
             print(
                 f"[SELF-HEAL] "
                 f"Fork-bomb behavior "
@@ -144,6 +149,9 @@ def should_kill_process(pid, proc_name, cmdline, worm_score):
 
     # Must actually look malicious
     if worm_score < 8:
+        return False
+    
+    if child_count < 15:
         return False
 
     return True
