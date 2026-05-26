@@ -1,363 +1,715 @@
+# main.py
+
 import time
 import threading
-import psutil
-import getpass
+import traceback
 
-from monitor.process_monitor import get_process_data
-from monitor.network_monitor import get_network_data
-from monitor.file_monitor import start_file_monitor
-from monitor.lineage import ProcessLineageTracker
-
-from utils.connection_mapper import map_connections
-from utils.file_event_mapper import get_file_map
-
-from analysis.feature_extractor import extract_features
-
-from analysis.anomaly.cpu_anomaly import cpu_anomaly
-from analysis.anomaly.file_anomaly import file_anomaly
-from analysis.anomaly.network_anomaly import network_anomaly
-
-from analysis.trust.trust_vector import (
-    initialize_trust,
-    get_trust,
-    trust_db
+# ===================================================
+# ANALYSIS ENGINES
+# ===================================================
+from analysis.extractor_engine import (
+    ExtractorEngine
 )
 
-from analysis.trust.trust_update import update_trust
+from analysis.detector_engine import (
+    DetectorEngine
+)
 
-from analysis.decision.decision_engine import decide_action
+from analysis.trust_engine import (
+    TrustEngine
+)
 
-from logger.logger import log_process, log_entity
+from analysis.worm_classifier import (
+    WormClassifier
+)
 
+from analysis.persistence_engine import (
+    PersistenceEngine
+)
 
-# =====================================================
-# SAFE CONFIG
-# =====================================================
-CURRENT_USER = getpass.getuser()
+# ===================================================
+# MONITORS
+# ===================================================
+from monitor.process_monitor import (
+    get_process_data
+)
 
-SAFE_SYSTEM = [
-    "systemd", "kthreadd", "kworker",
-    "plasmashell", "gnome-shell",
-    "xorg", "sddm", "gdm",
-    "dbus-daemon", "networkmanager",
-    "pipewire", "pulseaudio",
-    "chrome", "firefox", "code",
-    "kdeconnectd", "streamlit"
-]
+from monitor.lineage import (
+    ProcessLineageTracker
+)
 
-TARGET_FILES = [
-    "worm_sim.py",
-    "stress.py",
-    "Test_Worm.py"
-]
+from monitor.network_monitor import (
+    get_network_data
+)
 
+from monitor.file_monitor import (
+    start_file_monitor
+)
 
-# =====================================================
-# TERMINATE TREE
-# =====================================================
-def terminate_process_tree(pid):
+# ===================================================
+# UTILITIES
+# ===================================================
+from utils.connection_mapper import (
+    map_connections
+)
+
+# ===================================================
+# LOGGER
+# ===================================================
+from logger.logger import (
+    log_process,
+    log_entity
+)
+
+# ===================================================
+# CONFIG
+# ===================================================
+MONITOR_INTERVAL = 6
+SYSTEM_SAFE_PIDS = {
+    0,
+    1
+}
+
+# ===================================================
+# ENGINE INIT
+# ===================================================
+extractor = ExtractorEngine()
+
+detector = DetectorEngine()
+
+trust_engine = TrustEngine()
+
+worm_classifier = WormClassifier()
+
+persistence_engine = (
+    PersistenceEngine()
+)
+
+lineage_tracker = (
+    ProcessLineageTracker()
+)
+
+# ===================================================
+# FILE MONITOR THREAD
+# ===================================================
+def start_background_monitors():
+
     try:
-        parent = psutil.Process(pid)
 
-        children = parent.children(recursive=True)
+        thread = threading.Thread(
 
-        for child in children:
-            try:
-                child.kill()
-            except:
-                pass
+            target=start_file_monitor,
 
-        for child in children:
-            try:
-                child.wait(timeout=1)
-            except:
-                pass
+            kwargs={
+                "path": "."
+            },
 
-        try:
-            parent.kill()
-        except:
-            pass
-
-        return True
-
-    except:
-        return False
-
-
-# =====================================================
-# SAFE DEFENCE POLICY
-# =====================================================
-def should_kill_process(pid, proc_name, cmdline, worm_score):
-
-    # Never touch kernel/system pids
-    if pid in [0, 1, 2]:
-        return False
-
-    # Never kill trusted apps
-    explicit = any(
-        x.lower() in cmdline.lower()
-        for x in TARGET_FILES
-    )
-
-    for safe in SAFE_SYSTEM:
-
-        # Allow test worms to bypass safe list
-        if safe in proc_name and not explicit:
-            return False
-
-    # Must belong to current user
-    try:
-        proc = psutil.Process(pid)
-
-        owner = proc.username()
-
-        if CURRENT_USER not in owner:
-            return False
-
-        # ==================================
-        # NEW: detect child explosion
-        # ==================================
-        child_count = len(
-            proc.children(recursive=True)
+            daemon=True
         )
 
-        # Only suspicious if explicitly a test worm
-        explicit = any(
-            x.lower() in cmdline.lower()
-            for x in TARGET_FILES
+        thread.start()
+
+        print(
+            "📂 File monitor started"
         )
 
-        if explicit and child_count >= 15:
-            print(
-                f"[SELF-HEAL] "
-                f"Fork-bomb behavior "
-                f"detected ({child_count} children)"
+    except Exception as e:
+
+        print(
+            f"File monitor failed: {e}"
+        )
+
+# ===================================================
+# ENTITY LOGGER
+# ===================================================
+def log_entities():
+
+    try:
+
+        entity_summary = (
+
+            lineage_tracker
+            .get_entity_summary()
+        )
+
+        for entity in entity_summary:
+
+            log_entity(
+                entity
             )
-            return True
 
-    except:
-        return False
+    except Exception as e:
 
-    # Must explicitly be simulator file
-    explicit = any(
-        x in cmdline
-        for x in TARGET_FILES
-    )
+        print(
+            f"Entity logging error: {e}"
+        )
 
-    if not explicit:
-        return False
-
-    # Must actually look malicious
-    if worm_score < 8:
-        return False
-    
-    if child_count < 15:
-        return False
-
-    return True
-
-
-# =====================================================
-# IGNORE BACKGROUND / IDLE PROCESSES
-# prevents trust collapse on sleeping daemons
-# =====================================================
-def is_idle_process(process):
-    cpu = process.get("cpu", 0)
-    mem = process.get("memory", 0)
-
-    if cpu <= 0.0 and mem < 0.08:
-        return True
-
-    return False
-
-
-# =====================================================
+# ===================================================
 # MAIN LOOP
-# =====================================================
+# ===================================================
 def monitor_loop():
 
-    tracker = ProcessLineageTracker()
+    print(
+        "\n🛡 Self-Healing Cyber Defense Started"
+    )
 
     while True:
 
         try:
-            processes = get_process_data()
-            network = get_network_data()
 
-            process_map = {p["pid"]: p for p in processes}
-            entities = tracker.build_entities()
+            # =====================================
+            # LIVE DATA COLLECTION
+            # =====================================
+            processes = (
+                get_process_data()
+            )
 
-            active_pids = set(process_map.keys())
+            network_data = (
+                get_network_data()
+            )
 
-            # clean dead trust states
-            for pid in list(trust_db.keys()):
-                if pid not in active_pids:
-                    del trust_db[pid]
+            connection_map = (
+                map_connections(
+                    network_data
+                )
+            )
 
-            connection_map = map_connections(network)
-            file_map = get_file_map()
+            # =====================================
+            # BUILD ENTITY MAP
+            # =====================================
+            entity_map = {}
 
-            for root_pid, members in entities.items():
+            entities = (
 
-                member_pids = [m["pid"] for m in members]
+                lineage_tracker
+                .build_entities()
+            )
 
-                log_entity({
-                    "entity_root": root_pid,
-                    "children_count": len(members),
-                    "member_pids": member_pids
-                })
+            for (
+                root,
+                members
+            ) in entities.items():
 
-                for member in members:
+                for proc in members:
 
-                    pid = member["pid"]
+                    entity_map[
+                        proc["pid"]
+                    ] = members
 
-                    if pid not in process_map:
-                        continue
+            # =====================================
+            # ENTITY LOGGING
+            # =====================================
+            log_entities()
 
-                    process = process_map[pid]
+            # =====================================
+            # PROCESS PIPELINE
+            # =====================================
+            for process in processes:
 
-                    process["children_count"] = len(members)
-                    process["threads"] = len(members)
+                try:
 
-                    initialize_trust(pid)
-
-                    features = extract_features(
-                        process,
-                        connection_map,
-                        file_map
+                    pid = process.get(
+                        "pid"
                     )
 
-                    current_trust = get_trust(pid)
-
-                    # -------------------------------------
-                    # Skip idle daemons (heal naturally)
-                    # -------------------------------------
-                    if is_idle_process(process):
-
-                        actions = {
-                            "level": "normal",
-                            "action": "monitor",
-                            "message": "Idle process"
-                        }
-
-                        log_process({
-                            **features,
-                            "pid": pid,
-                            "name": process["name"],
-                            "entity_root": root_pid,
-                            "children_count": len(members),
-                            "anomalies": {},
-                            "trust": current_trust,
-                            "actions": actions
-                        })
-
-                        continue
-
-                    # -------------------------------------
-                    # REAL ANOMALIES
-                    # -------------------------------------
-                    anomalies = {
-                        "cpu": cpu_anomaly(features["cpu"]),
-                        "file": file_anomaly(features["file_events"]),
-                        "net": network_anomaly(features["connections"]),
-                        "spawn": 1 if features["f_proc_spawn"] > 3 else 0,
-                        "tree": 1 if features["f_proc_tree"] > 20 else 0,
-                        "trend": 1 if features["f_process_trend"] > 0 else 0
-                    }
-
-                    updated_trust = update_trust(
-                        pid=pid,
-                        current_trust=current_trust,
-                        anomalies=anomalies,
-                        static_score=features["static_trust"]
-                    )
-
-                    proc_name = str(process["name"]).lower()
-                    cmdline = str(features.get("cmdline", "")).lower()
-                    worm_score = float(features.get("worm_score", 0))
-
-                    # -------------------------------------
-                    # AUTO RESPONSE
-                    # -------------------------------------
-                    if should_kill_process(
-                        pid,
-                        proc_name,
-                        cmdline,
-                        worm_score
+                    if (
+                        pid
+                        in
+                        SYSTEM_SAFE_PIDS
                     ):
 
-                        killed = terminate_process_tree(pid)
-
-                        print(
-                            f"[SELF-HEAL] "
-                            f"Killed PID {pid} "
-                            f"({proc_name}) -> {killed}"
-                        )
-
-                        updated_trust["final_trust"] = 0.0
-
-                        actions = {
-                            "level": "critical",
-                            "action": "terminate_process_tree",
-                            "message": "Simulator worm neutralized"
-                        }
-
-                        log_process({
-                            **features,
-                            "pid": pid,
-                            "name": process["name"],
-                            "entity_root": root_pid,
-                            "children_count": len(members),
-                            "anomalies": anomalies,
-                            "trust": updated_trust,
-                            "actions": actions,
-                            "auto_defence": (
-                                "SUCCESS"
-                                if killed else
-                                "FAILED"
-                            )
-                        })
-
                         continue
 
-                    # -------------------------------------
-                    # NORMAL DECISION
-                    # -------------------------------------
-                    actions = decide_action(updated_trust)
+                    # -------------------------
+                    # FEATURE EXTRACTION
+                    # -------------------------
+                    features = (
+                        extractor.extract(
 
+                            process=
+                            process,
+
+                            entity_map=
+                            entity_map,
+
+                            connection_map=
+                            connection_map
+                        )
+                    )
+
+                    # -------------------------
+                    # DETECTOR
+                    # -------------------------
+                    anomaly_data = (
+
+                        detector.detect(
+                            pid,
+                            features
+                        )
+                    )
+
+                    anomaly_vector = (
+                        anomaly_data[
+                            "anomalies"
+                        ]
+                    )
+
+                    # -------------------------
+                    # STATIC TRUST
+                    # temporary fallback
+                    # until static analyzer
+                    # fully integrated
+                    # -------------------------
+                    static_score = (
+                        1.0
+                    )
+
+                    # -------------------------
+                    # TRUST ENGINE
+                    # -------------------------
+                    trust_state = (
+
+                        trust_engine
+                        .update(
+
+                            pid=
+                            pid,
+
+                            anomaly_vector=
+                            anomaly_vector,
+
+                            static_score=
+                            static_score
+                        )
+                    )
+
+                    # -------------------------
+                    # WORM CLASSIFIER
+                    # -------------------------
+                    classification = (
+
+                        worm_classifier
+                        .classify(
+
+                            features=
+                            features,
+
+                            anomaly_data=
+                            anomaly_data,
+
+                            trust_state=
+                            trust_state
+                        )
+                    )
+
+                    # -------------------------
+                    # PERSISTENCE
+                    # -------------------------
+                    persistence_engine.update(
+
+                        pid=
+                        pid,
+
+                        classification=
+                        classification,
+
+                        trust_state=
+                        trust_state
+                    )
+
+                    persistence_state = (
+
+                        persistence_engine
+                        .check_persistence(
+                            pid
+                        )
+                    )
+
+                    # -------------------------
+                    # ADAPTIVE HEALING
+                    # -------------------------
+                    healing_result = (
+
+                        execute_healing(
+
+                            pid=
+                            pid,
+
+                            process=
+                            process,
+
+                            classification=
+                            classification,
+
+                            persistence_state=
+                            persistence_state,
+
+                            trust_state=
+                            trust_state
+                        )
+                    )
+
+                    response_result = (
+                        healing_result[
+                            "response"
+                        ]
+                    )
+
+                    learning_state = (
+                        healing_result[
+                            "learning"
+                        ]
+                    )
+
+                    # -------------------------
+                    # PROCESS LOGGER
+                    # dashboard compatible
+                    # -------------------------
                     log_process({
-                        **features,
-                        "pid": pid,
-                        "name": process["name"],
-                        "entity_root": root_pid,
-                        "children_count": len(members),
-                        "anomalies": anomalies,
-                        "trust": updated_trust,
-                        "actions": actions
+
+                        "pid":
+                            pid,
+
+                        "name":
+                            process.get(
+                                "name",
+                                "unknown"
+                            ),
+
+                        "entity_root":
+                            process.get(
+                                "ppid",
+                                0
+                            ),
+
+                        "trust":
+                            trust_state,
+
+                        "worm_score":
+                            classification[
+                                "worm_score"
+                            ],
+
+                        "confidence":
+                            classification[
+                                "confidence"
+                            ],
+
+                        "label":
+                            classification[
+                                "label"
+                            ],
+
+                        "severity":
+                            classification[
+                                "severity"
+                            ],
+
+                        "stage":
+                            response_result[
+                                "stage"
+                            ],
+
+                        "response":
+                            response_result[
+                                "status"
+                            ],
+
+                        "learning_state":
+                            learning_state,
+
+                        "anomalies":
+                            anomaly_vector,
+
+                        "features":
+                            features
                     })
 
-            time.sleep(1)
+                except Exception as e:
+
+                    print(
+                        f"Process error "
+                        f"{process.get('pid')}: "
+                        f"{e}"
+                    )
+
+            # -------------------------
+            # DEAD PID CLEANUP
+            # -------------------------
+            cleanup_dead_pids(
+                processes
+            )
+
+            # -------------------------
+            # LOOP DELAY
+            # -------------------------
+            time.sleep(
+                MONITOR_INTERVAL
+            )
 
         except KeyboardInterrupt:
-            print("Stopped by user.")
+
+            print(
+                "\n🛑 System stopped."
+            )
+
             break
 
-        except Exception as e:
-            print("Loop Error:", e)
-            time.sleep(1)
+        except Exception:
+
+            print(
+                traceback.format_exc()
+            )
+
+            time.sleep(3)
+# ===================================================
+# PART 2
+# HEALING + LEARNING RUNTIME
+# ===================================================
+
+from analysis.learning_engine import (
+    LearningEngine
+)
+
+from analysis.response_engine import (
+    ResponseEngine
+)
+
+from logger.logger import (
+    log_healing
+)
+
+# ===================================================
+# ENGINE INIT
+# ===================================================
+learning_engine = (
+    LearningEngine()
+)
+
+response_engine = (
+    ResponseEngine()
+)
+
+# ===================================================
+# DEAD PID TRACKER
+# prevents memory leak
+# ===================================================
+active_pids = set()
 
 
-# =====================================================
-# START
-# =====================================================
+# ===================================================
+# SAFE CLEANUP
+# ===================================================
+def cleanup_dead_pids(
+    live_processes
+):
+
+    global active_pids
+
+    try:
+
+        current_pids = {
+
+            p["pid"]
+            for p
+            in live_processes
+        }
+
+        dead = (
+            active_pids
+            -
+            current_pids
+        )
+
+        if len(dead):
+
+            print(
+
+                f"🧹 Cleaned "
+                f"{len(dead)} "
+                f"dead processes"
+            )
+
+        active_pids = (
+            current_pids
+        )
+
+    except Exception as e:
+
+        print(
+            f"Cleanup error: {e}"
+        )
+
+
+# ===================================================
+# HEALING EXECUTION
+# ===================================================
+def execute_healing(
+
+    pid,
+
+    process,
+
+    classification,
+
+    persistence_state,
+
+    trust_state
+):
+
+    try:
+
+        # --------------------------------
+        # LEARNING ADAPTATION
+        # slide 17–18
+        # --------------------------------
+        recommended_stage = (
+
+            learning_engine
+            .recommend_stage(
+
+                process_info=
+                process,
+
+                persistence_stage=
+                persistence_state[
+                    "stage"
+                ]
+            )
+        )
+
+        persistence_state[
+            "stage"
+        ] = (
+            recommended_stage
+        )
+
+        # --------------------------------
+        # RESPONSE ENGINE
+        # --------------------------------
+        response_result = (
+
+            response_engine
+            .execute(
+
+                pid=
+                pid,
+
+                process_info=
+                process,
+
+                persistence_state=
+                persistence_state
+            )
+        )
+
+        # --------------------------------
+        # LEARNING UPDATE
+        # --------------------------------
+        learning_engine.update(
+
+            pid=
+            pid,
+
+            process_info=
+            process,
+
+            classification=
+            classification,
+
+            response_result=
+            response_result,
+
+            trust_state=
+            trust_state
+        )
+
+        learning_state = (
+
+            learning_engine
+            .get_learning_state(
+                process
+            )
+        )
+
+        # --------------------------------
+        # HEALING LOGGER
+        # dashboard aligned
+        # --------------------------------
+        log_healing({
+
+            "pid":
+                pid,
+
+            "stage":
+                response_result[
+                    "stage"
+                ],
+
+            "action_taken":
+                response_result[
+                    "action_taken"
+                ],
+
+            "status":
+                response_result[
+                    "status"
+                ]
+        })
+
+        return {
+
+            "response":
+                response_result,
+
+            "learning":
+                learning_state
+        }
+
+    except Exception as e:
+
+        print(
+            f"Healing error "
+            f"{pid}: {e}"
+        )
+
+        return {
+
+            "response": {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "observe",
+
+                "action_taken":
+                    False,
+
+                "status":
+                    str(e)
+            },
+
+            "learning": {
+
+                "reputation":
+                    0.5,
+
+                "trust_level":
+                    "uncertain"
+            }
+        }
+
+
+
+
+# ===================================================
+# ENTRYPOINT
+# ===================================================
 if __name__ == "__main__":
 
-    file_thread = threading.Thread(
-        target=start_file_monitor,
-        args=(".",),
-        daemon=True
-    )
-
-    file_thread.start()
+    start_background_monitors()
 
     monitor_loop()
+
+

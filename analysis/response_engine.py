@@ -1,0 +1,511 @@
+# analysis/response_engine.py
+
+import psutil
+from collections import defaultdict
+
+
+class ResponseEngine:
+    """
+    PPT + review aligned
+    adaptive healing engine
+
+    Slide 16–17
+
+    Healing Flow:
+    observe
+    → restrict
+    → isolate
+    → block_resources
+    → terminate
+    → trust_recovery
+    """
+
+    def __init__(self):
+
+        self.response_history = (
+            defaultdict(list)
+        )
+
+        self.restricted_pids = set()
+        self.isolated_pids = set()
+
+    # -----------------------------------------
+    # MAIN RESPONSE ROUTER
+    # -----------------------------------------
+    def execute(
+        self,
+        pid,
+        process_info,
+        persistence_state
+    ):
+
+        stage = persistence_state.get(
+            "stage",
+            "observe"
+        )
+
+        result = {
+
+            "pid": pid,
+            "stage": stage,
+            "action_taken": False,
+            "status": "none"
+        }
+
+        try:
+
+            # ---------------------------------
+            # SAFE PROCESS FILTER
+            # prevents accidental
+            # system instability
+            # ---------------------------------
+            process_name = (
+                process_info.get(
+                    "name",
+                    ""
+                ).lower()
+            )
+
+            system_safe = [
+
+                "systemd",
+                "init",
+                "kernel",
+                "explorer.exe",
+                "svchost.exe"
+            ]
+
+            if process_name in system_safe:
+
+                return {
+
+                    "pid":
+                        pid,
+
+                    "stage":
+                        "protected",
+
+                    "action_taken":
+                        False,
+
+                    "status":
+                        "trusted process"
+                }
+
+            # ---------------------------------
+            # OBSERVE
+            # ---------------------------------
+            if stage == "observe":
+
+                result[
+                    "status"
+                ] = (
+                    "monitoring"
+                )
+
+            # ---------------------------------
+            # RESTRICT
+            # CPU throttling
+            # ---------------------------------
+            elif (
+                stage
+                == "restrict"
+            ):
+
+                result = (
+                    self.restrict_process(
+                        pid
+                    )
+                )
+
+            # ---------------------------------
+            # ISOLATE
+            # suspend process
+            # ---------------------------------
+            elif (
+                stage
+                == "isolate"
+            ):
+
+                result = (
+                    self.isolate_process(
+                        pid
+                    )
+                )
+
+            # ---------------------------------
+            # BLOCK RESOURCES
+            # stronger than isolate
+            # ---------------------------------
+            elif (
+                stage
+                ==
+                "block_resources"
+            ):
+
+                result = (
+                    self.block_resources(
+                        pid
+                    )
+                )
+
+            # ---------------------------------
+            # TERMINATE
+            # ---------------------------------
+            elif (
+                stage
+                == "terminate"
+            ):
+
+                result = (
+                    self.terminate_process(
+                        pid
+                    )
+                )
+
+            # ---------------------------------
+            # TRUST RECOVERY
+            # slide 17
+            # ---------------------------------
+            elif (
+                stage
+                ==
+                "trust_recovery"
+            ):
+
+                result = (
+                    self.resume_process(
+                        pid
+                    )
+                )
+
+            self.response_history[
+                pid
+            ].append(
+                result
+            )
+
+            return result
+
+        except Exception as e:
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    stage,
+
+                "action_taken":
+                    False,
+
+                "status":
+                    f"error: {e}"
+            }
+
+    # -----------------------------------------
+    # RESTRICT
+    # lower CPU impact
+    # -----------------------------------------
+    def restrict_process(
+        self,
+        pid
+    ):
+
+        try:
+
+            proc = psutil.Process(
+                pid
+            )
+
+            # lower priority
+            proc.nice(10)
+
+            # reduce CPU affinity
+            try:
+
+                cpu_count = len(
+                    proc.cpu_affinity()
+                )
+
+                if cpu_count > 1:
+
+                    proc.cpu_affinity(
+                        [0]
+                    )
+
+            except:
+                pass
+
+            self.restricted_pids.add(
+                pid
+            )
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "restrict",
+
+                "action_taken":
+                    True,
+
+                "status":
+                    (
+                        "priority throttled"
+                    )
+            }
+
+        except Exception as e:
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "restrict",
+
+                "action_taken":
+                    False,
+
+                "status":
+                    str(e)
+            }
+
+    # -----------------------------------------
+    # ISOLATE
+    # pause execution only
+    # -----------------------------------------
+    def isolate_process(
+        self,
+        pid
+    ):
+
+        try:
+
+            proc = psutil.Process(
+                pid
+            )
+
+            proc.suspend()
+
+            self.isolated_pids.add(
+                pid
+            )
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "isolate",
+
+                "action_taken":
+                    True,
+
+                "status":
+                    "temporarily isolated"
+            }
+
+        except Exception as e:
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "isolate",
+
+                "action_taken":
+                    False,
+
+                "status":
+                    str(e)
+            }
+
+    # -----------------------------------------
+    # BLOCK RESOURCES
+    # stronger containment
+    # -----------------------------------------
+    def block_resources(
+        self,
+        pid
+    ):
+
+        try:
+
+            proc = psutil.Process(
+                pid
+            )
+
+            # hard throttle
+            proc.nice(19)
+
+            # limit CPU
+            try:
+                proc.cpu_affinity([0])
+            except:
+                pass
+
+            # suspend children
+            for child in proc.children(
+                recursive=True
+            ):
+
+                try:
+                    child.suspend()
+                except:
+                    pass
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    (
+                        "block_resources"
+                    ),
+
+                "action_taken":
+                    True,
+
+                "status":
+                    (
+                        "resource restricted"
+                    )
+            }
+
+        except Exception as e:
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    (
+                        "block_resources"
+                    ),
+
+                "action_taken":
+                    False,
+
+                "status":
+                    str(e)
+            }
+
+    # -----------------------------------------
+    # TERMINATE
+    # worm tree kill
+    # -----------------------------------------
+    def terminate_process(
+        self,
+        pid
+    ):
+
+        try:
+
+            proc = psutil.Process(
+                pid
+            )
+
+            children = proc.children(
+                recursive=True
+            )
+
+            for child in children:
+
+                try:
+                    child.kill()
+                except:
+                    pass
+
+            proc.kill()
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "terminate",
+
+                "action_taken":
+                    True,
+
+                "status":
+                    "terminated"
+            }
+
+        except Exception as e:
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "terminate",
+
+                "action_taken":
+                    False,
+
+                "status":
+                    str(e)
+            }
+
+    # -----------------------------------------
+    # TRUST RECOVERY
+    # slide 17
+    # -----------------------------------------
+    def resume_process(
+        self,
+        pid
+    ):
+
+        try:
+
+            proc = psutil.Process(
+                pid
+            )
+
+            proc.resume()
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "trust_recovery",
+
+                "action_taken":
+                    True,
+
+                "status":
+                    "process resumed"
+            }
+
+        except Exception as e:
+
+            return {
+
+                "pid":
+                    pid,
+
+                "stage":
+                    "trust_recovery",
+
+                "action_taken":
+                    False,
+
+                "status":
+                    str(e)
+            }

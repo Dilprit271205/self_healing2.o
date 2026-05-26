@@ -2,160 +2,315 @@
 
 import psutil
 import time
-from collections import defaultdict
+from collections import (
+    defaultdict,
+    deque
+)
+
+entity_history = defaultdict(
+    lambda: deque(maxlen=20)
+)
 
 
 class ProcessLineageTracker:
     """
-    Tracks parent-child process relationships and groups them
-    into logical entities using root ancestor PID.
+    PPT + review aligned
+    lineage tracker
+
+    Supports:
+    - entity grouping
+    - process growth
+    - worm propagation
+    - tree explosion
+    - temporal entity growth
     """
 
     def __init__(self):
-        self.entities = defaultdict(list)
+
+        self.entities = defaultdict(
+            list
+        )
+
         self.pid_map = {}
 
-    # ---------------------------------------------------
-    # Collect live processes
-    # ---------------------------------------------------
+    # -----------------------------------------
+    # LIVE PROCESS COLLECTION
+    # -----------------------------------------
     def get_processes(self):
+
         processes = []
 
-        for proc in psutil.process_iter(
-            ['pid', 'ppid', 'name', 'exe', 'create_time', 'cpu_percent', 'memory_percent']
-        ):
+        for proc in psutil.process_iter([
+
+            "pid",
+            "ppid",
+            "name",
+            "exe",
+            "create_time",
+            "cpu_percent",
+            "memory_percent",
+            "num_threads"
+
+        ]):
+
             try:
+
                 info = proc.info
 
-                # fallback if exe unavailable
-                if not info["exe"]:
-                    info["exe"] = info["name"]
+                if not info.get("exe"):
+                    info["exe"] = (
+                        info["name"]
+                    )
 
-                processes.append(info)
+                processes.append(
+                    info
+                )
 
-            except (psutil.NoSuchProcess,
-                    psutil.AccessDenied,
-                    psutil.ZombieProcess):
+            except (
+                psutil.NoSuchProcess,
+                psutil.AccessDenied,
+                psutil.ZombieProcess
+            ):
+
                 continue
 
         return processes
 
-    # ---------------------------------------------------
-    # Build quick PID lookup map
-    # ---------------------------------------------------
-    def build_pid_map(self, processes):
-        self.pid_map = {proc["pid"]: proc for proc in processes}
+    # -----------------------------------------
+    # BUILD PID MAP
+    # -----------------------------------------
+    def build_pid_map(
+        self,
+        processes
+    ):
 
-    # ---------------------------------------------------
-    # Find root ancestor of process tree
-    # ---------------------------------------------------
-    def find_root_parent(self, pid):
+        self.pid_map = {
+            p["pid"]: p
+            for p in processes
+        }
+
+    # -----------------------------------------
+    # ROOT PARENT
+    # -----------------------------------------
+    def find_root_parent(
+        self,
+        pid
+    ):
+
         visited = set()
+
         current = pid
 
         while current in self.pid_map:
 
             if current in visited:
-                # circular safety
                 return pid
 
-            visited.add(current)
+            visited.add(
+                current
+            )
 
-            parent = self.pid_map[current]["ppid"]
+            parent = (
+                self.pid_map[
+                    current
+                ]["ppid"]
+            )
 
-            if parent == 0 or parent not in self.pid_map:
+            if (
+                parent == 0
+                or
+                parent
+                not in self.pid_map
+            ):
+
                 return current
 
             current = parent
 
         return pid
 
-    # ---------------------------------------------------
-    # Group all processes into entities
-    # ---------------------------------------------------
-    def build_entities(self):
+    # -----------------------------------------
+    # ENTITY BUILDING
+    # -----------------------------------------
+    def build_entities(
+        self
+    ):
+
         self.entities.clear()
 
-        processes = self.get_processes()
-        self.build_pid_map(processes)
+        processes = (
+            self.get_processes()
+        )
+
+        self.build_pid_map(
+            processes
+        )
 
         for proc in processes:
-            root = self.find_root_parent(proc["pid"])
-            self.entities[root].append(proc)
 
-        return dict(self.entities)
+            root = (
+                self.find_root_parent(
+                    proc["pid"]
+                )
+            )
 
-    # ---------------------------------------------------
-    # Get summarized entity information
-    # ---------------------------------------------------
-    def get_entity_summary(self):
+            self.entities[
+                root
+            ].append(proc)
+
+        return dict(
+            self.entities
+        )
+
+    # -----------------------------------------
+    # ENTITY SUMMARY
+    # -----------------------------------------
+    def get_entity_summary(
+        self
+    ):
+
         summaries = []
 
-        entities = self.build_entities()
+        entities = (
+            self.build_entities()
+        )
 
-        for root_pid, members in entities.items():
+        for (
+            root_pid,
+            members
+        ) in entities.items():
 
-            total_cpu = sum(p["cpu_percent"] or 0 for p in members)
-            total_mem = sum(p["memory_percent"] or 0 for p in members)
+            total_cpu = sum(
+                p.get(
+                    "cpu_percent",
+                    0
+                )
+                or 0
+                for p in members
+            )
 
-            root_proc = self.pid_map.get(root_pid, {})
-            root_name = root_proc.get("name", "unknown")
+            total_memory = sum(
+                p.get(
+                    "memory_percent",
+                    0
+                )
+                or 0
+                for p in members
+            )
+
+            total_threads = sum(
+                p.get(
+                    "num_threads",
+                    1
+                )
+                or 1
+                for p in members
+            )
+
+            children_count = len(
+                members
+            )
+
+            entity_history[
+                root_pid
+            ].append(
+                children_count
+            )
+
+            growth_velocity = 0
+
+            if (
+                len(
+                    entity_history[
+                        root_pid
+                    ]
+                )
+                >= 2
+            ):
+
+                growth_velocity = (
+
+                    entity_history[
+                        root_pid
+                    ][-1]
+
+                    -
+
+                    entity_history[
+                        root_pid
+                    ][-2]
+                )
+
+            root_proc = (
+                self.pid_map.get(
+                    root_pid,
+                    {}
+                )
+            )
 
             summaries.append({
-                "entity_root": root_pid,
-                "name": root_name,
-                "children_count": len(members),
-                "total_cpu": round(total_cpu, 2),
-                "total_memory": round(total_mem, 2),
-                "members": members
+
+                "entity_root":
+                    root_pid,
+
+                "name":
+                    root_proc.get(
+                        "name",
+                        "unknown"
+                    ),
+
+                "children_count":
+                    children_count,
+
+                "growth_velocity":
+                    growth_velocity,
+
+                "total_cpu":
+                    round(
+                        total_cpu,
+                        2
+                    ),
+
+                "total_memory":
+                    round(
+                        total_memory,
+                        2
+                    ),
+
+                "total_threads":
+                    total_threads,
+
+                "members":
+                    members
             })
 
         return summaries
 
-    # ---------------------------------------------------
-    # Detect suspicious rapid growth entities
-    # ---------------------------------------------------
-    def detect_large_entities(self, threshold=10):
+    # -----------------------------------------
+    # WORM-LIKE ENTITY DETECTION
+    # -----------------------------------------
+    def detect_large_entities(
+        self,
+        threshold=10
+    ):
+
         suspicious = []
 
-        summaries = self.get_entity_summary()
-
-        for entity in summaries:
-            if entity["children_count"] >= threshold:
-                suspicious.append(entity)
-
-        return suspicious
-
-
-# -------------------------------------------------------
-# Standalone Test Run
-# -------------------------------------------------------
-if __name__ == "__main__":
-
-    tracker = ProcessLineageTracker()
-
-    while True:
-        print("\n========== ACTIVE ENTITIES ==========\n")
-
-        entities = tracker.get_entity_summary()
+        entities = (
+            self.get_entity_summary()
+        )
 
         for entity in entities:
-            print(
-                f"Root PID: {entity['entity_root']} | "
-                f"Name: {entity['name']} | "
-                f"Processes: {entity['children_count']} | "
-                f"CPU: {entity['total_cpu']}% | "
-                f"MEM: {entity['total_memory']}%"
-            )
 
-        print("\nSuspicious Large Trees:\n")
+            if (
+                entity[
+                    "children_count"
+                ]
+                >= threshold
+            ):
 
-        threats = tracker.detect_large_entities()
+                suspicious.append(
+                    entity
+                )
 
-        for t in threats:
-            print(
-                f"[!] Entity {t['entity_root']} "
-                f"({t['name']}) has {t['children_count']} processes"
-            )
-
-        time.sleep(3)
+        return suspicious

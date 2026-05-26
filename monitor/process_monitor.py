@@ -7,15 +7,21 @@ _initialized = False
 
 
 # ---------------------------------------------------
-# INIT CPU SAMPLING
+# CPU INITIALIZATION
 # ---------------------------------------------------
 def init_cpu():
+
     global _initialized
 
     if not _initialized:
+
         for proc in psutil.process_iter():
+
             try:
-                proc.cpu_percent(interval=None)
+                proc.cpu_percent(
+                    interval=None
+                )
+
             except:
                 pass
 
@@ -23,66 +29,179 @@ def init_cpu():
 
 
 # ---------------------------------------------------
-# MAIN PROCESS COLLECTOR
+# PROCESS COLLECTOR
+# PPT + REVIEW ALIGNED
 # ---------------------------------------------------
 def get_process_data():
-    """
-    Worm-aware process collector
-
-    Captures:
-    - pid
-    - ppid
-    - process name
-    - cpu
-    - memory
-    - executable path
-    - thread count
-    - create time
-    - cmdline
-
-    Used for:
-    lineage tracking
-    rabbit worm detection
-    trust scoring
-    """
 
     init_cpu()
 
-    # short sampling window
+    # stable sampling window
     time.sleep(0.35)
 
     processes = []
 
     for proc in psutil.process_iter([
+
         "pid",
         "ppid",
         "name",
         "cpu_percent",
         "memory_percent",
+        "memory_info",
         "exe",
+        "cwd",
         "create_time",
         "num_threads",
-        "cmdline"
+        "cmdline",
+        "username",
+        "status",
+        "open_files"
+        
+
     ]):
 
         try:
+
             info = proc.info
 
-            name = info.get("name") or "unknown"
+            cmdline = " ".join(
+                info.get(
+                    "cmdline",
+                    []
+                )
+            )
 
-            # safe cmdline string
-            cmdline = " ".join(info.get("cmdline", []))
+            open_files = (
+                len(
+                    info.get(
+                        "open_files"
+                    )
+                    or []
+                )
+            )
+
+            try:
+
+                connections = len(
+                    proc.net_connections()
+                )
+
+            except:
+
+                connections = 0
+
+            age_seconds = (
+                time.time()
+                -
+                info.get(
+                    "create_time",
+                    time.time()
+                )
+            )
 
             processes.append({
-                "pid": info["pid"],
-                "ppid": info["ppid"],
-                "name": name,
-                "cpu": round(info["cpu_percent"], 2),
-                "memory": round(info["memory_percent"], 4),
-                "exe": info.get("exe", ""),
-                "threads": info.get("num_threads", 1),
-                "create_time": info.get("create_time", 0),
-                "cmdline": cmdline
+
+                # -----------------------------
+                # identity
+                # -----------------------------
+                "pid":
+                    info["pid"],
+
+                "ppid":
+                    info["ppid"],
+
+                "name":
+                    info.get(
+                        "name",
+                        "unknown"
+                    ),
+
+                "exe":
+                    info.get(
+                        "exe",
+                        ""
+                    ),
+
+                "cwd":
+                    info.get(
+                        "cwd",
+                        ""
+                    ),
+
+                "username":
+                    info.get(
+                        "username",
+                        ""
+                    ),
+
+                "status":
+                    info.get(
+                        "status",
+                        ""
+                    ),
+
+                # -----------------------------
+                # resource behavior
+                # -----------------------------
+                "cpu":
+                    round(
+                        info.get(
+                            "cpu_percent",
+                            0
+                        ),
+                        2
+                    ),
+
+                "memory":
+                    round(
+                        info.get(
+                            "memory_percent",
+                            0
+                        ),
+                        4
+                    ),
+
+                "memory_rss":
+                    (
+                        info.get(
+                            "memory_info"
+                        ).rss
+                        if info.get(
+                            "memory_info"
+                        )
+                        else 0
+                    ),
+
+                "threads":
+                    info.get(
+                        "num_threads",
+                        1
+                    ),
+
+                # -----------------------------
+                # behavioral signals
+                # -----------------------------
+                "cmdline":
+                    cmdline,
+
+                "create_time":
+                    info.get(
+                        "create_time",
+                        0
+                    ),
+
+                "age_seconds":
+                    round(
+                        age_seconds,
+                        2
+                    ),
+
+                "open_files":
+                    open_files,
+
+                "connections":
+                    connections
             })
 
         except (
@@ -90,6 +209,7 @@ def get_process_data():
             psutil.AccessDenied,
             psutil.ZombieProcess
         ):
+
             continue
 
         except:
