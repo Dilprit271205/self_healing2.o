@@ -116,35 +116,54 @@ class FileHandler(
 
 
 def start_file_monitor(
-    path="."
+
+    paths=None
 ):
+
+    if paths is None:
+
+        paths = [
+
+            "/tmp",
+            "/var/tmp",
+            "/home",
+
+            # safe defaults
+            # avoid system freeze
+        ]
 
     observer = Observer()
 
-    handler = FileHandler()
-
-    observer.schedule(
-        handler,
-        path=path,
-        recursive=True
+    event_handler = (
+        FileEventMapper()
     )
+
+    for path in paths:
+
+        try:
+
+            observer.schedule(
+
+                event_handler,
+
+                path,
+
+                recursive=True
+            )
+
+            print(
+                f"[FILE] Monitoring: {path}"
+            )
+
+        except Exception as e:
+
+            print(
+                f"[FILE] Failed: {path}"
+            )
 
     observer.start()
 
-    print(
-        "📂 PPT-aligned file monitoring started..."
-    )
-
-    try:
-
-        while True:
-            time.sleep(1)
-
-    except KeyboardInterrupt:
-
-        observer.stop()
-
-    observer.join()
+    return observer
 
 
 # -----------------------------------------
