@@ -256,13 +256,56 @@ def monitor_loop():
 
                     # -------------------------
                     # STATIC TRUST
-                    # temporary fallback
+                    # safer fallback
                     # until static analyzer
                     # fully integrated
                     # -------------------------
-                    static_score = (
-                        1.0
-                    )
+                    try:
+
+                        process_name = (
+                            process.get(
+                                "name",
+                                ""
+                            ).lower()
+                        )
+
+                        trusted_processes = {
+
+                            "systemd",
+                            "init",
+                            "dbus-daemon",
+                            "networkmanager",
+                            "chrome",
+                            "firefox",
+                            "code",
+                            "python",
+                            "python3",
+                            "bash",
+                            "zsh",
+                            "gnome-shell"
+                        }
+
+                        # trusted binaries
+                        if process_name in trusted_processes:
+
+                            static_score = 0.85
+
+                        # young / unknown process
+                        elif features.get(
+                            "young_process",
+                            0
+                        ):
+
+                            static_score = 0.50
+
+                        # normal fallback
+                        else:
+
+                            static_score = 0.70
+
+                    except:
+
+                        static_score = 0.70
 
                     # -------------------------
                     # TRUST ENGINE
