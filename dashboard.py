@@ -76,6 +76,27 @@ st.caption(
     "Executive Cyber SOC Dashboard"
 )
 
+
+# ===================================================
+# NAVIGATION
+# ===================================================
+page = st.radio(
+
+    "Navigation",
+
+    [
+
+        "🛡 Operations",
+
+        "🧬 Threat Intelligence",
+
+        "🐇 Worm Lab",
+
+        "📚 Learning Center"
+    ],
+
+    horizontal=True
+)
 # ===================================================
 # LOADERS
 # ===================================================
@@ -384,365 +405,29 @@ with v2:
         width="stretch"
     )
 
-# ===================================================
-# TRUST INTELLIGENCE
-# ===================================================
-st.subheader(
-    "🧠 Trust Intelligence"
-)
 
-t1, t2 = st.columns(2)
-
-with t1:
-
-    fig = px.histogram(
-
-        latest,
-
-        x="final_trust",
-
-        nbins=30,
-
-        title=
-        "Final Trust Distribution"
+if page == "🛡 Operations":
+    # ===================================================
+    # TRUST INTELLIGENCE
+    # ===================================================
+    st.subheader(
+        "🧠 Trust Intelligence"
     )
 
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
+    t1, t2 = st.columns(2)
 
-with t2:
+    with t1:
 
-    fig = px.scatter(
+        fig = px.histogram(
 
-        latest,
+            latest,
 
-        x="dynamic_trust",
+            x="final_trust",
 
-        y="final_trust",
-
-        color="severity",
-
-        hover_data=[
-            "name",
-            "pid"
-        ],
-
-        title=
-        "Trust Correlation"
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-# ===================================================
-# WORM INTELLIGENCE
-# ===================================================
-st.subheader(
-    "🐛 Worm Intelligence"
-)
-
-w1, w2 = st.columns(2)
-
-with w1:
-
-    top_worm = (
-
-        latest
-
-        .sort_values(
-            "worm_score",
-            ascending=False
-        )
-
-        .head(10)
-    )
-
-    fig = px.bar(
-
-        top_worm,
-
-        x="name",
-
-        y="worm_score",
-
-        color="severity",
-
-        title=
-        "Top Worm Likelihood"
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-with w2:
-
-    fig = px.scatter(
-
-        latest,
-
-        x="connections",
-
-        y="threads",
-
-        size="worm_score",
-
-        color="severity",
-
-        hover_data=[
-            "name",
-            "pid"
-        ],
-
-        title=
-        "Propagation Analysis"
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-# ===================================================
-# SYSTEM RUNTIME ANALYTICS
-# ===================================================
-st.subheader(
-    "📈 Runtime Intelligence"
-)
-
-timeline_df = df.copy()
-
-timeline_df["minute"] = (
-
-    timeline_df[
-        "timestamp"
-    ]
-
-    .dt.floor("min")
-)
-
-runtime = (
-
-    timeline_df
-
-    .groupby("minute")
-
-    .agg({
-
-        "pid": "nunique",
-
-        "worm_score":
-            "mean",
-
-        "final_trust":
-            "mean"
-    })
-
-    .reset_index()
-)
-
-r1, r2 = st.columns(2)
-
-with r1:
-
-    fig = px.line(
-
-        runtime,
-
-        x="minute",
-
-        y="pid",
-
-        title=
-        "Active Process Trend"
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-with r2:
-
-    fig = px.line(
-
-        runtime,
-
-        x="minute",
-
-        y="worm_score",
-
-        title=
-        "Worm Risk Trend"
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-fig = px.line(
-
-    runtime,
-
-    x="minute",
-
-    y="final_trust",
-
-    title=
-    "Trust Evolution Timeline"
-)
-
-st.plotly_chart(
-    fig,
-    width="stretch"
-)
-# ===================================================
-# CONFIDENCE ANALYTICS
-# ===================================================
-st.subheader(
-    "🎯 Confidence Intelligence"
-)
-
-c1, c2 = st.columns(2)
-
-with c1:
-
-    fig = px.histogram(
-
-        latest,
-
-        x="confidence",
-
-        nbins=25,
-
-        color="severity",
-
-        title=
-        "Confidence Distribution"
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-with c2:
-
-    fig = px.scatter(
-
-        latest,
-
-        x="confidence",
-
-        y="worm_score",
-
-        size="worm_score",
-
-        color="severity",
-
-        hover_data=[
-            "name",
-            "pid"
-        ],
-
-        title=
-        "Confidence vs Worm Score"
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-# ===================================================
-# ADAPTIVE HEALING CENTER
-# PPT SLIDE 16–17
-# ===================================================
-st.subheader(
-    "🛡 Adaptive Healing Center"
-)
-
-stage_order = [
-
-    "observe",
-    "restrict",
-    "isolate",
-    "block_resources",
-    "terminate",
-    "trust_recovery"
-]
-
-stage_counts = (
-
-    latest["stage"]
-
-    .value_counts()
-
-    .reindex(
-        stage_order,
-        fill_value=0
-    )
-)
-
-h1, h2 = st.columns(2)
-
-with h1:
-
-    fig = px.bar(
-
-        x=stage_counts.index,
-
-        y=stage_counts.values,
-
-        title=
-        "Healing Stage Distribution"
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
-
-with h2:
-
-    active_healing = (
-
-        latest[
-            latest[
-                "stage"
-            ]
-            !=
-            "observe"
-        ]
-    )
-
-    if not active_healing.empty:
-
-        fig = px.scatter(
-
-            active_healing,
-
-            x="worm_score",
-
-            y="final_trust",
-
-            color="stage",
-
-            size="confidence",
-
-            hover_data=[
-                "name",
-                "pid"
-            ],
+            nbins=30,
 
             title=
-            "Live Healing Activity"
+            "Final Trust Distribution"
         )
 
         st.plotly_chart(
@@ -750,79 +435,397 @@ with h2:
             width="stretch"
         )
 
-    else:
+    with t2:
 
-        st.success(
-            "✅ No active containment"
+        fig = px.scatter(
+
+            latest,
+
+            x="dynamic_trust",
+
+            y="final_trust",
+
+            color="severity",
+
+            hover_data=[
+                "name",
+                "pid"
+            ],
+
+            title=
+            "Trust Correlation"
         )
 
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
 
-# ===================================================
-# HEALING TIMELINE
-# ===================================================
-if not healing_df.empty:
-
+    # ===================================================
+    # WORM INTELLIGENCE
+    # ===================================================
     st.subheader(
-        "🕒 Healing Timeline"
+        "🐛 Worm Intelligence"
     )
 
-    healing_df[
-        "timestamp"
-    ] = pd.to_datetime(
+    w1, w2 = st.columns(2)
 
-        healing_df[
+    with w1:
+
+        top_worm = (
+
+            latest
+
+            .sort_values(
+                "worm_score",
+                ascending=False
+            )
+
+            .head(10)
+        )
+
+        fig = px.bar(
+
+            top_worm,
+
+            x="name",
+
+            y="worm_score",
+
+            color="severity",
+
+            title=
+            "Top Worm Likelihood"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    with w2:
+
+        fig = px.scatter(
+
+            latest,
+
+            x="connections",
+
+            y="threads",
+
+            size="worm_score",
+
+            color="severity",
+
+            hover_data=[
+                "name",
+                "pid"
+            ],
+
+            title=
+            "Propagation Analysis"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    # ===================================================
+    # SYSTEM RUNTIME ANALYTICS
+    # ===================================================
+    st.subheader(
+        "📈 Runtime Intelligence"
+    )
+
+    timeline_df = df.copy()
+
+    timeline_df["minute"] = (
+
+        timeline_df[
             "timestamp"
         ]
+
+        .dt.floor("min")
     )
 
-    fig = px.scatter(
+    runtime = (
 
-        healing_df,
+        timeline_df
 
-        x="timestamp",
+        .groupby("minute")
 
-        y="stage",
+        .agg({
 
-        color="stage",
+            "pid": "nunique",
 
-        hover_data=[
-            "pid",
-            "status"
-        ],
+            "worm_score":
+                "mean",
+
+            "final_trust":
+                "mean"
+        })
+
+        .reset_index()
+    )
+
+    r1, r2 = st.columns(2)
+
+    with r1:
+
+        fig = px.line(
+
+            runtime,
+
+            x="minute",
+
+            y="pid",
+
+            title=
+            "Active Process Trend"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    with r2:
+
+        fig = px.line(
+
+            runtime,
+
+            x="minute",
+
+            y="worm_score",
+
+            title=
+            "Worm Risk Trend"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    fig = px.line(
+
+        runtime,
+
+        x="minute",
+
+        y="final_trust",
 
         title=
-        "Healing Response Timeline"
+        "Trust Evolution Timeline"
     )
 
     st.plotly_chart(
         fig,
         width="stretch"
     )
+    # ===================================================
+    # CONFIDENCE ANALYTICS
+    # ===================================================
+    st.subheader(
+        "🎯 Confidence Intelligence"
+    )
 
-# ===================================================
-# NAVIGATION
-# ===================================================
-page = st.radio(
+    c1, c2 = st.columns(2)
 
-    "Navigation",
+    with c1:
 
-    [
+        fig = px.histogram(
 
-        "🛡 Operations",
+            latest,
 
-        "🧬 Threat Intelligence",
+            x="confidence",
 
-        "🐇 Worm Lab",
+            nbins=25,
 
-        "📚 Learning Center"
-    ],
+            color="severity",
 
-    horizontal=True
-)
+            title=
+            "Confidence Distribution"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    with c2:
+
+        fig = px.scatter(
+
+            latest,
+
+            x="confidence",
+
+            y="worm_score",
+
+            size="worm_score",
+
+            color="severity",
+
+            hover_data=[
+                "name",
+                "pid"
+            ],
+
+            title=
+            "Confidence vs Worm Score"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    # ===================================================
+    # ADAPTIVE HEALING CENTER
+    # PPT SLIDE 16–17
+    # ===================================================
+    st.subheader(
+        "🛡 Adaptive Healing Center"
+    )
+
+    stage_order = [
+
+        "observe",
+        "restrict",
+        "isolate",
+        "block_resources",
+        "terminate",
+        "trust_recovery"
+    ]
+
+    stage_counts = (
+
+        latest["stage"]
+
+        .value_counts()
+
+        .reindex(
+            stage_order,
+            fill_value=0
+        )
+    )
+
+    h1, h2 = st.columns(2)
+
+    with h1:
+
+        fig = px.bar(
+
+            x=stage_counts.index,
+
+            y=stage_counts.values,
+
+            title=
+            "Healing Stage Distribution"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    with h2:
+
+        active_healing = (
+
+            latest[
+                latest[
+                    "stage"
+                ]
+                !=
+                "observe"
+            ]
+        )
+
+        if not active_healing.empty:
+
+            fig = px.scatter(
+
+                active_healing,
+
+                x="worm_score",
+
+                y="final_trust",
+
+                color="stage",
+
+                size="confidence",
+
+                hover_data=[
+                    "name",
+                    "pid"
+                ],
+
+                title=
+                "Live Healing Activity"
+            )
+
+            st.plotly_chart(
+                fig,
+                width="stretch"
+            )
+
+        else:
+
+            st.success(
+                "✅ No active containment"
+            )
+
+
+    # ===================================================
+    # HEALING TIMELINE
+    # ===================================================
+    if not healing_df.empty:
+
+        st.subheader(
+            "🕒 Healing Timeline"
+        )
+
+        healing_df[
+            "timestamp"
+        ] = pd.to_datetime(
+
+            healing_df[
+                "timestamp"
+            ]
+        )
+
+        fig = px.scatter(
+
+            healing_df,
+
+            x="timestamp",
+
+            y="stage",
+
+            color="stage",
+
+            hover_data=[
+                "pid",
+                "status"
+            ],
+
+            title=
+            "Healing Response Timeline"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+
 # ===================================================
 # OPERATIONS CENTER
 # ===================================================
-if page == "🛡 Operations":
 
     st.subheader(
         "🛡 Process Operations Center"
