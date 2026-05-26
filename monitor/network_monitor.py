@@ -1,103 +1,162 @@
-# monitor/network_monitor.py
-
 import psutil
-from collections import defaultdict
+from collections import defaultdict, deque
 
 
-def get_network_data():
-    """
-    PPT + review aligned
-    network collector
+class NetworkMonitor:
 
-    Captures:
-    - pid
-    - connection count
-    - remote destinations
-    - remote ports
-    - local ports
-    - connection status
+    def __init__(self):
 
-    Enables:
-    - connection velocity
-    - port spread
-    - lateral movement
-    - scanning detection
-    """
+        self.connection_history = defaultdict(
+            lambda: deque(maxlen=10)
+        )
 
-    connections = []
+    # =====================================
+    # NETWORK INTELLIGENCE
+    # =====================================
+    def get_network_data(self):
 
-    for conn in psutil.net_connections(
-        kind="inet"
-    ):
+        network_data = {}
 
         try:
 
-            pid = conn.pid
+            for proc in psutil.process_iter(
 
-            if pid is None:
-                continue
+                [
+                    "pid",
+                    "name"
+                ]
+            ):
 
-            remote_ip = None
-            remote_port = None
-            local_port = None
+                try:
 
-            # remote endpoint
-            if conn.raddr:
-                remote_ip = getattr(
-                    conn.raddr,
-                    "ip",
-                    None
-                )
+                    pid = proc.info["pid"]
 
-                remote_port = getattr(
-                    conn.raddr,
-                    "port",
-                    None
-                )
+                    # --------------------------------
+                    # SAFE CONNECTION API
+                    # psutil >= 6 compatible
+                    # --------------------------------
+                    connections = (
+                        proc.net_connections()
+                    )
 
-            # local port
-            if conn.laddr:
-                local_port = getattr(
-                    conn.laddr,
-                    "port",
-                    None
-                )
+                    active_connections = len(
+                        connections
+                    )
 
-            connections.append({
+                    unique_ports = set()
+                    remote_ips = set()
 
-                "pid": pid,
+                    for conn in connections:
 
-                "status":
-                    conn.status,
+                        try:
 
-                "remote_ip":
-                    remote_ip,
+                            if conn.laddr:
 
-                "remote_port":
-                    remote_port,
+                                unique_ports.add(
+                                    conn.laddr.port
+                                )
 
-                "local_port":
-                    local_port
-            })
+                            if conn.raddr:
 
-        except (
-            psutil.AccessDenied,
-            psutil.NoSuchProcess
-        ):
-            continue
+                                remote_ips.add(
+                                    conn.raddr.ip
+                                )
 
-        except:
-            continue
+                        except:
+                            continue
 
-    return connections
+                    # --------------------------------
+                    # CONNECTION VELOCITY
+                    # --------------------------------
+                    history = (
+                        self.connection_history[
+                            pid
+                        ]
+                    )
 
+                    prev_connections = (
 
-# -----------------------------------------
-# standalone test
-# -----------------------------------------
-if __name__ == "__main__":
+                        history[-1]
+                        if history
+                        else 0
+                    )
 
-    data = get_network_data()
+                    connection_velocity = (
 
-    for conn in data[:20]:
-        print(conn)
+                        active_connections
+                        -
+                        prev_connections
+                    )
+
+                    history.append(
+                        active_connections
+                    )
+
+                    # --------------------------------
+                    # PORT SPREAD
+                    # --------------------------------
+                    port_spread = len(
+                        unique_ports
+                    )
+
+                    # --------------------------------
+                    # SCANNING DETECTION
+                    # --------------------------------
+                    scanning_score = 0
+
+                    if port_spread > 20:
+                        scanning_score += 0.4
+
+                    if connection_velocity > 10:
+                        scanning_score += 0.3
+
+                    if len(remote_ips) > 15:
+                        scanning_score += 0.3
+
+                    scanning_detected = (
+                        scanning_score >= 0.5
+                    )
+
+                    network_data[
+                        pid
+                    ] = {
+
+                        "connections":
+                            active_connections,
+
+                        "connection_velocity":
+                            connection_velocity,
+
+                        "port_spread":
+                            port_spread,
+
+                        "remote_ips":
+                            len(remote_ips),
+
+                        "scanning_score":
+                            round(
+                                scanning_score,
+                                2
+                            ),
+
+                        "scanning_detected":
+                            scanning_detected
+                    }
+
+                except (
+
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    AttributeError
+
+                ):
+
+                    continue
+
+        except Exception as e:
+
+            print(
+                f"Network monitor error: {e}"
+            )
+
+        return network_data
