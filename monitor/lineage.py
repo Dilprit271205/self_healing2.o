@@ -91,6 +91,8 @@ class ProcessLineageTracker:
 
     # -----------------------------------------
     # ROOT PARENT
+    # safe lineage traversal
+    # cycle protected
     # -----------------------------------------
     def find_root_parent(
         self,
@@ -101,21 +103,42 @@ class ProcessLineageTracker:
 
         current = pid
 
+        max_depth = 25
+        depth = 0
+
         while current in self.pid_map:
 
+            # -------------------------
+            # CYCLE PROTECTION
+            # -------------------------
             if current in visited:
-                return pid
+
+                break
 
             visited.add(
                 current
             )
 
-            parent = (
-                self.pid_map[
-                    current
-                ]["ppid"]
+            # -------------------------
+            # DEPTH LIMIT
+            # -------------------------
+            if depth >= max_depth:
+
+                break
+
+            process = self.pid_map.get(
+                current,
+                {}
             )
 
+            parent = process.get(
+                "ppid",
+                0
+            )
+
+            # -------------------------
+            # ROOT FOUND
+            # -------------------------
             if (
                 parent == 0
                 or
@@ -125,9 +148,18 @@ class ProcessLineageTracker:
 
                 return current
 
-            current = parent
+            # -------------------------
+            # SELF LOOP
+            # -------------------------
+            if parent == current:
 
-        return pid
+                break
+
+            current = parent
+            depth += 1
+
+        # fallback
+        return current
 
     # -----------------------------------------
     # ENTITY BUILDING
