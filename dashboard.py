@@ -213,39 +213,139 @@ for col, val in defaults.items():
         latest[col] = val
 
 # ===================================================
-# HEALTH ENGINE
+# FINAL BALANCED HEALTH ENGINE
 # PPT + REVIEW ALIGNED
 # ===================================================
-severity_weight = {
 
-    "low": 5,
-    "medium": 15,
-    "high": 35,
-    "critical": 60
-}
+# ---------------------------------------
+# NUMERIC SAFETY
+# ---------------------------------------
+latest["final_trust"] = pd.to_numeric(
 
-severity_penalty = sum(
+    latest["final_trust"],
 
-    severity_weight.get(
-        x,
-        0
-    )
+    errors="coerce"
 
-    for x in latest[
-        "severity"
-    ]
-)
+).fillna(1.0)
 
+latest["worm_score"] = pd.to_numeric(
+
+    latest["worm_score"],
+
+    errors="coerce"
+
+).fillna(0)
+
+# ---------------------------------------
+# BASE SIGNALS
+# ---------------------------------------
 avg_trust = (
+
     latest[
         "final_trust"
     ].mean()
 )
 
 worm_risk = (
+
     latest[
         "worm_score"
     ].mean()
+)
+
+# ---------------------------------------
+# SEVERITY DISTRIBUTION
+# ratio based
+# prevents dashboard collapse
+# ---------------------------------------
+severity_distribution = (
+
+    latest[
+        "severity"
+    ]
+
+    .value_counts(
+        normalize=True
+    )
+)
+
+critical_ratio = (
+
+    severity_distribution.get(
+        "critical",
+        0
+    )
+)
+
+high_ratio = (
+
+    severity_distribution.get(
+        "high",
+        0
+    )
+)
+
+medium_ratio = (
+
+    severity_distribution.get(
+        "medium",
+        0
+    )
+)
+
+low_ratio = (
+
+    severity_distribution.get(
+        "low",
+        0
+    )
+)
+
+# ---------------------------------------
+# SMART PENALTY
+#
+# critical hurts a lot
+# high hurts moderately
+# medium hurts slightly
+# low almost ignored
+# ---------------------------------------
+severity_penalty = (
+
+    critical_ratio * 40
+
+    +
+
+    high_ratio * 12
+
+    +
+
+    medium_ratio * 5
+
+    +
+
+    low_ratio * 1
+)
+
+# ---------------------------------------
+# FINAL HEALTH SCORE
+# ---------------------------------------
+health_score = (
+
+    (
+        avg_trust
+        * 100
+    )
+
+    -
+
+    severity_penalty
+
+    -
+
+    (
+        worm_risk
+        * 8
+    )
 )
 
 health_score = max(
@@ -256,36 +356,11 @@ health_score = max(
 
         100,
 
-        (
-
-            avg_trust
-            * 100
-
-        )
-
-        -
-
-        (
-            severity_penalty
-            /
-            max(
-                len(latest),
-                1
-            )
-        )
-
-        -
-
-        (
-            worm_risk
-            * 0.3
+        round(
+            health_score,
+            2
         )
     )
-)
-
-health_score = round(
-    health_score,
-    2
 )
 
 # ===================================================

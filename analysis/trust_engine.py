@@ -6,29 +6,34 @@ from analysis.trust.trust_vector import (
     trust_db
 )
 
-# ---------------------------------------------------
+# ===================================================
 # PPT PARAMETERS
 # slide 24
-# ---------------------------------------------------
+#
+# stabilized for real systems
+# ===================================================
 
-EMA_ALPHA = 0.7
+EMA_ALPHA = 0.9
 
-STATIC_WEIGHT = 0.3
-DYNAMIC_WEIGHT = 0.7
+STATIC_WEIGHT = 0.4
+DYNAMIC_WEIGHT = 0.6
 
 
 class TrustEngine:
     """
-    PPT-aligned trust engine
+    PPT + REVIEW ALIGNED
+    stable trust engine
 
     Responsibilities:
-    1. Trust evolution
-    2. EMA smoothing
-    3. Dynamic trust aggregation
-    4. Final trust computation
-    5. Threshold classification
+    1. EMA trust evolution
+    2. Dynamic trust aggregation
+    3. Final trust computation
+    4. Threshold classification
     """
 
+    # ===================================================
+    # MAIN TRUST UPDATE
+    # ===================================================
     def update(
         self,
         pid,
@@ -39,6 +44,35 @@ class TrustEngine:
         initialize_trust(pid)
 
         current = get_trust(pid)
+
+        # -----------------------------------------
+        # SAFE ANOMALY ACCESS
+        # prevents crashes
+        # -----------------------------------------
+        cpu_anomaly = anomaly_vector.get(
+            "cpu",
+            0
+        )
+
+        memory_anomaly = anomaly_vector.get(
+            "memory",
+            0
+        )
+
+        thread_anomaly = anomaly_vector.get(
+            "threads",
+            0
+        )
+
+        connection_anomaly = anomaly_vector.get(
+            "connections",
+            0
+        )
+
+        file_anomaly = anomaly_vector.get(
+            "file_events",
+            0
+        )
 
         # -----------------------------------------
         # PREVIOUS TRUST
@@ -71,84 +105,129 @@ class TrustEngine:
 
         # -----------------------------------------
         # EMA TRUST UPDATE
+        #
         # T = αTprev + (1-α)(1-A)
+        #
         # slide 24
+        # stabilized
         # -----------------------------------------
         updated_cpu = (
-            EMA_ALPHA * prev_cpu
+
+            EMA_ALPHA
+            * prev_cpu
+
             +
-            (1 - EMA_ALPHA)
+
+            (
+                1
+                -
+                EMA_ALPHA
+            )
+
             *
             (
                 1
                 -
-                anomaly_vector["cpu"]
+                cpu_anomaly
             )
         )
 
         updated_memory = (
-            EMA_ALPHA * prev_memory
+
+            EMA_ALPHA
+            * prev_memory
+
             +
-            (1 - EMA_ALPHA)
+
+            (
+                1
+                -
+                EMA_ALPHA
+            )
+
             *
             (
                 1
                 -
-                anomaly_vector["memory"]
+                memory_anomaly
             )
         )
 
         updated_threads = (
-            EMA_ALPHA * prev_threads
+
+            EMA_ALPHA
+            * prev_threads
+
             +
-            (1 - EMA_ALPHA)
+
+            (
+                1
+                -
+                EMA_ALPHA
+            )
+
             *
             (
                 1
                 -
-                anomaly_vector["threads"]
+                thread_anomaly
             )
         )
 
         updated_connections = (
+
             EMA_ALPHA
             * prev_connections
+
             +
-            (1 - EMA_ALPHA)
+
+            (
+                1
+                -
+                EMA_ALPHA
+            )
+
             *
             (
                 1
                 -
-                anomaly_vector[
-                    "connections"
-                ]
+                connection_anomaly
             )
         )
 
         updated_files = (
+
             EMA_ALPHA
             * prev_files
+
             +
-            (1 - EMA_ALPHA)
+
+            (
+                1
+                -
+                EMA_ALPHA
+            )
+
             *
             (
                 1
                 -
-                anomaly_vector[
-                    "file_events"
-                ]
+                file_anomaly
             )
         )
 
         # -----------------------------------------
         # CLAMP VALUES
+        # prevents trust overflow
         # -----------------------------------------
         trust_vector = {
+
             "cpu":
                 round(
                     max(
-                        0,
-                        min(1,
+                        0.0,
+                        min(
+                            1.0,
                             updated_cpu
                         )
                     ),
@@ -158,8 +237,9 @@ class TrustEngine:
             "memory":
                 round(
                     max(
-                        0,
-                        min(1,
+                        0.0,
+                        min(
+                            1.0,
                             updated_memory
                         )
                     ),
@@ -169,8 +249,9 @@ class TrustEngine:
             "threads":
                 round(
                     max(
-                        0,
-                        min(1,
+                        0.0,
+                        min(
+                            1.0,
                             updated_threads
                         )
                     ),
@@ -180,8 +261,9 @@ class TrustEngine:
             "connections":
                 round(
                     max(
-                        0,
-                        min(1,
+                        0.0,
+                        min(
+                            1.0,
                             updated_connections
                         )
                     ),
@@ -191,8 +273,9 @@ class TrustEngine:
             "files":
                 round(
                     max(
-                        0,
-                        min(1,
+                        0.0,
+                        min(
+                            1.0,
                             updated_files
                         )
                     ),
@@ -206,67 +289,78 @@ class TrustEngine:
         # slide 24
         # -----------------------------------------
         dynamic_trust = round(
-            (
-                sum(
-                    trust_vector.values()
-                )
+
+            sum(
+                trust_vector.values()
             )
+
             /
-            len(trust_vector),
+
+            len(
+                trust_vector
+            ),
+
             3
         )
 
         # -----------------------------------------
         # FINAL TRUST
+        #
         # T(p,t)
-        # slide 24
-        # ws=0.3 wd=0.7
+        #
+        # stabilized weights
         # -----------------------------------------
         final_trust = round(
+
             (
                 STATIC_WEIGHT
                 *
-                static_score
+                max(
+                    0,
+                    min(
+                        1,
+                        static_score
+                    )
+                )
             )
+
             +
+
             (
                 DYNAMIC_WEIGHT
                 *
                 dynamic_trust
             ),
+
             3
         )
 
         # -----------------------------------------
-        # STORE TRUST STATE
+        # STORE TRUST
         # -----------------------------------------
         trust_db[pid] = {
 
-            # trust vector
             **trust_vector,
 
-            # static
             "static_trust":
                 round(
                     static_score,
                     3
                 ),
 
-            # Td
             "dynamic_trust":
                 dynamic_trust,
 
-            # T(p,t)
             "final_trust":
                 final_trust
         }
 
         return trust_db[pid]
 
-    # -----------------------------------------
-    # THRESHOLD EVALUATION
+    # ===================================================
+    # TRUST CLASSIFICATION
     # slide 24
-    # -----------------------------------------
+    # ===================================================
     def classify(
         self,
         trust_state
@@ -277,23 +371,33 @@ class TrustEngine:
             1.0
         )
 
-        if td > 0.7:
+        if td >= 0.75:
 
             return {
-                "level": "normal",
-                "severity": 0
+
+                "level":
+                    "normal",
+
+                "severity":
+                    0
             }
 
-        elif 0.4 < td <= 0.7:
+        elif td >= 0.5:
 
             return {
+
                 "level":
                     "suspicious",
-                "severity": 1
+
+                "severity":
+                    1
             }
 
         return {
+
             "level":
                 "critical",
-            "severity": 2
+
+            "severity":
+                2
         }

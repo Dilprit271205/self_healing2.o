@@ -2,19 +2,15 @@
 
 class WormClassifier:
     """
-    PPT + review aligned
+    PPT + reviewer aligned
     worm classification engine
 
     Responsibilities:
-    1. Compute worm likelihood
-    2. Fuse trust + anomaly
-    3. Statistical classification
-    4. Severity estimation
-
-    DOES NOT:
-    - heal
-    - terminate
-    - update trust
+    1. Worm likelihood estimation
+    2. Trust + anomaly fusion
+    3. Propagation intelligence
+    4. Severity classification
+    5. Stable low false-positive detection
     """
 
     def classify(
@@ -24,19 +20,21 @@ class WormClassifier:
         trust_state
     ):
 
-        anomalies = anomaly_data[
-            "anomalies"
-        ]
+        anomalies = anomaly_data.get(
+            "anomalies",
+            {}
+        )
 
-        temporal = anomaly_data[
-            "temporal"
-        ]
+        temporal = anomaly_data.get(
+            "temporal",
+            {}
+        )
 
-        # -----------------------------------------
+        # =====================================
         # TRUST STATE
-        # PPT PRIMARY SIGNAL
         # slide 24
-        # -----------------------------------------
+        # PRIMARY SIGNAL
+        # =====================================
         dynamic_trust = (
             trust_state.get(
                 "dynamic_trust",
@@ -51,9 +49,9 @@ class WormClassifier:
             )
         )
 
-        # -----------------------------------------
+        # =====================================
         # ANOMALY SIGNAL
-        # -----------------------------------------
+        # =====================================
         aggregate_anomaly = (
             anomalies.get(
                 "aggregate",
@@ -61,11 +59,10 @@ class WormClassifier:
             )
         )
 
-        # -----------------------------------------
-        # ENTITY PROPAGATION SIGNAL
-        # reviewer issue:
-        # worm propagation
-        # -----------------------------------------
+        # =====================================
+        # PROPAGATION SIGNAL
+        # reviewer requirement
+        # =====================================
         process_growth = abs(
             features.get(
                 "f_proc_spawn",
@@ -90,11 +87,10 @@ class WormClassifier:
             1
         )
 
-        # -----------------------------------------
+        # =====================================
         # THREAD ABUSE
-        # reviewer issue:
-        # thread explosion
-        # -----------------------------------------
+        # reviewer requirement
+        # =====================================
         thread_signal = min(
             abs(
                 features.get(
@@ -102,15 +98,14 @@ class WormClassifier:
                     0
                 )
             )
-            / 5,
+            / 10,
             1
         )
 
-        # -----------------------------------------
+        # =====================================
         # NETWORK SPREAD
-        # reviewer issue:
-        # scanning/lateral movement
-        # -----------------------------------------
+        # reviewer requirement
+        # =====================================
         network_signal = min(
             abs(
                 features.get(
@@ -118,49 +113,45 @@ class WormClassifier:
                     0
                 )
             )
-            / 5,
+            / 10,
             1
         )
 
-        # -----------------------------------------
+        # =====================================
         # TEMPORAL INSTABILITY
-        # review:
-        # trend intelligence
-        # -----------------------------------------
+        # reviewer requirement
+        # =====================================
+        cpu_accel = abs(
+            temporal.get(
+                "cpu_acceleration",
+                0
+            )
+        )
+
+        memory_accel = abs(
+            temporal.get(
+                "memory_acceleration",
+                0
+            )
+        )
+
         temporal_signal = min(
-
             (
-                abs(
-                    temporal.get(
-                        "cpu_acceleration",
-                        0
-                    )
-                )
-
+                cpu_accel
                 +
-
-                abs(
-                    temporal.get(
-                        "memory_acceleration",
-                        0
-                    )
-                )
+                memory_accel
             )
             / 2,
-
             1
         )
 
-        # -----------------------------------------
-        # STATISTICAL FUSION
+        # =====================================
+        # WORM LIKELIHOOD
         #
-        # trust is PRIMARY
-        # anomaly is SECONDARY
-        #
-        # fixes review:
-        # trust exists but
-        # classification missing
-        # -----------------------------------------
+        # Trust = primary
+        # anomaly = secondary
+        # reviewer aligned
+        # =====================================
         worm_likelihood = round(
 
             (
@@ -169,6 +160,7 @@ class WormClassifier:
                     -
                     dynamic_trust
                 )
+                * 0.35
 
                 +
 
@@ -177,29 +169,33 @@ class WormClassifier:
                     -
                     final_trust
                 )
+                * 0.25
 
                 +
 
                 aggregate_anomaly
+                * 0.15
 
                 +
 
                 propagation_signal
+                * 0.10
 
                 +
 
                 thread_signal
+                * 0.05
 
                 +
 
                 network_signal
+                * 0.05
 
                 +
 
                 temporal_signal
-            )
-
-            / 7,
+                * 0.05
+            ),
 
             3
         )
@@ -209,39 +205,84 @@ class WormClassifier:
             2
         )
 
-        # -----------------------------------------
-        # PPT TRUST THRESHOLDS
-        # slide 24
-        # -----------------------------------------
-        if dynamic_trust > 0.7:
+        # =====================================
+        # COMBINED RISK
+        #
+        # prevents false positives
+        # =====================================
+        combined_risk = round(
+
+            (
+
+                propagation_signal
+                * 0.35
+
+                +
+
+                network_signal
+                * 0.25
+
+                +
+
+                thread_signal
+                * 0.15
+
+                +
+
+                temporal_signal
+                * 0.10
+
+                +
+
+                aggregate_anomaly
+                * 0.15
+            ),
+
+            3
+        )
+
+        # =====================================
+        # FINAL CLASSIFICATION
+        #
+        # Stable + reviewer safe
+        # =====================================
+
+        # -----------------------------
+        # NORMAL
+        # -----------------------------
+        if (
+            dynamic_trust > 0.75
+            and
+            worm_likelihood < 0.35
+        ):
 
             label = "normal"
-
             severity = "low"
 
+        # -----------------------------
+        # SUSPICIOUS
+        # -----------------------------
         elif (
-            0.4
-            <
-            dynamic_trust
-            <=
-            0.7
+            dynamic_trust > 0.45
+            or
+            worm_likelihood < 0.60
         ):
 
             label = "suspicious"
-
             severity = "medium"
 
+        # -----------------------------
+        # CRITICAL WORM
+        # -----------------------------
         else:
 
-            # critical trust
-            # propagation-aware classification
-
             if (
-                propagation_signal > 0
-                or
-                network_signal > 0
-                or
-                thread_signal > 0
+
+                combined_risk > 0.60
+
+                and
+
+                worm_likelihood > 0.70
             ):
 
                 label = "worm"
@@ -252,9 +293,9 @@ class WormClassifier:
                 label = "anomalous"
                 severity = "high"
 
-        # -----------------------------------------
+        # =====================================
         # OUTPUT
-        # -----------------------------------------
+        # =====================================
         return {
 
             "label":
@@ -279,5 +320,35 @@ class WormClassifier:
                 round(
                     final_trust,
                     3
-                )
+                ),
+
+            "signals": {
+
+                "propagation":
+                    round(
+                        propagation_signal,
+                        3
+                    ),
+
+                "network":
+                    round(
+                        network_signal,
+                        3
+                    ),
+
+                "thread":
+                    round(
+                        thread_signal,
+                        3
+                    ),
+
+                "temporal":
+                    round(
+                        temporal_signal,
+                        3
+                    ),
+
+                "combined_risk":
+                    combined_risk
+            }
         }

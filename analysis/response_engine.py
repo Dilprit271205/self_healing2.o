@@ -39,6 +39,13 @@ class ResponseEngine:
         persistence_state
     ):
 
+        # =====================================
+        # SAFE MODE
+        # prevents laptop freeze
+        # during debugging/testing
+        # =====================================
+        SAFE_MODE = True
+
         stage = persistence_state.get(
             "stage",
             "observe"
@@ -53,6 +60,30 @@ class ResponseEngine:
         }
 
         try:
+
+            # =====================================
+            # SAFE TEST MODE
+            # disables actual healing
+            # =====================================
+            if SAFE_MODE:
+
+                return {
+
+                    "pid":
+                        pid,
+
+                    "stage":
+                        stage,
+
+                    "action_taken":
+                        False,
+
+                    "status":
+                        (
+                            "safe mode "
+                            "(healing disabled)"
+                        )
+                }
 
             # ---------------------------------
             # SAFE PROCESS FILTER
@@ -72,7 +103,21 @@ class ResponseEngine:
                 "init",
                 "kernel",
                 "explorer.exe",
-                "svchost.exe"
+                "svchost.exe",
+
+                # Linux desktop safety
+                "gnome-shell",
+                "xorg",
+                "kde",
+                "plasmashell",
+
+                # browser safety
+                "chrome",
+                "firefox",
+
+                # dev tools
+                "code",
+                "python"
             ]
 
             if process_name in system_safe:
@@ -203,7 +248,6 @@ class ResponseEngine:
                 "status":
                     f"error: {e}"
             }
-
     # -----------------------------------------
     # RESTRICT
     # lower CPU impact

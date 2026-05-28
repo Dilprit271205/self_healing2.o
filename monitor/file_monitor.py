@@ -18,64 +18,124 @@ class FileHandler(
     FileSystemEventHandler
 ):
     """
-    Process-aware
-    filesystem monitor
+    Stable process-aware
+    filesystem monitor.
 
-    Tries to attribute
-    file activity to process PID.
+    Maps file activity
+    to process PID.
     """
 
+    def __init__(self):
+
+        # -------------------------
+        # throttle repeated scans
+        # avoids CPU spikes
+        # -------------------------
+        self.last_scan = {}
+
+        self.cooldown = 1.5
+
+    # =====================================
+    # FILE -> PROCESS MAPPING
+    # =====================================
     def map_file_to_process(
         self,
         path
     ):
 
+        current_time = (
+            time.time()
+        )
+
+        # -------------------------
+        # cooldown
+        # prevents spam scans
+        # -------------------------
+        last = self.last_scan.get(
+            path,
+            0
+        )
+
+        if (
+            current_time
+            - last
+            <
+            self.cooldown
+        ):
+
+            return None
+
+        self.last_scan[
+            path
+        ] = current_time
+
         try:
 
             for proc in psutil.process_iter(
+
                 [
                     "pid",
-                    "open_files"
+                    "open_files",
+                    "name"
                 ]
             ):
 
                 try:
 
                     files = (
+
                         proc.info.get(
                             "open_files"
                         )
                         or []
                     )
 
+                    if not files:
+                        continue
+
                     for f in files:
 
-                        if (
-                            f.path
-                            ==
-                            path
-                        ):
+                        try:
 
-                            return proc.pid
+                            if (
+                                f.path
+                                ==
+                                path
+                            ):
 
-                except:
+                                return (
+                                    proc.pid
+                                )
+
+                        except:
+                            continue
+
+                except (
+
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied
+                ):
+
                     continue
 
-        except:
+        except Exception:
+
             pass
 
         return None
 
-    # -----------------------------------------
+    # =====================================
     # FILE EVENTS
-    # -----------------------------------------
+    # =====================================
     def process_event(
         self,
         path
     ):
 
-        pid = self.map_file_to_process(
-            path
+        pid = (
+            self.map_file_to_process(
+                path
+            )
         )
 
         if pid:
@@ -89,7 +149,11 @@ class FileHandler(
         event
     ):
 
-        if not event.is_directory:
+        if (
+            not
+            event.is_directory
+        ):
+
             self.process_event(
                 event.src_path
             )
@@ -99,7 +163,11 @@ class FileHandler(
         event
     ):
 
-        if not event.is_directory:
+        if (
+            not
+            event.is_directory
+        ):
+
             self.process_event(
                 event.src_path
             )
@@ -109,28 +177,58 @@ class FileHandler(
         event
     ):
 
-        if not event.is_directory:
+        if (
+            not
+            event.is_directory
+        ):
+
             self.process_event(
                 event.src_path
             )
 
 
+# =====================================
+# FILE MONITOR
+# =====================================
 def start_file_monitor(
 
     paths=None
 ):
 
+    # ---------------------------------
+    # SAFE DEFAULT PATHS
+    # ---------------------------------
     if paths is None:
 
         paths = [
 
-            "/tmp",
-            "/var/tmp",
-            "/home",
+            "/home/suyash-anand/Downloads",
 
-            # safe defaults
-            # avoid system freeze
+            "/tmp",
+
+            "/var/tmp"
         ]
+
+    # ---------------------------------
+    # PATH VALIDATION
+    # ---------------------------------
+    safe_paths = []
+
+    for path in paths:
+
+        if os.path.exists(
+            path
+        ):
+
+            safe_paths.append(
+                path
+            )
+
+        else:
+
+            print(
+                f"[FILE] SKIP: {path}"
+            )
 
     observer = Observer()
 
@@ -138,7 +236,10 @@ def start_file_monitor(
         FileHandler()
     )
 
-    for path in paths:
+    # ---------------------------------
+    # SAFE WATCH SETUP
+    # ---------------------------------
+    for path in safe_paths:
 
         try:
 
@@ -148,7 +249,9 @@ def start_file_monitor(
 
                 path,
 
-                recursive=True
+                # IMPORTANT
+                # prevents inotify crash
+                recursive=False
             )
 
             print(
@@ -158,19 +261,36 @@ def start_file_monitor(
         except Exception as e:
 
             print(
-                f"[FILE] Failed: {path}"
+                f"[FILE] Failed: "
+                f"{path} | {e}"
             )
 
     observer.start()
 
+    print(
+        "📁 File monitor started"
+    )
+
     return observer
 
 
-# -----------------------------------------
-# standalone test
-# -----------------------------------------
+# =====================================
+# STANDALONE TEST
+# =====================================
 if __name__ == "__main__":
 
-    start_file_monitor(
-        paths=["."]
+    observer = (
+        start_file_monitor()
     )
+
+    try:
+
+        while True:
+
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+
+        observer.stop()
+
+    observer.join()

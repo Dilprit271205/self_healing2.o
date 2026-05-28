@@ -64,7 +64,7 @@ from logger.logger import (
 # ===================================================
 # CONFIG
 # ===================================================
-MONITOR_INTERVAL = 6
+MONITOR_INTERVAL = 5
 SYSTEM_SAFE_PIDS = {
     0,
     1
@@ -99,19 +99,16 @@ def start_background_monitors():
     try:
 
         thread = threading.Thread(
-
             target=start_file_monitor,
-
             kwargs={
-
                 "paths": [
-                    "."
+                    "/home/suyash-anand/Downloads",
+                    "/tmp",
+                    "/var/tmp"
                 ]
             },
-
             daemon=True
         )
-
         thread.start()
 
         print(
@@ -159,7 +156,9 @@ def monitor_loop():
     )
 
     while True:
-
+        print(
+            "\n[NEW LOOP]"
+        )
         try:
 
             # =====================================
@@ -168,11 +167,14 @@ def monitor_loop():
             processes = (
                 get_process_data()
             )
-
-            network_data = (
-                network_monitor
-                .get_network_data()
+            print(
+                f"[PROCESS COUNT] "
+                f"{len(processes)}"
             )
+            network_data = (   
+               network_monitor
+               .get_network_data()
+           )
 
             connection_map = (
                 map_connections(
@@ -189,6 +191,10 @@ def monitor_loop():
 
                 lineage_tracker
                 .build_entities()
+            )
+            print(
+                f"[ENTITIES] "
+                f"{len(entities)}"
             )
 
             for (
@@ -210,6 +216,9 @@ def monitor_loop():
             # =====================================
             # PROCESS PIPELINE
             # =====================================
+            print(
+                "[PROCESS LOOP START]"
+            )
             for process in processes:
 
                 try:
@@ -241,6 +250,9 @@ def monitor_loop():
                             connection_map=
                             connection_map
                         )
+                    )
+                    print(
+                        "[FEATURES OK]"
                     )
 
                     # -------------------------
@@ -298,7 +310,7 @@ def monitor_loop():
 
                         # young / unknown process
                         elif features.get(
-                            "young_process",
+                            "f_young_process",
                             0
                         ):
 
@@ -473,13 +485,32 @@ def monitor_loop():
                         "features":
                             features
                     })
+                    print(
+                        "[LOGGED]"
+                    )
 
                 except Exception as e:
 
+                    import traceback
+
                     print(
-                        f"Process error "
-                        f"{process.get('pid')}: "
-                        f"{e}"
+                        f"\n{'='*60}"
+                    )
+
+                    print(
+                        f"PROCESS ERROR PID {pid}"
+                    )
+
+                    print(
+                        f"ERROR: {e}"
+                    )
+
+                    print(
+                        traceback.format_exc()
+                    )
+
+                    print(
+                        f"{'='*60}\n"
                     )
 
             # -------------------------

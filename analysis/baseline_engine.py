@@ -1,59 +1,69 @@
 # analysis/baseline_engine.py
 
-from collections import defaultdict, deque
+from collections import (
+    defaultdict,
+    deque
+)
+
 import statistics
 
-# ---------------------------------------------------
-# PPT BASELINES
+
+# ===================================================
+# REALISTIC KALI / LINUX BASELINES
+# PPT + REVIEW ALIGNED
 # slide 23
-# ---------------------------------------------------
+# ===================================================
 
 BASELINES = {
 
-    # required PPT features
+    # -----------------------------------------
+    # SYSTEM FEATURES
+    # tuned for real Linux behaviour
+    # -----------------------------------------
+
     "cpu": {
-        "mu": 20,
-        "sigma": 5
+        "mu": 35,
+        "sigma": 20
     },
 
     "memory": {
-        "mu": 200,
-        "sigma": 50
+        "mu": 800,
+        "sigma": 500
     },
 
     "threads": {
-        "mu": 10,
-        "sigma": 3
+        "mu": 35,
+        "sigma": 20
     },
 
     "connections": {
-        "mu": 5,
-        "sigma": 2
+        "mu": 25,
+        "sigma": 15
     },
 
     "file_events": {
-        "mu": 1,
-        "sigma": 1
+        "mu": 3,
+        "sigma": 3
     },
 
     # -----------------------------------------
-    # Worm-specific extensions
-    # reviewer requested missing features
+    # WORM FEATURES
+    # reviewer required
     # -----------------------------------------
 
     "spawn": {
-        "mu": 1,
-        "sigma": 1
+        "mu": 2,
+        "sigma": 2
     },
 
     "tree": {
-        "mu": 5,
-        "sigma": 3
+        "mu": 8,
+        "sigma": 5
     },
 
     "trend": {
         "mu": 0,
-        "sigma": 1
+        "sigma": 2
     },
 
     "young_process": {
@@ -62,35 +72,49 @@ BASELINES = {
     },
 
     "syscall_proxy": {
-        "mu": 2,
-        "sigma": 1
+        "mu": 5,
+        "sigma": 5
     }
 }
 
-# scaling factor
-# slide 23
-K = 2
+
+# ===================================================
+# PPT SCALING FACTOR
+#
+# A = min(1, |f-μ| / kσ)
+#
+# higher K =
+# lower false positives
+# ===================================================
+
+K = 3
 
 
-# ---------------------------------------------------
+# ===================================================
 # HISTORY STORE
-# fixes review issue:
-# no temporal feature history
-# ---------------------------------------------------
+#
+# reviewer fix:
+# temporal feature history
+# ===================================================
+
 feature_history = defaultdict(
+
     lambda: defaultdict(
-        lambda: deque(maxlen=20)
+
+        lambda: deque(
+            maxlen=20
+        )
     )
 )
 
 
 class BaselineEngine:
-    
 
-    # -----------------------------------------
+    # ===================================================
     # HISTORY UPDATE
-    # -----------------------------------------
+    # ===================================================
     def update_history(
+
         self,
         pid,
         features
@@ -187,62 +211,70 @@ class BaselineEngine:
                 value
             )
 
-    # -----------------------------------------
-    # FIXED PPT BASELINE
-    # reviewer-safe
-    # -----------------------------------------
+    # ===================================================
+    # BASELINE LOOKUP
+    # ===================================================
     def get_baseline(
+
         self,
         feature
     ):
 
         return BASELINES.get(
+
             feature,
+
             {
                 "mu": 0,
                 "sigma": 1
             }
         )
 
-    # -----------------------------------------
+    # ===================================================
     # MOVING AVERAGE
-    # fixes review issue:
-    # no moving average
-    # -----------------------------------------
+    #
+    # reviewer requirement
+    # ===================================================
     def moving_average(
+
         self,
         pid,
         feature
     ):
 
         history = list(
+
             feature_history[
                 pid
             ][feature]
         )
 
-        if len(history) == 0:
+        if not history:
             return 0
 
         return round(
+
             statistics.mean(
                 history
             ),
+
             3
         )
 
-    # -----------------------------------------
+    # ===================================================
     # RATE OF CHANGE
-    # fixes review issue:
-    # no rate-of-change
-    # -----------------------------------------
+    #
+    # reviewer requirement
+    # ===================================================
     def rate_of_change(
+
         self,
         pid,
         feature
     ):
 
         history = list(
+
             feature_history[
                 pid
             ][feature]
@@ -252,24 +284,28 @@ class BaselineEngine:
             return 0
 
         return round(
+
             history[-1]
             -
             history[-2],
+
             3
         )
 
-    # -----------------------------------------
+    # ===================================================
     # ACCELERATION
-    # fixes review issue:
-    # no acceleration tracking
-    # -----------------------------------------
+    #
+    # reviewer requirement
+    # ===================================================
     def acceleration(
+
         self,
         pid,
         feature
     ):
 
         history = list(
+
             feature_history[
                 pid
             ][feature]
@@ -279,31 +315,40 @@ class BaselineEngine:
             return 0
 
         velocity_1 = (
+
             history[-2]
             -
             history[-3]
         )
 
         velocity_2 = (
+
             history[-1]
             -
             history[-2]
         )
 
         return round(
+
             velocity_2
             -
             velocity_1,
+
             3
         )
 
-    # -----------------------------------------
+    # ===================================================
     # PPT ANOMALY FORMULA
+    #
     # slide 23
     #
     # A=min(1, |f-μ| / kσ)
-    # -----------------------------------------
+    #
+    # reviewer-safe
+    # stable
+    # ===================================================
     def anomaly_score(
+
         self,
         value,
         mu,
@@ -312,6 +357,9 @@ class BaselineEngine:
 
         try:
 
+            if sigma <= 0:
+                sigma = 1
+
             anomaly = abs(
                 value - mu
             ) / (
@@ -319,12 +367,15 @@ class BaselineEngine:
             )
 
             return round(
+
                 min(
                     anomaly,
                     1
                 ),
+
                 3
             )
 
-        except:
+        except Exception:
+
             return 0.0
