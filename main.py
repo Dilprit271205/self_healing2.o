@@ -39,7 +39,7 @@ from monitor.lineage import (
 )
 
 from monitor.network_monitor import (
-    get_network_data
+    NetworkMonitor
 )
 
 from monitor.file_monitor import (
@@ -88,7 +88,9 @@ persistence_engine = (
 lineage_tracker = (
     ProcessLineageTracker()
 )
-
+network_monitor = (
+    NetworkMonitor()
+)
 # ===================================================
 # FILE MONITOR THREAD
 # ===================================================
@@ -101,7 +103,10 @@ def start_background_monitors():
             target=start_file_monitor,
 
             kwargs={
-                "path": "."
+
+                "paths": [
+                    "."
+                ]
             },
 
             daemon=True
@@ -165,7 +170,8 @@ def monitor_loop():
             )
 
             network_data = (
-                get_network_data()
+                network_monitor
+                .get_network_data()
             )
 
             connection_map = (

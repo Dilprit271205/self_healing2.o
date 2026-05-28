@@ -113,11 +113,54 @@ class ExtractorEngine:
         # -----------------------------------------
         # NETWORK FEATURES
         # fixes review 3.3
+        # upgraded mapper compatible
         # -----------------------------------------
-        connection_count = (
+        network_info = (
             connection_map.get(
                 pid,
+                {}
+            )
+        )
+
+        connection_count = (
+            network_info.get(
+                "connections",
                 0
+            )
+        )
+
+        connection_velocity = (
+            network_info.get(
+                "connection_velocity",
+                0
+            )
+        )
+
+        port_spread = (
+            network_info.get(
+                "port_spread",
+                0
+            )
+        )
+
+        remote_ips = (
+            network_info.get(
+                "remote_ips",
+                0
+            )
+        )
+
+        scanning_score = (
+            network_info.get(
+                "scanning_score",
+                0
+            )
+        )
+
+        scanning_detected = (
+            network_info.get(
+                "scanning_detected",
+                False
             )
         )
 
@@ -126,27 +169,6 @@ class ExtractorEngine:
         ].append(
             connection_count
         )
-
-        connection_velocity = 0
-
-        if (
-            len(
-                connection_history[
-                    pid
-                ]
-            ) >= 2
-        ):
-
-            connection_velocity = (
-                connection_history[
-                    pid
-                ][-1]
-                -
-                connection_history[
-                    pid
-                ][-2]
-            )
-
         # -----------------------------------------
         # PROCESS SPAWN
         # fixes review 3.1
@@ -301,6 +323,18 @@ class ExtractorEngine:
 
             "f_connection_velocity":
                 connection_velocity,
+            
+            "f_port_spread":
+                port_spread,
+
+            "f_remote_ips":
+                remote_ips,
+
+            "f_scanning_score":
+                scanning_score,
+
+            "f_scanning_detected":
+                scanning_detected,
 
             # metadata
             "cmdline":

@@ -42,4 +42,4 @@ def get_file_map():
         # atomic swap
         file_events = Counter()
 
-    return current
+    return current  

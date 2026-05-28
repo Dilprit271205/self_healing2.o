@@ -135,7 +135,7 @@ def start_file_monitor(
     observer = Observer()
 
     event_handler = (
-        FileEventMapper()
+        FileHandler()
     )
 
     for path in paths:
@@ -171,4 +171,6 @@ def start_file_monitor(
 # -----------------------------------------
 if __name__ == "__main__":
 
-    start_file_monitor(".")
+    start_file_monitor(
+        paths=["."]
+    )
