@@ -97,6 +97,20 @@ class ResponseEngine:
                 ).lower()
             )
 
+            cmdline = (
+                process_info.get(
+                    "cmdline",
+                    ""
+                ).lower()
+            )
+
+            exe_path = (
+                process_info.get(
+                    "exe",
+                    ""
+                ).lower()
+            )
+
             system_safe = [
 
                 "systemd",
@@ -116,10 +130,26 @@ class ResponseEngine:
                 "firefox",
 
                 # dev tools
-                "code"
+                "code",
+                "streamlit"
             ]
 
-            if process_name in system_safe:
+            safe_cmd_keywords = [
+                "dashboard.py",
+                "dashboard_v1",
+                "dashboard_v1_backup.py",
+                "streamlit",
+                "jupyter",
+                "notebook"
+            ]
+
+            if (
+                process_name in system_safe
+                or
+                any(keyword in cmdline for keyword in safe_cmd_keywords)
+                or
+                any(keyword in exe_path for keyword in safe_cmd_keywords)
+            ):
 
                 return {
 

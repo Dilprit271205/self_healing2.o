@@ -293,29 +293,45 @@ class PersistenceEngine:
 
             stage = "observe"
 
-        elif 0.4 < avg_dynamic_trust <= 0.7:
+        elif 0.55 < avg_dynamic_trust <= 0.7:
 
             if avg_worm_score < 0.5:
                 stage = "restrict"
             else:
                 stage = "isolate"
 
+        elif 0.35 < avg_dynamic_trust <= 0.55:
+
+            if avg_worm_score < 0.65:
+                stage = "isolate"
+            else:
+                stage = "block_resources"
+
         else:
 
-            # critical trust collapse
-            if avg_severity < 0.8:
-                stage = "block_resources"
-            else:
+            # severe trust collapse needs strong evidence
+            if (
+                avg_worm_score >= 0.8
+                and
+                avg_severity >= 0.85
+                and
+                avg_final_trust <= 0.45
+                and
+                persistent
+            ):
                 stage = "terminate"
+            else:
+                stage = "block_resources"
 
-        # If the worm classifier is strongly confident, escalate to
-        # termination even if trust has not completely collapsed.
+        # Strong worm signal may accelerate response, but only on high confidence.
         if (
-            avg_worm_score >= 0.7
+            avg_worm_score >= 0.85
             and
-            avg_severity >= 0.8
+            avg_severity >= 0.9
             and
             persistent
+            and
+            avg_final_trust <= 0.5
         ):
             stage = "terminate"
 

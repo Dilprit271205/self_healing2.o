@@ -269,6 +269,27 @@ def monitor_loop():
                         )
                     )
 
+                    dashboard_safe_keywords = [
+                        "streamlit",
+                        "dashboard.py",
+                        "dashboard_v1",
+                        "dashboard_v1_backup.py"
+                    ]
+
+                    safe_dashboard_process = (
+                        any(
+                            keyword in cmdline
+                            for keyword
+                            in dashboard_safe_keywords
+                        )
+                        or
+                        any(
+                            keyword in process_name
+                            for keyword
+                            in dashboard_safe_keywords
+                        )
+                    )
+
                     strong_suspicion = (
                         process["cpu"] > 18
                         or
@@ -286,13 +307,17 @@ def monitor_loop():
                     ]
 
                     suspicious_candidate = (
-                        ("worm" in process_name)
-                        or
-                        ("python" in process_name and "worm" in cmdline)
-                        or
-                        strong_suspicion
-                        or
-                        sum(moderate_signals) >= 2
+                        not safe_dashboard_process
+                        and
+                        (
+                            ("worm" in process_name)
+                            or
+                            ("python" in process_name and "worm" in cmdline)
+                            or
+                            strong_suspicion
+                            or
+                            sum(moderate_signals) >= 2
+                        )
                     )
 
                     if not suspicious_candidate:
@@ -482,8 +507,21 @@ def monitor_loop():
                             .lower()
                         )
 
+                        # dashboard or safe UI processes
+                        if (
+                            "streamlit" in cmdline
+                            or
+                            "dashboard.py" in cmdline
+                            or
+                            "dashboard_v1" in cmdline
+                            or
+                            process_name == "streamlit"
+                        ):
+
+                            static_score = 0.95
+
                         # trusted binaries
-                        if process_name in trusted_processes:
+                        elif process_name in trusted_processes:
 
                             static_score = 0.95
 
