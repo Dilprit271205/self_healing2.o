@@ -17,6 +17,7 @@ EMA_ALPHA = 0.75
 
 STATIC_WEIGHT = 0.4
 DYNAMIC_WEIGHT = 0.6
+MIN_ANOMALY_THRESHOLD = 0.08
 
 
 class TrustEngine:
@@ -361,16 +362,19 @@ class TrustEngine:
             3
         )
 
-        target_dynamic = round(
-            max(
-                0.0,
-                min(
-                    1.0,
-                    1.0 - weighted_anomaly
-                )
-            ),
-            3
-        )
+        if weighted_anomaly < MIN_ANOMALY_THRESHOLD:
+            target_dynamic = 1.0
+        else:
+            target_dynamic = round(
+                max(
+                    0.0,
+                    min(
+                        1.0,
+                        1.0 - weighted_anomaly
+                    )
+                ),
+                3
+            )
 
         prev_dynamic = current.get(
             "dynamic_trust",

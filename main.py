@@ -269,20 +269,30 @@ def monitor_loop():
                         )
                     )
 
+                    strong_suspicion = (
+                        process["cpu"] > 18
+                        or
+                        process["connections"] > 10
+                        or
+                        process["open_files"] > 50
+                    )
+
+                    moderate_signals = [
+                        process["cpu"] > 8,
+                        process["connections"] > 6,
+                        process["open_files"] > 20,
+                        process_tree_size > 12,
+                        process["age_seconds"] < 20
+                    ]
+
                     suspicious_candidate = (
-                        process["cpu"] > 5
-                        or
-                        process["connections"] > 4
-                        or
-                        process["open_files"] > 10
-                        or
-                        process_tree_size > 8
-                        or
-                        process["age_seconds"] < 30
-                        or
                         ("worm" in process_name)
                         or
                         ("python" in process_name and "worm" in cmdline)
+                        or
+                        strong_suspicion
+                        or
+                        sum(moderate_signals) >= 2
                     )
 
                     if not suspicious_candidate:
@@ -475,7 +485,7 @@ def monitor_loop():
                         # trusted binaries
                         if process_name in trusted_processes:
 
-                            static_score = 0.85
+                            static_score = 0.95
 
                         elif process_name in {"python", "python3"}:
 
@@ -486,7 +496,7 @@ def monitor_loop():
                             ):
                                 static_score = 0.35
                             else:
-                                static_score = 0.65
+                                static_score = 0.75
 
                         # young / unknown process
                         elif features.get(
@@ -494,12 +504,12 @@ def monitor_loop():
                             0
                         ):
 
-                            static_score = 0.50
+                            static_score = 0.65
 
                         # normal fallback
                         else:
 
-                            static_score = 0.75
+                            static_score = 0.85
 
                     except:
 
