@@ -64,7 +64,7 @@ from logger.logger import (
 # ===================================================
 # CONFIG
 # ===================================================
-MONITOR_INTERVAL = 10
+MONITOR_INTERVAL = 5
 SYSTEM_SAFE_PIDS = {
     0,
     1
@@ -276,6 +276,17 @@ def monitor_loop():
                         "dashboard_v1_backup.py"
                     ]
 
+                    browser_safe_keywords = [
+                        "chrome",
+                        "chromium",
+                        "firefox",
+                        "brave",
+                        "msedge",
+                        "opera",
+                        "vivaldi",
+                        "code"
+                    ]
+
                     safe_dashboard_process = (
                         any(
                             keyword in cmdline
@@ -287,6 +298,20 @@ def monitor_loop():
                             keyword in process_name
                             for keyword
                             in dashboard_safe_keywords
+                        )
+                    )
+
+                    safe_browser_process = (
+                        any(
+                            keyword in cmdline
+                            for keyword
+                            in browser_safe_keywords
+                        )
+                        or
+                        any(
+                            keyword in process_name
+                            for keyword
+                            in browser_safe_keywords
                         )
                     )
 
@@ -308,6 +333,8 @@ def monitor_loop():
 
                     suspicious_candidate = (
                         not safe_dashboard_process
+                        and
+                        not safe_browser_process
                         and
                         (
                             ("worm" in process_name)
@@ -484,20 +511,28 @@ def monitor_loop():
                             ).lower()
                         )
 
-                        trusted_processes = {
-
+                        trusted_processes = [
                             "systemd",
                             "init",
                             "dbus-daemon",
                             "networkmanager",
                             "chrome",
+                            "google-chrome",
+                            "chromium",
+                            "chrome-wrapper",
+                            "chrome_sandbox",
                             "firefox",
+                            "brave",
+                            "msedge",
+                            "opera",
+                            "vivaldi",
                             "code",
                             "sudo",
                             "bash",
                             "zsh",
-                            "gnome-shell"
-                        }
+                            "gnome-shell",
+                            "streamlit"
+                        ]
 
                         cmdline = (
                             process.get(
@@ -520,8 +555,12 @@ def monitor_loop():
 
                             static_score = 0.95
 
-                        # trusted binaries
-                        elif process_name in trusted_processes:
+                        # trusted binaries or browsers
+                        elif any(
+                            keyword in process_name
+                            for keyword
+                            in trusted_processes
+                        ):
 
                             static_score = 0.95
 

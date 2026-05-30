@@ -228,6 +228,12 @@ class PersistenceEngine:
             3
         )
 
+        worm_count = sum(
+            1
+            for x in recent
+            if x["label"] == "worm"
+        )
+
         # -----------------------------------------
         # PERSISTENCE CONFIDENCE
         #
@@ -291,18 +297,25 @@ class PersistenceEngine:
 
         if avg_dynamic_trust > 0.7:
 
-            stage = "observe"
+            if (
+                avg_worm_score >= 0.55
+                and
+                avg_severity >= 0.5
+            ):
+                stage = "restrict"
+            else:
+                stage = "observe"
 
         elif 0.55 < avg_dynamic_trust <= 0.7:
 
-            if avg_worm_score < 0.5:
+            if avg_worm_score < 0.45:
                 stage = "restrict"
             else:
                 stage = "isolate"
 
         elif 0.35 < avg_dynamic_trust <= 0.55:
 
-            if avg_worm_score < 0.65:
+            if avg_worm_score < 0.60:
                 stage = "isolate"
             else:
                 stage = "block_resources"
@@ -311,11 +324,11 @@ class PersistenceEngine:
 
             # severe trust collapse needs strong evidence
             if (
-                avg_worm_score >= 0.8
+                avg_worm_score >= 0.75
                 and
-                avg_severity >= 0.85
+                avg_severity >= 0.8
                 and
-                avg_final_trust <= 0.45
+                avg_final_trust <= 0.5
                 and
                 persistent
             ):
@@ -325,15 +338,30 @@ class PersistenceEngine:
 
         # Strong worm signal may accelerate response, but only on high confidence.
         if (
-            avg_worm_score >= 0.85
+            worm_count >= 2
             and
-            avg_severity >= 0.9
+            avg_worm_score >= 0.75
+            and
+            avg_severity >= 0.85
             and
             persistent
             and
-            avg_final_trust <= 0.5
+            avg_final_trust <= 0.85
         ):
             stage = "terminate"
+
+        elif (
+            worm_count >= 1
+            and
+            avg_worm_score >= 0.65
+            and
+            avg_severity >= 0.8
+            and
+            persistent
+            and
+            stage in ["observe", "restrict"]
+        ):
+            stage = "isolate"
 
         return {
 

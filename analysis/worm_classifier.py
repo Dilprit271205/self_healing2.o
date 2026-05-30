@@ -79,11 +79,21 @@ class WormClassifier:
 
         propagation_signal = min(
             (
-                process_growth
+                process_growth * 2
                 +
                 process_tree
+                +
+                features.get(
+                    "f_process_trend",
+                    0
+                ) * 4
+                +
+                features.get(
+                    "f_young_process",
+                    0
+                ) * 3
             )
-            / 20,
+            / 30,
             1
         )
 
@@ -98,7 +108,7 @@ class WormClassifier:
                     0
                 )
             )
-            / 10,
+            / 8,
             1
         )
 
@@ -107,13 +117,24 @@ class WormClassifier:
         # reviewer requirement
         # =====================================
         network_signal = min(
-            abs(
-                features.get(
-                    "f_connection_velocity",
-                    0
+            (
+                abs(
+                    features.get(
+                        "f_connection_velocity",
+                        0
+                    )
                 )
-            )
-            / 10,
+                / 10
+                +
+                min(
+                    features.get(
+                        "f_remote_ips",
+                        0
+                    )
+                    / 10,
+                    1
+                )
+            ),
             1
         )
 
@@ -146,11 +167,24 @@ class WormClassifier:
         )
 
         # =====================================
+        # HEURISTIC WORM SIGNAL
+        # captures model-specific worm stealth
+        # =====================================
+        worm_heuristic = min(
+            features.get(
+                "worm_score",
+                0
+            )
+            / 50,
+            1
+        )
+
+        # =====================================
         # WORM LIKELIHOOD
         #
         # Trust = primary
         # anomaly = secondary
-        # reviewer aligned
+        # propagation = tertiary
         # =====================================
         worm_likelihood = round(
 
@@ -174,27 +208,32 @@ class WormClassifier:
                 +
 
                 aggregate_anomaly
-                * 0.20
+                * 0.18
 
                 +
 
                 propagation_signal
-                * 0.25
+                * 0.22
 
                 +
 
                 thread_signal
-                * 0.15
+                * 0.12
 
                 +
 
                 network_signal
-                * 0.10
+                * 0.08
 
                 +
 
                 temporal_signal
-                * 0.10
+                * 0.08
+
+                +
+
+                worm_heuristic
+                * 0.12
             ),
 
             3
@@ -204,12 +243,25 @@ class WormClassifier:
         if (
             propagation_signal >= 0.7
             and
-            aggregate_anomaly >= 0.5
+            aggregate_anomaly >= 0.45
         ):
             worm_likelihood = round(
                 min(
                     1.0,
-                    worm_likelihood + 0.25
+                    worm_likelihood + 0.22
+                ),
+                3
+            )
+
+        if (
+            worm_heuristic >= 0.5
+            and
+            aggregate_anomaly >= 0.35
+        ):
+            worm_likelihood = round(
+                min(
+                    1.0,
+                    worm_likelihood + 0.12
                 ),
                 3
             )
@@ -228,27 +280,32 @@ class WormClassifier:
 
             (
                 propagation_signal
-                * 0.40
+                * 0.35
 
                 +
 
                 network_signal
-                * 0.20
+                * 0.18
 
                 +
 
                 thread_signal
-                * 0.15
+                * 0.12
 
                 +
 
                 temporal_signal
-                * 0.15
+                * 0.12
 
                 +
 
                 aggregate_anomaly
-                * 0.10
+                * 0.08
+
+                +
+
+                worm_heuristic
+                * 0.15
             ),
 
             3
@@ -264,11 +321,13 @@ class WormClassifier:
         # NORMAL
         # -----------------------------
         if (
-            worm_likelihood < 0.30
+            worm_likelihood < 0.28
             and
-            aggregate_anomaly < 0.35
+            aggregate_anomaly < 0.30
             and
-            propagation_signal < 0.35
+            propagation_signal < 0.30
+            and
+            worm_heuristic < 0.35
         ):
 
             label = "normal"
@@ -278,9 +337,9 @@ class WormClassifier:
         # WORM
         # -----------------------------
         elif (
-            worm_likelihood >= 0.70
+            worm_likelihood >= 0.65
             and
-            combined_risk >= 0.50
+            combined_risk >= 0.45
         ):
 
             label = "worm"
@@ -292,11 +351,13 @@ class WormClassifier:
         else:
 
             if (
-                worm_likelihood >= 0.45
+                worm_likelihood >= 0.40
                 or
-                propagation_signal >= 0.6
+                propagation_signal >= 0.55
                 or
-                aggregate_anomaly >= 0.4
+                aggregate_anomaly >= 0.45
+                or
+                worm_heuristic >= 0.35
             ):
 
                 label = "suspicious"

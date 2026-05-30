@@ -79,6 +79,13 @@ class ExtractorEngine:
             ""
         )
 
+        process_name = (
+            str(process.get(
+                "name",
+                "unknown"
+            )).lower()
+        )
+
         # -----------------------------------------
         # ENTITY FEATURES
         # lineage.py integration
@@ -287,6 +294,60 @@ class ExtractorEngine:
             )
 
         # -----------------------------------------
+        # HEURISTIC WORM SIGNALS
+        # -----------------------------------------
+        suspicious_name = 1 if (
+            "worm" in process_name
+            or "worm_sim" in cmdline
+            or "stress.py" in cmdline
+            or "payload" in cmdline
+        ) else 0
+
+        safe_names = [
+            "systemd",
+            "kthreadd",
+            "kworker",
+            "packagekitd",
+            "gdm",
+            "pipewire",
+            "dnsmasq",
+            "mariadbd",
+            "prometheus",
+            "chrome",
+            "chromium",
+            "firefox",
+            "code",
+            "streamlit"
+        ]
+
+        safe_process = any(
+            keyword in process_name
+            for keyword in safe_names
+        )
+
+        worm_score = (
+            (process_growth * 24)
+            + (process_trend * 28)
+            + (young_process * 20)
+            + (suspicious_name * 26)
+            + (syscall_proxy * 0.35)
+            + (connection_velocity * 2.0)
+            + (remote_ips * 1.5)
+            + (scanning_score * 4.0)
+        )
+
+        if safe_process:
+            worm_score *= 0.08
+
+        worm_score = round(
+            max(
+                0.0,
+                worm_score
+            ),
+            2
+        )
+
+        # -----------------------------------------
         # RETURN FEATURES
         # -----------------------------------------
         return {
@@ -335,6 +396,13 @@ class ExtractorEngine:
 
             "f_scanning_detected":
                 scanning_detected,
+
+            # heuristics
+            "worm_score":
+                worm_score,
+
+            "safe_process":
+                safe_process,
 
             # metadata
             "cmdline":

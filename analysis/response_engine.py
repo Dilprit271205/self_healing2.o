@@ -127,11 +127,21 @@ class ResponseEngine:
 
                 # browser safety
                 "chrome",
+                "google-chrome",
+                "chromium",
+                "chrome-wrapper",
+                "chrome_sandbox",
                 "firefox",
+                "brave",
+                "msedge",
+                "opera",
+                "vivaldi",
 
                 # dev tools
                 "code",
-                "streamlit"
+                "streamlit",
+                "jupyter",
+                "notebook"
             ]
 
             safe_cmd_keywords = [
@@ -144,7 +154,7 @@ class ResponseEngine:
             ]
 
             if (
-                process_name in system_safe
+                any(keyword in process_name for keyword in system_safe)
                 or
                 any(keyword in cmdline for keyword in safe_cmd_keywords)
                 or
