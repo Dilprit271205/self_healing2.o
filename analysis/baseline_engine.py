@@ -350,6 +350,7 @@ class BaselineEngine:
     def anomaly_score(
 
         self,
+        feature,
         value,
         mu,
         sigma
@@ -360,7 +361,11 @@ class BaselineEngine:
             if sigma <= 0:
                 sigma = 1
 
-            # Both unexpectedly low and high values can signal deviation.
+            # Avoid penalizing quiet benign behavior.
+            # Only above-normal activity should drive trust loss for most process metrics.
+            if value <= mu:
+                return 0.0
+
             anomaly = abs(
                 value - mu
             ) / (

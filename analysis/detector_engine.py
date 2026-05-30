@@ -101,6 +101,7 @@ class DetectorEngine:
             )
 
             anomaly = baseline.anomaly_score(
+                feature=feature,
                 value=value,
                 mu=base["mu"],
                 sigma=base["sigma"]

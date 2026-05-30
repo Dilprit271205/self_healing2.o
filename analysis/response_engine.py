@@ -116,8 +116,7 @@ class ResponseEngine:
                 "firefox",
 
                 # dev tools
-                "code",
-                "python"
+                "code"
             ]
 
             if process_name in system_safe:
