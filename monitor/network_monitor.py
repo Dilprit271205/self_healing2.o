@@ -75,50 +75,42 @@ class NetworkMonitor:
 
                 try:
 
-                    pid = (
-                        proc.info[
-                            "pid"
+                    with proc.oneshot():
+
+                        pid = (
+                            proc.info[
+                                "pid"
+                            ]
+                        )
+
+                        process_name = (
+                            proc.info.get(
+                                "name",
+                                ""
+                            ).lower()
+                        )
+
+                        # ---------------------------------
+                        # SAFE PROCESS FILTER
+                        # skip OS critical
+                        # ---------------------------------
+                        ignored = [
+
+                            "systemd",
+                            "dbus",
+                            "kworker",
+                            "ksoftirqd",
+                            "migration",
+                            "rcu",
+
+                            "xorg",
+                            "gnome-shell",
+
+                            "chrome",
+                            "firefox",
+
+                            "code"
                         ]
-                    )
-
-                    process_name = (
-                        proc.info.get(
-                            "name",
-                            ""
-                        ).lower()
-                    )
-
-                    # ---------------------------------
-                    # SAFE PROCESS FILTER
-                    # skip OS critical
-                    # ---------------------------------
-                    ignored = [
-
-                        "systemd",
-                        "dbus",
-                        "kworker",
-                        "ksoftirqd",
-                        "migration",
-                        "rcu",
-
-                        "xorg",
-                        "gnome-shell",
-
-                        "chrome",
-                        "firefox",
-
-                        "code"
-                    ]
-
-                    if any(
-
-                        x
-                        in
-                        process_name
-
-                        for x in ignored
-                    ):
-
                         continue
 
                     # ---------------------------------
@@ -129,7 +121,7 @@ class NetworkMonitor:
                     try:
 
                         cpu = (
-                            proc.cpu_percent()
+                            proc.cpu_percent(interval=None)
                         )
 
                         if cpu < 0.5:

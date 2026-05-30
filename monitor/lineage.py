@@ -55,16 +55,18 @@ class ProcessLineageTracker:
 
             try:
 
-                info = proc.info
+                with proc.oneshot():
 
-                if not info.get("exe"):
-                    info["exe"] = (
-                        info["name"]
+                    info = proc.info
+
+                    if not info.get("exe"):
+                        info["exe"] = (
+                            info["name"]
+                        )
+
+                    processes.append(
+                        info
                     )
-
-                processes.append(
-                    info
-                )
 
             except (
                 psutil.NoSuchProcess,

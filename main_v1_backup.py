@@ -4,7 +4,7 @@ import psutil
 import getpass
 
 from monitor.process_monitor import get_process_data
-from monitor.network_monitor import get_network_data
+from monitor.network_monitor import NetworkMonitor
 from monitor.file_monitor import start_file_monitor
 from monitor.lineage import ProcessLineageTracker
 
@@ -177,12 +177,13 @@ def is_idle_process(process):
 def monitor_loop():
 
     tracker = ProcessLineageTracker()
+    network_monitor = NetworkMonitor()
 
     while True:
 
         try:
             processes = get_process_data()
-            network = get_network_data()
+            network = network_monitor.get_network_data()
 
             process_map = {p["pid"]: p for p in processes}
             entities = tracker.build_entities()

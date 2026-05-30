@@ -1,13 +1,17 @@
 # monitor/file_monitor.py
 
-from watchdog.observers import Observer
-from watchdog.events import (
-    FileSystemEventHandler
-)
-
-import psutil
 import os
 import time
+import psutil
+
+try:
+    from watchdog.observers import Observer
+    from watchdog.events import FileSystemEventHandler
+    _WATCHDOG_AVAILABLE = True
+except ImportError:
+    Observer = None
+    FileSystemEventHandler = object
+    _WATCHDOG_AVAILABLE = False
 
 from utils.file_event_mapper import (
     record_file_event
@@ -195,6 +199,14 @@ def start_file_monitor(
     paths=None
 ):
 
+    if not _WATCHDOG_AVAILABLE:
+
+        print(
+            "[FILE] watchdog package not installed, file monitor disabled"
+        )
+
+        return None
+
     # ---------------------------------
     # SAFE DEFAULT PATHS
     # ---------------------------------
@@ -229,6 +241,14 @@ def start_file_monitor(
             print(
                 f"[FILE] SKIP: {path}"
             )
+
+    if not safe_paths:
+
+        print(
+            "[FILE] No valid paths to monitor, skipping file monitor"
+        )
+
+        return None
 
     observer = Observer()
 

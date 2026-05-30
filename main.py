@@ -98,18 +98,19 @@ def start_background_monitors():
 
     try:
 
-        thread = threading.Thread(
-            target=start_file_monitor,
-            kwargs={
-                "paths": [
-                    "/home/suyash-anand/Downloads",
-                    "/tmp",
-                    "/var/tmp"
-                ]
-            },
-            daemon=True
+        observer = start_file_monitor(
+            paths=[
+                "/home/suyash-anand/Downloads",
+                "/tmp",
+                "/var/tmp"
+            ]
         )
-        thread.start()
+
+        if observer is None:
+            print(
+                "📂 File monitor skipped (watchdog unavailable or paths missing)"
+            )
+            return
 
         print(
             "📂 File monitor started"
@@ -362,6 +363,47 @@ def monitor_loop():
                             trust_state
                         )
                     )
+
+                    # -------------------------
+                    # FLAGGED PROCESS OUTPUT
+                    # show trust drift and suspicious labels
+                    # -------------------------
+                    process_name = (
+                        process.get(
+                            "name",
+                            "unknown"
+                        )
+                    )
+
+                    low_trust = (
+                        trust_state.get(
+                            "final_trust",
+                            1.0
+                        )
+                        <
+                        0.9
+                    )
+
+                    if (
+                        classification.get(
+                            "label"
+                        )
+                        !=
+                        "normal"
+                        or
+                        low_trust
+                    ):
+
+                        print(
+                            f"[FLAGGED] pid={pid} "
+                            f"name={process_name} "
+                            f"label={classification.get('label')} "
+                            f"severity={classification.get('severity')} "
+                            f"worm_score={classification.get('worm_score')} "
+                            f"final_trust={trust_state.get('final_trust')} "
+                            f"dynamic_trust={trust_state.get('dynamic_trust')} "
+                            f"static_trust={trust_state.get('static_trust')}"
+                        )
 
                     # -------------------------
                     # PERSISTENCE

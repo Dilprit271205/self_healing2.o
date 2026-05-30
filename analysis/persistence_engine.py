@@ -308,6 +308,17 @@ class PersistenceEngine:
             else:
                 stage = "terminate"
 
+        # If the worm classifier is strongly confident, escalate to
+        # termination even if trust has not completely collapsed.
+        if (
+            avg_worm_score >= 0.7
+            and
+            avg_severity >= 0.8
+            and
+            persistent
+        ):
+            stage = "terminate"
+
         return {
 
             "persistent":

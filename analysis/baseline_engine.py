@@ -17,33 +17,33 @@ import statistics
 BASELINES = {
 
     # -----------------------------------------
-    # SYSTEM FEATURES
-    # tuned for real Linux behaviour
+    # PER-PROCESS NORMALS
+    # tuned for typical benign Linux processes
     # -----------------------------------------
 
     "cpu": {
-        "mu": 35,
-        "sigma": 20
+        "mu": 2,
+        "sigma": 4
     },
 
     "memory": {
-        "mu": 800,
-        "sigma": 500
+        "mu": 1.5,
+        "sigma": 2
     },
 
     "threads": {
-        "mu": 35,
-        "sigma": 20
+        "mu": 3,
+        "sigma": 2
     },
 
     "connections": {
-        "mu": 25,
-        "sigma": 15
+        "mu": 1,
+        "sigma": 2
     },
 
     "file_events": {
-        "mu": 3,
-        "sigma": 3
+        "mu": 0.2,
+        "sigma": 0.8
     },
 
     # -----------------------------------------
@@ -52,18 +52,18 @@ BASELINES = {
     # -----------------------------------------
 
     "spawn": {
+        "mu": 0,
+        "sigma": 1
+    },
+
+    "tree": {
         "mu": 2,
         "sigma": 2
     },
 
-    "tree": {
-        "mu": 8,
-        "sigma": 5
-    },
-
     "trend": {
         "mu": 0,
-        "sigma": 2
+        "sigma": 1
     },
 
     "young_process": {
@@ -72,8 +72,8 @@ BASELINES = {
     },
 
     "syscall_proxy": {
-        "mu": 5,
-        "sigma": 5
+        "mu": 4,
+        "sigma": 3
     }
 }
 
@@ -83,11 +83,11 @@ BASELINES = {
 #
 # A = min(1, |f-μ| / kσ)
 #
-# higher K =
-# lower false positives
+# lower K = more sensitive to normal deviations
+# higher K = more tolerant
 # ===================================================
 
-K = 3
+K = 2.0
 
 
 # ===================================================
@@ -360,6 +360,7 @@ class BaselineEngine:
             if sigma <= 0:
                 sigma = 1
 
+            # Both unexpectedly low and high values can signal deviation.
             anomaly = abs(
                 value - mu
             ) / (

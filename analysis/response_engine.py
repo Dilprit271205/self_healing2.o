@@ -41,10 +41,10 @@ class ResponseEngine:
 
         # =====================================
         # SAFE MODE
-        # prevents laptop freeze
-        # during debugging/testing
+        # enable actual healing now so
+        # worm termination can occur automatically.
         # =====================================
-        SAFE_MODE = True
+        SAFE_MODE = False
 
         stage = persistence_state.get(
             "stage",

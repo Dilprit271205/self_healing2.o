@@ -1,8 +1,149 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from streamlit_autorefresh import st_autorefresh
+import sys
+
+try:
+    import streamlit as st
+    import pandas as pd
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from streamlit_autorefresh import st_autorefresh
+except ImportError as e:
+    print(
+        f"Dashboard unavailable: missing dependency {e}."
+    )
+    print(
+        "Install streamlit, pandas, plotly, and streamlit-autorefresh to run the dashboard."
+    )
+
+    class _DummyObject:
+        def __getattr__(self, name):
+            return self._noop
+
+        def __call__(self, *args, **kwargs):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def __bool__(self):
+            return False
+
+        def __len__(self):
+            return 0
+
+        def __iter__(self):
+            return iter(())
+
+        def __contains__(self, item):
+            return False
+
+        def _noop(self, *args, **kwargs):
+            return self
+
+        def get(self, *args, **kwargs):
+            return {}
+
+        def items(self, *args, **kwargs):
+            return ()
+
+        def value_counts(self, *args, **kwargs):
+            return _DummyValueCounts()
+
+        def sort_values(self, *args, **kwargs):
+            return self
+
+        def groupby(self, *args, **kwargs):
+            return self
+
+        def tail(self, *args, **kwargs):
+            return self
+
+        def reset_index(self, *args, **kwargs):
+            return self
+
+        def fillna(self, *args, **kwargs):
+            return self
+
+        def mean(self, *args, **kwargs):
+            return 0
+
+        def append(self, *args, **kwargs):
+            return self
+
+        def __getitem__(self, key):
+            return self
+
+        def __setitem__(self, key, value):
+            pass
+
+        def columns(self, count):
+            return [self for _ in range(count)]
+
+        def __getattribute__(self, name):
+            if name == 'empty':
+                return True
+            if name == 'dtype':
+                return None
+            if name == 'shape':
+                return (0, 0)
+            return object.__getattribute__(self, name)
+
+    class _DummyValueCounts(_DummyObject):
+        def __init__(self):
+            self.index = []
+            self.values = []
+
+        def get(self, *args, **kwargs):
+            return 0
+
+    class _DummyColumns(list):
+        def duplicated(self, *args, **kwargs):
+            return _DummyColumns()
+
+        def __invert__(self):
+            return self
+
+    class _DummyDataFrame(_DummyObject):
+        columns = _DummyColumns()
+
+        @property
+        def loc(self):
+            return self
+
+        def __getitem__(self, key):
+            return self
+
+        def __iter__(self):
+            return iter(())
+
+    class _DummyPandas(_DummyObject):
+        def read_json(self, *args, **kwargs):
+            return _DummyDataFrame()
+
+        def to_datetime(self, *args, **kwargs):
+            return self
+
+        def to_numeric(self, *args, **kwargs):
+            return self
+
+        def DataFrame(self, *args, **kwargs):
+            return _DummyDataFrame()
+
+    def _noop_cache_data(*args, **kwargs):
+        def decorator(fn):
+            return fn
+        return decorator
+
+    st = _DummyObject()
+    st.cache_data = _noop_cache_data
+    pd = _DummyPandas()
+    px = _DummyObject()
+    go = _DummyObject()
+
+    def st_autorefresh(*args, **kwargs):
+        return None
 
 # ---------------------------------------------------
 # FILES

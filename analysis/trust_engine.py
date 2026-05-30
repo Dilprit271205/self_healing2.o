@@ -284,54 +284,125 @@ class TrustEngine:
         }
 
         # -----------------------------------------
-        # DYNAMIC TRUST
-        # Td
-        # slide 24
+        # COMPONENT TRUST
+        # each anomaly becomes a complementary trust score
         # -----------------------------------------
-        dynamic_trust = round(
-
-            sum(
-                trust_vector.values()
-            )
-
-            /
-
-            len(
-                trust_vector
+        cpu_trust = round(
+            max(
+                0.0,
+                min(
+                    1.0,
+                    1.0 - cpu_anomaly
+                )
             ),
+            3
+        )
 
+        memory_trust = round(
+            max(
+                0.0,
+                min(
+                    1.0,
+                    1.0 - memory_anomaly
+                )
+            ),
+            3
+        )
+
+        threads_trust = round(
+            max(
+                0.0,
+                min(
+                    1.0,
+                    1.0 - thread_anomaly
+                )
+            ),
+            3
+        )
+
+        connections_trust = round(
+            max(
+                0.0,
+                min(
+                    1.0,
+                    1.0 - connection_anomaly
+                )
+            ),
+            3
+        )
+
+        files_trust = round(
+            max(
+                0.0,
+                min(
+                    1.0,
+                    1.0 - file_anomaly
+                )
+            ),
+            3
+        )
+
+        anomaly_weights = {
+            "cpu": 0.25,
+            "memory": 0.2,
+            "threads": 0.2,
+            "connections": 0.2,
+            "files": 0.15
+        }
+
+        weighted_anomaly = round(
+            (
+                cpu_anomaly * anomaly_weights["cpu"]
+                + memory_anomaly * anomaly_weights["memory"]
+                + thread_anomaly * anomaly_weights["threads"]
+                + connection_anomaly * anomaly_weights["connections"]
+                + file_anomaly * anomaly_weights["files"]
+            ),
+            3
+        )
+
+        target_dynamic = round(
+            max(
+                0.0,
+                min(
+                    1.0,
+                    1.0 - weighted_anomaly
+                )
+            ),
+            3
+        )
+
+        prev_dynamic = current.get(
+            "dynamic_trust",
+            1.0
+        )
+
+        dynamic_trust = round(
+            EMA_ALPHA * prev_dynamic
+            + (1 - EMA_ALPHA) * target_dynamic,
             3
         )
 
         # -----------------------------------------
         # FINAL TRUST
-        #
-        # T(p,t)
-        #
-        # stabilized weights
+        # T(p,t) = αTs + (1-α)Td
         # -----------------------------------------
-        final_trust = round(
-
-            (
-                STATIC_WEIGHT
-                *
-                max(
-                    0,
-                    min(
-                        1,
-                        static_score
-                    )
+        static_score = round(
+            max(
+                0.0,
+                min(
+                    1.0,
+                    static_score
                 )
-            )
-
-            +
-
-            (
-                DYNAMIC_WEIGHT
-                *
-                dynamic_trust
             ),
+            3
+        )
 
+        final_trust = round(
+            (
+                STATIC_WEIGHT * static_score
+                + DYNAMIC_WEIGHT * dynamic_trust
+            ),
             3
         )
 
@@ -339,20 +410,14 @@ class TrustEngine:
         # STORE TRUST
         # -----------------------------------------
         trust_db[pid] = {
-
-            **trust_vector,
-
-            "static_trust":
-                round(
-                    static_score,
-                    3
-                ),
-
-            "dynamic_trust":
-                dynamic_trust,
-
-            "final_trust":
-                final_trust
+            "cpu": cpu_trust,
+            "memory": memory_trust,
+            "threads": threads_trust,
+            "connections": connections_trust,
+            "files": files_trust,
+            "static_trust": static_score,
+            "dynamic_trust": dynamic_trust,
+            "final_trust": final_trust
         }
 
         return trust_db[pid]

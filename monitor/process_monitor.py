@@ -57,39 +57,40 @@ def get_process_data():
         "username",
         "status",
         "open_files"
-        
 
     ]):
 
         try:
 
-            info = proc.info
+            with proc.oneshot():
 
-            cmdline = " ".join(
-                info.get(
-                    "cmdline",
-                    []
-                )
-            )
+                info = proc.info
 
-            open_files = (
-                len(
+                cmdline = " ".join(
                     info.get(
-                        "open_files"
+                        "cmdline",
+                        []
                     )
-                    or []
-                )
-            )
-
-            try:
-
-                connections = len(
-                    proc.net_connections()
                 )
 
-            except:
+                open_files = (
+                    len(
+                        info.get(
+                            "open_files"
+                        )
+                        or []
+                    )
+                )
 
-                connections = 0
+                try:
+
+                    connections = len(
+                        proc.net_connections()
+                    )
+
+                except:
+
+                    connections = 0
 
             age_seconds = (
                 time.time()
