@@ -167,14 +167,16 @@ class ProcessLineageTracker:
     # ENTITY BUILDING
     # -----------------------------------------
     def build_entities(
-        self
+        self,
+        processes=None
     ):
 
         self.entities.clear()
 
-        processes = (
-            self.get_processes()
-        )
+        if processes is None:
+            processes = (
+                self.get_processes()
+            )
 
         self.build_pid_map(
             processes
@@ -200,13 +202,14 @@ class ProcessLineageTracker:
     # ENTITY SUMMARY
     # -----------------------------------------
     def get_entity_summary(
-        self
+        self,
+        processes=None
     ):
 
         summaries = []
 
         entities = (
-            self.build_entities()
+            self.build_entities(processes)
         )
 
         for (

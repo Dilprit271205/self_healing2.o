@@ -64,7 +64,7 @@ from logger.logger import (
 # ===================================================
 # CONFIG
 # ===================================================
-MONITOR_INTERVAL = 5
+MONITOR_INTERVAL = 10
 SYSTEM_SAFE_PIDS = {
     0,
     1
@@ -125,14 +125,18 @@ def start_background_monitors():
 # ===================================================
 # ENTITY LOGGER
 # ===================================================
-def log_entities():
+def log_entities(
+    processes=None
+):
 
     try:
 
         entity_summary = (
 
             lineage_tracker
-            .get_entity_summary()
+            .get_entity_summary(
+                processes
+            )
         )
 
         for entity in entity_summary:
@@ -191,7 +195,9 @@ def monitor_loop():
             entities = (
 
                 lineage_tracker
-                .build_entities()
+                .build_entities(
+                    processes
+                )
             )
             print(
                 f"[ENTITIES] "
@@ -212,7 +218,9 @@ def monitor_loop():
             # =====================================
             # ENTITY LOGGING
             # =====================================
-            log_entities()
+            log_entities(
+                processes
+            )
 
             # =====================================
             # PROCESS PIPELINE
@@ -233,6 +241,159 @@ def monitor_loop():
                         in
                         SYSTEM_SAFE_PIDS
                     ):
+
+                        continue
+
+                    # -------------------------
+                    # SUSPECT FILTER
+                    # lightweight early exclusion
+                    # -------------------------
+                    process_name = (
+                        process.get(
+                            "name",
+                            ""
+                        ).lower()
+                    )
+
+                    cmdline = (
+                        process.get(
+                            "cmdline",
+                            ""
+                        ).lower()
+                    )
+
+                    process_tree_size = len(
+                        entity_map.get(
+                            pid,
+                            []
+                        )
+                    )
+
+                    suspicious_candidate = (
+                        process["cpu"] > 5
+                        or
+                        process["connections"] > 4
+                        or
+                        process["open_files"] > 10
+                        or
+                        process_tree_size > 8
+                        or
+                        process["age_seconds"] < 30
+                        or
+                        ("worm" in process_name)
+                        or
+                        ("python" in process_name and "worm" in cmdline)
+                    )
+
+                    if not suspicious_candidate:
+
+                        static_score = 0.95
+
+                        trust_state = (
+                            trust_engine
+                            .update(
+
+                                pid=
+                                pid,
+
+                                anomaly_vector={
+                                    "cpu": 0,
+                                    "memory": 0,
+                                    "threads": 0,
+                                    "connections": 0,
+                                    "file_events": 0
+                                },
+
+                                static_score=
+                                static_score
+                            )
+                        )
+
+                        classification = {
+                            "label": "normal",
+                            "severity": "low",
+                            "worm_score": 0.0,
+                            "confidence": 0.0,
+                            "dynamic_trust": trust_state["dynamic_trust"],
+                            "final_trust": trust_state["final_trust"]
+                        }
+
+                        persistence_engine.update(
+
+                            pid=
+                            pid,
+
+                            classification=
+                            classification,
+
+                            trust_state=
+                            trust_state
+                        )
+
+                        log_process({
+
+                            "pid":
+                                pid,
+
+                            "name":
+                                process.get(
+                                    "name",
+                                    "unknown"
+                                ),
+
+                            "entity_root":
+                                process.get(
+                                    "ppid",
+                                    0
+                                ),
+
+                            "trust":
+                                trust_state,
+
+                            "worm_score":
+                                classification[
+                                    "worm_score"
+                                ],
+
+                            "confidence":
+                                classification[
+                                    "confidence"
+                                ],
+
+                            "label":
+                                classification[
+                                    "label"
+                                ],
+
+                            "severity":
+                                classification[
+                                    "severity"
+                                ],
+
+                            "stage":
+                                "observe",
+
+                            "response":
+                                "skipped",
+
+                            "learning_state":
+                                {
+                                    "reputation": 1.0,
+                                    "trust_level": "trusted"
+                                },
+
+                            "anomalies":
+                                {},
+
+                            "features":
+                                {
+                                    "cpu": process["cpu"],
+                                    "memory": process["memory"],
+                                    "connections": process["connections"],
+                                    "threads": process["threads"],
+                                    "open_files": process["open_files"]
+                                }
+                        })
 
                         continue
 

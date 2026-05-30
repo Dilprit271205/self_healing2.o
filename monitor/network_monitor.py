@@ -65,234 +65,124 @@ class NetworkMonitor:
 
         try:
 
-            for proc in psutil.process_iter(
+            pid_stats = defaultdict(
+                lambda: {
+                    "connections": 0,
+                    "ports": set(),
+                    "remote_ips": set()
+                }
+            )
 
-                [
-                    "pid",
-                    "name"
-                ]
-            ):
+            for conn in psutil.net_connections(kind="inet"):
 
-                try:
+                pid = getattr(conn, "pid", None)
 
-                    with proc.oneshot():
-
-                        pid = (
-                            proc.info[
-                                "pid"
-                            ]
-                        )
-
-                        process_name = (
-                            proc.info.get(
-                                "name",
-                                ""
-                            ).lower()
-                        )
-
-                        # ---------------------------------
-                        # SAFE PROCESS FILTER
-                        # skip OS critical
-                        # ---------------------------------
-                        ignored = [
-
-                            "systemd",
-                            "dbus",
-                            "kworker",
-                            "ksoftirqd",
-                            "migration",
-                            "rcu",
-
-                            "xorg",
-                            "gnome-shell",
-
-                            "chrome",
-                            "firefox",
-
-                            "code"
-                        ]
-                        continue
-
-                    # ---------------------------------
-                    # CPU FILTER
-                    # skip sleeping/background
-                    # processes
-                    # ---------------------------------
-                    try:
-
-                        cpu = (
-                            proc.cpu_percent(interval=None)
-                        )
-
-                        if cpu < 0.5:
-
-                            continue
-
-                    except:
-
-                        continue
-
-                    # ---------------------------------
-                    # SAFE CONNECTION API
-                    # psutil >= 6 compatible
-                    # ---------------------------------
-                    try:
-
-                        connections = (
-                            proc.net_connections()
-                        )
-
-                    except (
-
-                        psutil.AccessDenied,
-                        psutil.NoSuchProcess,
-                        AttributeError
-                    ):
-
-                        continue
-
-                    active_connections = len(
-                        connections
-                    )
-
-                    # skip dead network
-                    if (
-                        active_connections
-                        == 0
-                    ):
-                        continue
-
-                    unique_ports = set()
-
-                    remote_ips = set()
-
-                    for conn in connections:
-
-                        try:
-
-                            if conn.laddr:
-
-                                unique_ports.add(
-
-                                    conn.laddr.port
-                                )
-
-                            if conn.raddr:
-
-                                remote_ips.add(
-
-                                    conn.raddr.ip
-                                )
-
-                        except:
-                            continue
-
-                    # ---------------------------------
-                    # CONNECTION VELOCITY
-                    # reviewer aligned
-                    # ---------------------------------
-                    history = (
-
-                        self.connection_history[
-                            pid
-                        ]
-                    )
-
-                    prev_connections = (
-
-                        history[-1]
-                        if history
-                        else 0
-                    )
-
-                    connection_velocity = (
-
-                        active_connections
-                        -
-                        prev_connections
-                    )
-
-                    history.append(
-                        active_connections
-                    )
-
-                    # ---------------------------------
-                    # PORT SPREAD
-                    # reviewer issue
-                    # ---------------------------------
-                    port_spread = len(
-                        unique_ports
-                    )
-
-                    # ---------------------------------
-                    # SCANNING DETECTION
-                    # reviewer issue
-                    # ---------------------------------
-                    scanning_score = 0
-
-                    if (
-                        port_spread
-                        > 20
-                    ):
-                        scanning_score += 0.4
-
-                    if (
-                        connection_velocity
-                        > 10
-                    ):
-                        scanning_score += 0.3
-
-                    if (
-                        len(
-                            remote_ips
-                        )
-                        > 15
-                    ):
-                        scanning_score += 0.3
-
-                    scanning_detected = (
-
-                        scanning_score
-                        >= 0.5
-                    )
-
-                    network_data[
-                        pid
-                    ] = {
-
-                        "connections":
-                            active_connections,
-
-                        "connection_velocity":
-                            connection_velocity,
-
-                        "port_spread":
-                            port_spread,
-
-                        "remote_ips":
-                            len(
-                                remote_ips
-                            ),
-
-                        "scanning_score":
-                            round(
-                                scanning_score,
-                                2
-                            ),
-
-                        "scanning_detected":
-                            scanning_detected
-                    }
-
-                except (
-
-                    psutil.NoSuchProcess,
-                    psutil.AccessDenied,
-                    AttributeError
-
-                ):
-
+                if not pid:
                     continue
+
+                pid_stats[pid]["connections"] += 1
+
+                if conn.laddr:
+                    pid_stats[pid]["ports"].add(
+                        conn.laddr.port
+                    )
+
+                if conn.raddr:
+                    pid_stats[pid]["remote_ips"].add(
+                        conn.raddr.ip
+                    )
+
+            for pid, stats in pid_stats.items():
+
+                active_connections = stats["connections"]
+
+                if active_connections == 0:
+                    continue
+
+                history = (
+
+                    self.connection_history[
+                        pid
+                    ]
+                )
+
+                prev_connections = (
+
+                    history[-1]
+                    if history
+                    else 0
+                )
+
+                connection_velocity = (
+
+                    active_connections
+                    -
+                    prev_connections
+                )
+
+                history.append(
+                    active_connections
+                )
+
+                port_spread = len(
+                    stats["ports"]
+                )
+
+                remote_ips = len(
+                    stats["remote_ips"]
+                )
+
+                scanning_score = 0
+
+                if (
+                    port_spread
+                    > 20
+                ):
+                    scanning_score += 0.4
+
+                if (
+                    connection_velocity
+                    > 10
+                ):
+                    scanning_score += 0.3
+
+                if (
+                    remote_ips
+                    > 15
+                ):
+                    scanning_score += 0.3
+
+                scanning_detected = (
+
+                    scanning_score
+                    >= 0.5
+                )
+
+                network_data[
+                    pid
+                ] = {
+
+                    "connections":
+                        active_connections,
+
+                    "connection_velocity":
+                        connection_velocity,
+
+                    "port_spread":
+                        port_spread,
+
+                    "remote_ips":
+                        remote_ips,
+
+                    "scanning_score":
+                        round(
+                            scanning_score,
+                            2
+                        ),
+
+                    "scanning_detected":
+                        scanning_detected
+                }
 
         except Exception as e:
 
