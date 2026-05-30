@@ -1,4 +1,5 @@
 import sys
+import json
 
 try:
     import streamlit as st
@@ -224,49 +225,42 @@ page = st.radio(
 # ===================================================
 # LOADERS
 # ===================================================
+def _load_json_lines(file_path):
+
+    try:
+        rows = []
+
+        with open(file_path, "r") as f:
+            for line in f:
+                try:
+                    rows.append(
+                        json.loads(line)
+                    )
+                except Exception:
+                    continue
+
+        return pd.DataFrame(rows[-4000:])
+
+    except Exception:
+        return pd.DataFrame()
+
+
 @st.cache_data(ttl=3)
 def load_process_logs():
 
-    try:
-
-        return pd.read_json(
-            PROCESS_LOG,
-            lines=True
-        ).tail(4000)
-
-    except:
-
-        return pd.DataFrame()
+    return _load_json_lines(PROCESS_LOG)
 
 
 @st.cache_data(ttl=3)
 def load_entity_logs():
 
-    try:
-
-        return pd.read_json(
-            ENTITY_LOG,
-            lines=True
-        ).tail(4000)
-
-    except:
-
-        return pd.DataFrame()
+    return _load_json_lines(ENTITY_LOG)
 
 
 @st.cache_data(ttl=3)
 def load_healing_logs():
 
-    try:
-
-        return pd.read_json(
-            HEALING_LOG,
-            lines=True
-        ).tail(4000)
-
-    except:
-
-        return pd.DataFrame()
+    return _load_json_lines(HEALING_LOG)
 
 
 # ===================================================

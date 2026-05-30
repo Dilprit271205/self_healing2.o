@@ -297,17 +297,35 @@ def monitor_loop():
                             "chrome",
                             "firefox",
                             "code",
-                            "python",
-                            "python3",
+                            "sudo",
                             "bash",
                             "zsh",
                             "gnome-shell"
                         }
 
+                        cmdline = (
+                            process.get(
+                                "cmdline",
+                                ""
+                            )
+                            .lower()
+                        )
+
                         # trusted binaries
                         if process_name in trusted_processes:
 
                             static_score = 0.85
+
+                        elif process_name in {"python", "python3"}:
+
+                            if (
+                                "worm_sim.py" in cmdline
+                                or
+                                "test_worm.py" in cmdline
+                            ):
+                                static_score = 0.35
+                            else:
+                                static_score = 0.65
 
                         # young / unknown process
                         elif features.get(
@@ -320,7 +338,7 @@ def monitor_loop():
                         # normal fallback
                         else:
 
-                            static_score = 0.70
+                            static_score = 0.75
 
                     except:
 

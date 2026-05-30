@@ -13,7 +13,7 @@ from analysis.trust.trust_vector import (
 # stabilized for real systems
 # ===================================================
 
-EMA_ALPHA = 0.9
+EMA_ALPHA = 0.75
 
 STATIC_WEIGHT = 0.4
 DYNAMIC_WEIGHT = 0.6

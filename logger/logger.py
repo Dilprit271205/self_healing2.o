@@ -103,6 +103,7 @@ def writer(
                 )
 
                 f.write(line)
+                f.flush()
 
             except:
                 pass

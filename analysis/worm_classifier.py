@@ -160,7 +160,7 @@ class WormClassifier:
                     -
                     dynamic_trust
                 )
-                * 0.35
+                * 0.10
 
                 +
 
@@ -169,36 +169,50 @@ class WormClassifier:
                     -
                     final_trust
                 )
-                * 0.25
-
-                +
-
-                aggregate_anomaly
-                * 0.15
-
-                +
-
-                propagation_signal
                 * 0.10
 
                 +
 
+                aggregate_anomaly
+                * 0.20
+
+                +
+
+                propagation_signal
+                * 0.25
+
+                +
+
                 thread_signal
-                * 0.05
+                * 0.15
 
                 +
 
                 network_signal
-                * 0.05
+                * 0.10
 
                 +
 
                 temporal_signal
-                * 0.05
+                * 0.10
             ),
 
             3
         )
+
+        # strong propagation / anomaly boost for spreading behavior
+        if (
+            propagation_signal >= 0.7
+            and
+            aggregate_anomaly >= 0.5
+        ):
+            worm_likelihood = round(
+                min(
+                    1.0,
+                    worm_likelihood + 0.25
+                ),
+                3
+            )
 
         confidence = round(
             worm_likelihood * 100,
@@ -213,14 +227,13 @@ class WormClassifier:
         combined_risk = round(
 
             (
-
                 propagation_signal
-                * 0.35
+                * 0.40
 
                 +
 
                 network_signal
-                * 0.25
+                * 0.20
 
                 +
 
@@ -230,12 +243,12 @@ class WormClassifier:
                 +
 
                 temporal_signal
-                * 0.10
+                * 0.15
 
                 +
 
                 aggregate_anomaly
-                * 0.15
+                * 0.10
             ),
 
             3
@@ -251,47 +264,48 @@ class WormClassifier:
         # NORMAL
         # -----------------------------
         if (
-            dynamic_trust > 0.75
+            worm_likelihood < 0.30
             and
-            worm_likelihood < 0.35
+            aggregate_anomaly < 0.35
+            and
+            propagation_signal < 0.35
         ):
 
             label = "normal"
             severity = "low"
 
         # -----------------------------
-        # SUSPICIOUS
+        # WORM
         # -----------------------------
         elif (
-            dynamic_trust > 0.45
-            or
-            worm_likelihood < 0.60
+            worm_likelihood >= 0.70
+            and
+            combined_risk >= 0.50
         ):
 
-            label = "suspicious"
-            severity = "medium"
+            label = "worm"
+            severity = "critical"
 
         # -----------------------------
-        # CRITICAL WORM
+        # SUSPICIOUS / ANOMALOUS
         # -----------------------------
         else:
 
             if (
-
-                combined_risk > 0.60
-
-                and
-
-                worm_likelihood > 0.70
+                worm_likelihood >= 0.45
+                or
+                propagation_signal >= 0.6
+                or
+                aggregate_anomaly >= 0.4
             ):
 
-                label = "worm"
-                severity = "critical"
+                label = "suspicious"
+                severity = "medium"
 
             else:
 
-                label = "anomalous"
-                severity = "high"
+                label = "normal"
+                severity = "low"
 
         # =====================================
         # OUTPUT

@@ -22,28 +22,28 @@ BASELINES = {
     # -----------------------------------------
 
     "cpu": {
-        "mu": 2,
-        "sigma": 4
+        "mu": 3,
+        "sigma": 6
     },
 
     "memory": {
-        "mu": 1.5,
-        "sigma": 2
+        "mu": 5,
+        "sigma": 10
     },
 
     "threads": {
-        "mu": 3,
-        "sigma": 2
+        "mu": 5,
+        "sigma": 4
     },
 
     "connections": {
-        "mu": 1,
-        "sigma": 2
+        "mu": 3,
+        "sigma": 4
     },
 
     "file_events": {
-        "mu": 0.2,
-        "sigma": 0.8
+        "mu": 1,
+        "sigma": 2
     },
 
     # -----------------------------------------
