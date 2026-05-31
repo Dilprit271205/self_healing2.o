@@ -219,8 +219,11 @@ class ProcessLineageTracker:
 
             total_cpu = sum(
                 p.get(
-                    "cpu_percent",
-                    0
+                    "cpu",
+                    p.get(
+                        "cpu_percent",
+                        0
+                    )
                 )
                 or 0
                 for p in members
@@ -228,8 +231,11 @@ class ProcessLineageTracker:
 
             total_memory = sum(
                 p.get(
-                    "memory_percent",
-                    0
+                    "memory",
+                    p.get(
+                        "memory_percent",
+                        0
+                    )
                 )
                 or 0
                 for p in members
@@ -237,8 +243,11 @@ class ProcessLineageTracker:
 
             total_threads = sum(
                 p.get(
-                    "num_threads",
-                    1
+                    "threads",
+                    p.get(
+                        "num_threads",
+                        1
+                    )
                 )
                 or 1
                 for p in members

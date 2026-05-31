@@ -35,7 +35,8 @@ from monitor.process_monitor import (
 )
 
 from monitor.lineage import (
-    ProcessLineageTracker
+    ProcessLineageTracker,
+    entity_history
 )
 
 from monitor.network_monitor import (
@@ -44,6 +45,21 @@ from monitor.network_monitor import (
 
 from monitor.file_monitor import (
     start_file_monitor
+)
+
+from analysis.baseline_engine import (
+    feature_history
+)
+
+from analysis.extractor_engine import (
+    process_history,
+    thread_history,
+    connection_history,
+    spawn_history
+)
+
+from analysis.trust.trust_vector import (
+    remove_trust
 )
 
 # ===================================================
@@ -91,22 +107,22 @@ lineage_tracker = (
 network_monitor = (
     NetworkMonitor()
 )
+
+file_observer = None
+
 # ===================================================
 # FILE MONITOR THREAD
 # ===================================================
+
 def start_background_monitors():
+
+    global file_observer
 
     try:
 
-        observer = start_file_monitor(
-            paths=[
-                "/home/suyash-anand/Downloads",
-                "/tmp",
-                "/var/tmp"
-            ]
-        )
+        file_observer = start_file_monitor()
 
-        if observer is None:
+        if file_observer is None:
             print(
                 "📂 File monitor skipped (watchdog unavailable or paths missing)"
             )
@@ -121,6 +137,23 @@ def start_background_monitors():
         print(
             f"File monitor failed: {e}"
         )
+
+
+def stop_background_monitors():
+
+    global file_observer
+
+    if file_observer is None:
+        return
+
+    try:
+        file_observer.stop()
+        file_observer.join()
+        print("📂 File monitor stopped")
+    except Exception as e:
+        print(f"Failed to stop file monitor: {e}")
+    finally:
+        file_observer = None
 
 # ===================================================
 # ENTITY LOGGER
@@ -191,6 +224,7 @@ def monitor_loop():
             # BUILD ENTITY MAP
             # =====================================
             entity_map = {}
+            root_map = {}
 
             entities = (
 
@@ -214,6 +248,9 @@ def monitor_loop():
                     entity_map[
                         proc["pid"]
                     ] = members
+                    root_map[
+                        proc["pid"]
+                    ] = root
 
             # =====================================
             # ENTITY LOGGING
@@ -404,9 +441,12 @@ def monitor_loop():
                                 ),
 
                             "entity_root":
-                                process.get(
-                                    "ppid",
-                                    0
+                                root_map.get(
+                                    pid,
+                                    process.get(
+                                        "ppid",
+                                        0
+                                    )
                                 ),
 
                             "trust":
@@ -746,9 +786,12 @@ def monitor_loop():
                             ),
 
                         "entity_root":
-                            process.get(
-                                "ppid",
-                                0
+                            root_map.get(
+                                pid,
+                                process.get(
+                                    "ppid",
+                                    0
+                                )
                             ),
 
                         "trust":
@@ -841,6 +884,7 @@ def monitor_loop():
                 "\n🛑 System stopped."
             )
 
+            stop_background_monitors()
             break
 
         except Exception:
@@ -917,6 +961,17 @@ def cleanup_dead_pids(
                 f"{len(dead)} "
                 f"dead processes"
             )
+
+            for pid in dead:
+                remove_trust(pid)
+                process_history.pop(pid, None)
+                thread_history.pop(pid, None)
+                connection_history.pop(pid, None)
+                spawn_history.pop(pid, None)
+                feature_history.pop(pid, None)
+                persistence_engine.history.pop(pid, None)
+                response_engine.response_history.pop(pid, None)
+                entity_history.pop(pid, None)
 
         active_pids = (
             current_pids

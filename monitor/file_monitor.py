@@ -2,6 +2,7 @@
 
 import os
 import time
+import tempfile
 import psutil
 
 try:
@@ -214,7 +215,7 @@ def start_file_monitor(
 
         paths = [
 
-            "/home/suyash-anand/Downloads",
+            tempfile.gettempdir(),
 
             "/tmp",
 
