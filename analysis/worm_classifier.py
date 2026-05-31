@@ -336,7 +336,7 @@ class WormClassifier:
             and
             aggregate_anomaly < 0.30
             and
-            propagation_signal < 0.30
+            propagation_signal < 0.45
             and
             worm_heuristic < 0.35
         ):

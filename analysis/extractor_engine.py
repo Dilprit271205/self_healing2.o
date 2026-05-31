@@ -317,7 +317,16 @@ class ExtractorEngine:
             "chromium",
             "firefox",
             "code",
-            "streamlit"
+            "streamlit",
+            "nm-applet",
+            "vmtoolsd",
+            "xdg-desktop-portal",
+            "xdg-desktop-portal-gtk",
+            "glycin-image-rs",
+            "glycin-heif",
+            "bwrap",
+            "qterminal",
+            "blueman"
         ]
 
         safe_process = any(

@@ -21,3 +21,151 @@
 {"timestamp":"2026-05-30T17:52:39","type":"healing","pid":55510,"stage":"observe","action_taken":false,"status":"monitoring"}
 {"timestamp":"2026-05-30T17:54:33","type":"healing","pid":599,"stage":"observe","action_taken":false,"status":"monitoring"}
 {"timestamp":"2026-05-30T17:54:43","type":"healing","pid":599,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:02:20","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:02:20","type":"healing","pid":49956,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:02:30","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:02:30","type":"healing","pid":50094,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:02:41","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:02:51","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:02:51","type":"healing","pid":50786,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:02","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:03:02","type":"healing","pid":50980,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:02","type":"healing","pid":50981,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:12","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:03:12","type":"healing","pid":51133,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:22","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:03:22","type":"healing","pid":51348,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51453,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51454,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51505,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51506,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51520,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51521,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51522,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51523,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51537,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51538,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51539,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51540,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51541,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51542,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51543,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:33","type":"healing","pid":51544,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51453,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51454,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51505,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51505)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51506,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51506)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51520,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51520)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51521,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51521)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51522,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51522)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51523,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51523)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51537,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51537)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51539,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51539)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51540,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51540)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51541,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51541)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51542,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51542)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51543,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51543)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51544,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51544)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51584,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51584)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51585,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51585)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51586,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51586)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51591,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51591)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51593,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51593)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51595,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51595)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51597,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51597)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51598,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51598)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51599,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51599)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51600,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51600)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51602,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51602)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51603,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51603)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51707,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51707)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51709,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51709)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51710,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51710)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51711,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51711)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51712,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51712)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51713,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51713)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51714,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51714)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51715,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51715)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51716,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51716)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51718,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51718)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51719,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51719)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51720,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51720)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51721,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51721)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51722,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51722)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51723,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51723)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51724,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51724)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51725,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51725)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51726,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51726)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51728,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51728)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51729,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51729)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51846,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51846)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51847,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51847)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51855,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51855)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51856,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51856)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51862,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51862)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51863,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51863)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51865,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51865)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51867,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51867)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51868,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51868)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51869,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51869)"}
+{"timestamp":"2026-05-31T09:03:47","type":"healing","pid":51870,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=51870)"}
+{"timestamp":"2026-05-31T09:03:57","type":"healing","pid":49932,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:03:57","type":"healing","pid":52316,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:06","type":"healing","pid":53502,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:06","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:05:06","type":"healing","pid":53518,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:16","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:05:16","type":"healing","pid":53640,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53708,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53712,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53765,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53766,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53786,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53787,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53788,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53789,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53792,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53793,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53794,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53795,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53796,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53797,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53798,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53799,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53806,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53807,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53808,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53809,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:27","type":"healing","pid":53810,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53708,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53712,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53765,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53766,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53786,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53787,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53788,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=53788)"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53793,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53796,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=53796)"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53810,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":53817,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=53817)"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":54003,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=54003)"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":54024,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":54025,"stage":"restrict","action_taken":true,"status":"priority throttled"}
+{"timestamp":"2026-05-31T09:05:38","type":"healing","pid":54137,"stage":"restrict","action_taken":false,"status":"process PID not found (pid=54137)"}
+{"timestamp":"2026-05-31T09:05:48","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:05:48","type":"healing","pid":54487,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:05:59","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:05:59","type":"healing","pid":54587,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:06:09","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:06:09","type":"healing","pid":54924,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:06:19","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:06:19","type":"healing","pid":55025,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:06:30","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:06:30","type":"healing","pid":55174,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:06:41","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:06:41","type":"healing","pid":55707,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:06:41","type":"healing","pid":55722,"stage":"observe","action_taken":false,"status":"monitoring"}

@@ -675,7 +675,16 @@ def monitor_loop():
                             "bash",
                             "zsh",
                             "gnome-shell",
-                            "streamlit"
+                            "streamlit",
+                            "nm-applet",
+                            "vmtoolsd",
+                            "xdg-desktop-portal",
+                            "xdg-desktop-portal-gtk",
+                            "glycin-image-rs",
+                            "glycin-heif",
+                            "bwrap",
+                            "qterminal",
+                            "blueman"
                         ]
 
                         cmdline = (
