@@ -1052,20 +1052,7 @@ HEALING_SAFE_MODE = os.environ.get(
 
 response_engine = (
     ResponseEngine(
-<<<<<<< HEAD
-        safe_mode=
-        os.getenv(
-            "SELF_HEALING_SAFE_MODE",
-            "false"
-        ).lower() in (
-            "1",
-            "true",
-            "yes",
-            "y"
-        )
-=======
         safe_mode=HEALING_SAFE_MODE
->>>>>>> ac1a1358 (Update)
     )
 )
 

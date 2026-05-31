@@ -368,12 +368,6 @@ class PersistenceEngine:
         if (
             worm_count >= 2
             and
-<<<<<<< HEAD
-            (avg_worm_score >= 0.75 or ema_worm_score >= 0.75)
-=======
-            avg_worm_score >= 0.70
->>>>>>> ac1a1358 (Update)
-            and
             avg_severity >= 0.80
             and
             persistent
