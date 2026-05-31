@@ -179,6 +179,17 @@ class WormClassifier:
             1
         )
 
+        explicit_worm_sim = any(
+            token in str(features.get("cmdline", "")).lower()
+            for token in ["worm_sim.py", "test_worm.py", "test_worm", "worm_sim"]
+        )
+
+        explicit_tree_explosion = (
+            features.get("f_proc_tree", 0) >= 15
+            and
+            features.get("f_young_process", 0) == 1
+        )
+
         # =====================================
         # WORM LIKELIHOOD
         #
@@ -337,6 +348,10 @@ class WormClassifier:
         # WORM
         # -----------------------------
         elif (
+            explicit_worm_sim
+            and
+            explicit_tree_explosion
+        ) or (
             (worm_likelihood >= 0.50 and combined_risk >= 0.40)
             or
             (

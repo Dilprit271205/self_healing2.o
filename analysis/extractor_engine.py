@@ -334,6 +334,7 @@ class ExtractorEngine:
             + (connection_velocity * 2.0)
             + (remote_ips * 1.5)
             + (scanning_score * 4.0)
+            + (min(process_tree_size, 40) * 1.2)
         )
 
         if safe_process:
