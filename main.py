@@ -1133,12 +1133,26 @@ def execute_healing(
 
     process,
 
-    classification,
+    features=None,
 
-    persistence_state,
+    classification=None,
 
-    trust_state
+    persistence_state=None,
+
+    trust_state=None
 ):
+
+    if features is None:
+        features = {}
+
+    if classification is None:
+        classification = {}
+
+    if persistence_state is None:
+        persistence_state = {"stage": "observe"}
+
+    if trust_state is None:
+        trust_state = {"dynamic_trust": 1.0, "final_trust": 1.0}
 
     try:
 
@@ -1186,6 +1200,28 @@ def execute_healing(
         # Force termination for fork-bomb or explicit forkbomb classification
         if classification.get("label") in ("worm", "forkbomb"):
             persistence_state["stage"] = "terminate"
+
+        # Immediate fork-bomb mitigation based on features (env-configurable)
+        try:
+            FORK_IMMEDIATE_RATE = int(os.getenv("SELF_HEALING_FORK_IMMEDIATE_RATE", "12"))
+            FORK_IMMEDIATE_TREE = int(os.getenv("SELF_HEALING_FORK_IMMEDIATE_TREE", "25"))
+        except:
+            FORK_IMMEDIATE_RATE = 12
+            FORK_IMMEDIATE_TREE = 25
+
+        try:
+            if not features.get("safe_process", False):
+                if (
+                    features.get("f_young_process", 0) == 1
+                    and (
+                        features.get("f_proc_spawn", 0) >= FORK_IMMEDIATE_RATE
+                        or
+                        features.get("f_proc_tree", 0) >= FORK_IMMEDIATE_TREE
+                    )
+                ):
+                    persistence_state["stage"] = "terminate"
+        except Exception:
+            pass
 
         # --------------------------------
         # RESPONSE ENGINE

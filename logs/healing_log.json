@@ -2888,3 +2888,4 @@
 {"timestamp":"2026-05-31T10:11:02","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
 {"timestamp":"2026-05-31T10:11:02","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
 {"timestamp":"2026-05-31T10:11:02","type":"healing","pid":112619,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T13:00:21","type":"healing","pid":47238,"stage":"terminate","action_taken":true,"status":"terminated"}

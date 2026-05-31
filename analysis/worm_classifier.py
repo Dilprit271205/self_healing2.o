@@ -1,3 +1,5 @@
+import os
+
 # analysis/worm_classifier.py
 
 class WormClassifier:
@@ -77,10 +79,14 @@ class WormClassifier:
             )
         )
 
-        tree_pressure = max(
-            process_tree - 10,
-            0
-        ) * 0.20
+        # Avoid flagging stable services that have a large static
+        # process tree but are not actively forking.
+        tree_pressure = 0
+        if process_growth > 0:
+            tree_pressure = max(
+                process_tree - 10,
+                0
+            ) * 0.20
 
         propagation_signal = min(
             (
@@ -199,6 +205,7 @@ class WormClassifier:
         fork_rate = abs(features.get("f_proc_spawn", 0))
         tree_size = abs(features.get("f_proc_tree", 0))
         young = features.get("f_young_process", 0)
+        safe_process = features.get("safe_process", False)
 
         # configurable thresholds via env
         try:
@@ -212,15 +219,19 @@ class WormClassifier:
 
         forkbomb_detected = False
 
-        # heuristics: rapid spawn growth in young process or extremely large tree
-        if (
-            (fork_rate >= FORK_RATE_YOUNG and young == 1)
-            or
-            (tree_size >= FORK_TREE_THRESHOLD)
-            or
-            (fork_rate >= FORK_RATE_ABSOLUTE)
-        ):
-            forkbomb_detected = True
+        # Avoid false positives for known safe processes
+        if not safe_process:
+            # require youth for most rapid-fork detections
+            if young == 1 and fork_rate >= FORK_RATE_YOUNG:
+                forkbomb_detected = True
+
+            # large tree in a young process is suspicious
+            if young == 1 and tree_size >= FORK_TREE_THRESHOLD:
+                forkbomb_detected = True
+
+            # absolute extreme fork rate (very aggressive) with youth
+            if young == 1 and fork_rate >= FORK_RATE_ABSOLUTE:
+                forkbomb_detected = True
 
         # =====================================
         # WORM LIKELIHOOD
@@ -497,6 +508,9 @@ class WormClassifier:
                         temporal_signal,
                         3
                     ),
+
+                "forkbomb_detected":
+                    forkbomb_detected,
 
                 "combined_risk":
                     combined_risk
