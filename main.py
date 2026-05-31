@@ -80,7 +80,7 @@ from logger.logger import (
 # ===================================================
 # CONFIG
 # ===================================================
-MONITOR_INTERVAL = 5
+MONITOR_INTERVAL = 10
 SYSTEM_SAFE_PIDS = {
     0,
     1
@@ -154,6 +154,27 @@ def stop_background_monitors():
         print(f"Failed to stop file monitor: {e}")
     finally:
         file_observer = None
+
+# ===================================================
+# SAFE PROCESS FILTERS
+# ===================================================
+
+def is_idle_process(
+    process
+):
+
+    return (
+        process.get("cpu", 0) <= 0.5
+        and
+        process.get("memory", 0) < 0.5
+        and
+        process.get("connections", 0) == 0
+        and
+        process.get("open_files", 0) < 10
+        and
+        process.get("age_seconds", 0) > 30
+    )
+
 
 # ===================================================
 # ENTITY LOGGER
@@ -352,41 +373,124 @@ def monitor_loop():
                         )
                     )
 
-                    strong_suspicion = (
-                        process["cpu"] > 18
-                        or
-                        process["connections"] > 10
-                        or
-                        process["open_files"] > 50
-                    )
-
-                    moderate_signals = [
-                        process["cpu"] > 8,
-                        process["connections"] > 6,
-                        process["open_files"] > 20,
-                        process_tree_size > 12,
-                        process["age_seconds"] < 20
-                    ]
-
-                    suspicious_candidate = (
-                        not safe_dashboard_process
-                        and
-                        not safe_browser_process
-                        and
-                        (
-                            ("worm" in process_name)
-                            or
-                            ("python" in process_name and "worm" in cmdline)
-                            or
-                            strong_suspicion
-                            or
-                            sum(moderate_signals) >= 2
-                        )
-                    )
-
-                    if not suspicious_candidate:
+                    if safe_dashboard_process or safe_browser_process:
 
                         static_score = 0.95
+
+                        trust_state = (
+                            trust_engine
+                            .update(
+
+                                pid=
+                                pid,
+
+                                anomaly_vector={
+                                    "cpu": 0,
+                                    "memory": 0,
+                                    "threads": 0,
+                                    "connections": 0,
+                                    "file_events": 0
+                                },
+
+                                static_score=
+                                static_score
+                            )
+                        )
+
+                        classification = {
+                            "label": "normal",
+                            "severity": "low",
+                            "worm_score": 0.0,
+                            "confidence": 0.0,
+                            "dynamic_trust": trust_state["dynamic_trust"],
+                            "final_trust": trust_state["final_trust"]
+                        }
+
+                        persistence_engine.update(
+
+                            pid=
+                            pid,
+
+                            classification=
+                            classification,
+
+                            trust_state=
+                            trust_state
+                        )
+
+                        log_process({
+
+                            "pid":
+                                pid,
+
+                            "name":
+                                process.get(
+                                    "name",
+                                    "unknown"
+                                ),
+
+                            "entity_root":
+                                root_map.get(
+                                    pid,
+                                    process.get(
+                                        "ppid",
+                                        0
+                                    )
+                                ),
+
+                            "trust":
+                                trust_state,
+
+                            "worm_score":
+                                classification[
+                                    "worm_score"
+                                ],
+
+                            "confidence":
+                                classification[
+                                    "confidence"
+                                ],
+
+                            "label":
+                                classification[
+                                    "label"
+                                ],
+
+                            "severity":
+                                classification[
+                                    "severity"
+                                ],
+
+                            "stage":
+                                "observe",
+
+                            "response":
+                                "skipped",
+
+                            "learning_state":
+                                {
+                                    "reputation": 1.0,
+                                    "trust_level": "trusted"
+                                },
+
+                            "anomalies":
+                                {},
+
+                            "features":
+                                {
+                                    "cpu": process["cpu"],
+                                    "memory": process["memory"],
+                                    "connections": process["connections"],
+                                    "threads": process["threads"],
+                                    "open_files": process["open_files"]
+                                }
+                        })
+
+                        continue
+
+                    if is_idle_process(process):
+
+                        static_score = 0.92
 
                         trust_state = (
                             trust_engine

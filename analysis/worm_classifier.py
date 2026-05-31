@@ -194,7 +194,7 @@ class WormClassifier:
                     -
                     dynamic_trust
                 )
-                * 0.10
+                * 0.06
 
                 +
 
@@ -203,7 +203,7 @@ class WormClassifier:
                     -
                     final_trust
                 )
-                * 0.10
+                * 0.06
 
                 +
 
@@ -213,17 +213,17 @@ class WormClassifier:
                 +
 
                 propagation_signal
-                * 0.22
+                * 0.30
 
                 +
 
                 thread_signal
-                * 0.12
+                * 0.10
 
                 +
 
                 network_signal
-                * 0.08
+                * 0.06
 
                 +
 
@@ -233,7 +233,7 @@ class WormClassifier:
                 +
 
                 worm_heuristic
-                * 0.12
+                * 0.22
             ),
 
             3
@@ -337,9 +337,15 @@ class WormClassifier:
         # WORM
         # -----------------------------
         elif (
-            worm_likelihood >= 0.65
-            and
-            combined_risk >= 0.45
+            (worm_likelihood >= 0.50 and combined_risk >= 0.40)
+            or
+            (
+                propagation_signal >= 0.70
+                and
+                worm_heuristic >= 0.40
+                and
+                aggregate_anomaly >= 0.30
+            )
         ):
 
             label = "worm"
@@ -351,13 +357,13 @@ class WormClassifier:
         else:
 
             if (
-                worm_likelihood >= 0.40
+                worm_likelihood >= 0.30
                 or
-                propagation_signal >= 0.55
+                propagation_signal >= 0.45
                 or
-                aggregate_anomaly >= 0.45
+                aggregate_anomaly >= 0.35
                 or
-                worm_heuristic >= 0.35
+                worm_heuristic >= 0.30
             ):
 
                 label = "suspicious"
