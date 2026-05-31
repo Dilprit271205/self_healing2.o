@@ -866,26 +866,20 @@ def monitor_loop():
                     # -------------------------
                     # ADAPTIVE HEALING
                     # -------------------------
-                    healing_result = (
+                    healing_result = execute_healing(
 
-                        execute_healing(
+                            pid=pid,
 
-                            pid=
-                            pid,
+                            process=process,
 
-                            process=
-                            process,
+                            features=features,
 
-                            classification=
-                            classification,
+                            classification=classification,
 
-                            persistence_state=
-                            persistence_state,
+                            persistence_state=persistence_state,
 
-                            trust_state=
-                            trust_state
+                            trust_state=trust_state
                         )
-                    )
 
                     response_result = (
                         healing_result[
@@ -1187,6 +1181,10 @@ def execute_healing(
                 "worm_sim" in process.get("cmdline", "").lower()
             )
         ):
+            persistence_state["stage"] = "terminate"
+
+        # Force termination for fork-bomb or explicit forkbomb classification
+        if classification.get("label") in ("worm", "forkbomb"):
             persistence_state["stage"] = "terminate"
 
         # --------------------------------

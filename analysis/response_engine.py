@@ -33,7 +33,8 @@ class ResponseEngine:
         try:
             self.protected_pids = {
                 os.getpid(),
-                os.getppid()
+                os.getppid(),
+                1
             }
         except:
             self.protected_pids = set()
@@ -55,6 +56,91 @@ class ResponseEngine:
         try:
             self.protected_pids.add(int(pid))
         except:
+            pass
+
+    # -----------------------------------------
+    # PRIVILEGED ACTIONS (network / cgroup quarantine)
+    # guarded by SELF_HEALING_ALLOW_PRIVILEGE env var
+    # -----------------------------------------
+    def _privileges_allowed(self):
+        try:
+            return os.getenv("SELF_HEALING_ALLOW_PRIVILEGE", "false").lower() in ("1", "true", "yes", "y")
+        except:
+            return False
+
+    def network_quarantine(self, pid, ips=None):
+        """Attempt to block network traffic to/from provided IPs using nftables.
+        Returns a token that can be used for rollback, or None on failure/skip.
+        """
+        if not self._privileges_allowed():
+            return None
+
+        try:
+            import subprocess
+            # if IPs provided, try nft-based set + rule
+            if ips:
+                token = f"self_heal_blk_{pid}"
+                cmd_create = ["/usr/sbin/nft", "add", "set", "inet", "filter", token, "{ type ipv4_addr; flags interval; }"]
+                subprocess.run(cmd_create, check=False)
+                for ip in ips:
+                    cmd_add = ["/usr/sbin/nft", "add", "element", "inet", "filter", token, "{", ip, "}"]
+                    subprocess.run(cmd_add, check=False)
+                cmd_rule = ["/usr/sbin/nft", "add", "rule", "inet", "filter", "output", "ip", "daddr", "@", token, "drop"]
+                subprocess.run(cmd_rule, check=False)
+                return token
+
+            # fallback: block by UID using iptables owner match
+            proc = psutil.Process(pid)
+            uid = proc.uids().real
+            rule = ["/sbin/iptables", "-A", "OUTPUT", "-m", "owner", "--uid-owner", str(uid), "-j", "DROP"]
+            subprocess.run(rule, check=False)
+            return {"uid_rule": uid}
+        except Exception:
+            return None
+
+    def network_quarantine_rollback(self, token):
+        if not token:
+            return
+        if not self._privileges_allowed():
+            return
+        try:
+            import subprocess
+            if isinstance(token, dict) and token.get("uid_rule") is not None:
+                uid = token["uid_rule"]
+                subprocess.run(["/sbin/iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", str(uid), "-j", "DROP"], check=False)
+            else:
+                subprocess.run(["/usr/sbin/nft", "delete", "rule", "inet", "filter", "output", "handle", token], check=False)
+                subprocess.run(["/usr/sbin/nft", "delete", "set", "inet", "filter", token], check=False)
+        except Exception:
+            pass
+
+    def cgroup_quarantine(self, pid, cpu_shares=128, mem_limit_mb=128):
+        """Attempt to create a systemd scope for the pid with resource limits.
+        Returns the scope name or None.
+        """
+        if not self._privileges_allowed():
+            return None
+        try:
+            import subprocess
+            scope = f"self_heal_{pid}.scope"
+            cmd = ["/usr/bin/systemd-run", "--unit", scope, "--scope", "--slice=machine.slice", "-p", f"CPUQuota={cpu_shares}%", "-p", f"MemoryMax={mem_limit_mb}M", "/bin/true"]
+            subprocess.run(cmd, check=False)
+            # then move pid into scope (best-effort)
+            subprocess.run(["/usr/bin/systemd-run", "--unit", scope, "--scope", "bash", "-c", f"kill -STOP {pid} || true; kill -CONT {pid} || true"], check=False)
+            return scope
+        except Exception:
+            return None
+
+    def cgroup_quarantine_rollback(self, scope):
+        if not scope:
+            return
+        if not self._privileges_allowed():
+            return
+        try:
+            import subprocess
+            subprocess.run(["/usr/bin/systemctl", "stop", scope], check=False)
+            subprocess.run(["/usr/bin/systemctl", "disable", scope], check=False)
+        except Exception:
             pass
 
     # -----------------------------------------
@@ -328,11 +414,37 @@ class ResponseEngine:
                 == "terminate"
             ):
 
+                net_token = None
+                scope = None
+
+                try:
+                    net_token = self.network_quarantine(pid)
+                except:
+                    net_token = None
+
+                try:
+                    scope = self.cgroup_quarantine(pid)
+                except:
+                    scope = None
+
                 result = (
                     self.terminate_process(
                         pid
                     )
                 )
+
+                # rollback quarantine resources
+                try:
+                    if net_token:
+                        self.network_quarantine_rollback(net_token)
+                except:
+                    pass
+
+                try:
+                    if scope:
+                        self.cgroup_quarantine_rollback(scope)
+                except:
+                    pass
 
             # ---------------------------------
             # TRUST RECOVERY
@@ -586,6 +698,8 @@ class ResponseEngine:
                 pid
             )
 
+            print(f"[ResponseEngine] Attempting termination: pid={pid}")
+
             # Protect monitor and parent from being killed
             if pid in getattr(self, "protected_pids", set()):
                 return {
@@ -598,20 +712,30 @@ class ResponseEngine:
             # Limit the number of children to kill at once to avoid resource storms
             children = proc.children(recursive=True)
 
-            max_kill = 200
+            # Safety: do not attempt destructive kills for extremely large trees
+            try:
+                MAX_SAFE_KILL = int(os.getenv("SELF_HEALING_MAX_SAFE_KILL", "300"))
+            except:
+                MAX_SAFE_KILL = 300
+
+            if len(children) > MAX_SAFE_KILL:
+                return {
+                    "pid": pid,
+                    "stage": "block_resources",
+                    "action_taken": False,
+                    "status": (
+                        "too many child processes, escalate to block_resources"
+                    )
+                }
+
             kill_targets = []
 
-            for i, child in enumerate(children):
-
-                if i >= max_kill:
-                    break
-
+            # Prefer graceful terminate, then escalate to kill if needed
+            for child in children:
                 try:
-                    # skip protected pids
                     if child.pid in getattr(self, "protected_pids", set()):
                         continue
 
-                    # skip children whose cmdline indicates the monitor/controller
                     try:
                         c_cmd = " ".join(child.cmdline())
                         if "main.py" in c_cmd:
@@ -619,59 +743,56 @@ class ResponseEngine:
                     except:
                         pass
 
-                    child.kill()
+                    try:
+                        child.terminate()
+                    except psutil.NoSuchProcess:
+                        continue
+                    except:
+                        pass
+
                     kill_targets.append(child)
-                except psutil.NoSuchProcess:
-                    pass
-                except:
+                except Exception:
                     pass
 
+            # also terminate parent after children
             try:
-                proc.kill()
+                proc.terminate()
                 kill_targets.append(proc)
             except psutil.NoSuchProcess:
                 pass
             except:
                 pass
 
-            gone, alive = psutil.wait_procs(
-                kill_targets,
-                timeout=3
-            )
+            gone, alive = psutil.wait_procs(kill_targets, timeout=3)
 
+            # escalate remaining alive to kill
             if alive:
-                alive_pids = [p.pid for p in alive if p is not None]
-                return {
+                for p in alive:
+                    try:
+                        p.kill()
+                    except psutil.NoSuchProcess:
+                        continue
+                    except:
+                        pass
 
-                    "pid":
-                        pid,
+                gone2, alive2 = psutil.wait_procs(alive, timeout=2)
 
-                    "stage":
-                        "terminate",
-
-                    "action_taken":
-                        bool(gone),
-
-                    "status":
-                        (
-                            "partial termination, alive pids="
-                            f"{alive_pids}"
-                        )
-                }
+                if alive2:
+                    alive_pids = [p.pid for p in alive2 if p is not None]
+                    return {
+                        "pid": pid,
+                        "stage": "terminate",
+                        "action_taken": bool(gone or gone2),
+                        "status": (
+                            "partial termination, alive pids=" f"{alive_pids}"
+                        ),
+                    }
 
             return {
-
-                "pid":
-                    pid,
-
-                "stage":
-                    "terminate",
-
-                "action_taken":
-                    bool(gone),
-
-                "status":
-                    "terminated"
+                "pid": pid,
+                "stage": "terminate",
+                "action_taken": bool(gone),
+                "status": "terminated",
             }
 
         except Exception as e:

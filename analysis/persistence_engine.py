@@ -1,10 +1,12 @@
 # analysis/persistence_engine.py
 
 import time
+import os
 from collections import (
     defaultdict,
     deque
 )
+import os
 
 
 class PersistenceEngine:
@@ -39,7 +41,16 @@ class PersistenceEngine:
         # persistence window δ
         # slide 15
         # -----------------------------------------
+        # default delta (entries required to evaluate persistence)
         self.delta = 3
+
+        # allow override from environment for tuning
+        try:
+            env_delta = int(os.getenv("SELF_HEALING_PERSISTENCE_DELTA", "3"))
+            if env_delta >= 1:
+                self.delta = env_delta
+        except:
+            pass
 
     # -----------------------------------------
     # UPDATE HISTORY
@@ -169,6 +180,23 @@ class PersistenceEngine:
 
             3
         )
+
+        # Exponential moving average smoothing for worm score to reduce
+        # sensitivity to single spikes. Configurable via env var.
+        try:
+            ema_alpha = float(os.getenv("SELF_HEALING_EMA_ALPHA", "0.6"))
+            ema_alpha = max(0.01, min(0.99, ema_alpha))
+        except:
+            ema_alpha = 0.6
+
+        ema = None
+        for x in recent:
+            if ema is None:
+                ema = x["worm_score"]
+            else:
+                ema = ema_alpha * x["worm_score"] + (1 - ema_alpha) * ema
+
+        ema_worm_score = round(ema if ema is not None else avg_worm_score, 3)
 
         # -----------------------------------------
         # TRUST COLLAPSE
@@ -340,7 +368,7 @@ class PersistenceEngine:
         if (
             worm_count >= 2
             and
-            avg_worm_score >= 0.75
+            (avg_worm_score >= 0.75 or ema_worm_score >= 0.75)
             and
             avg_severity >= 0.85
             and

@@ -354,17 +354,25 @@ class ExtractorEngine:
             else 1.2
         )
 
+        # strengthen signals: give more weight to scanning, connection velocity and remote IP spread
         worm_score = (
             (process_growth * 24)
             + (process_trend * 28)
             + (young_process * 20)
             + (suspicious_name * 26)
             + (syscall_proxy * 0.35)
-            + (connection_velocity * 2.0)
-            + (remote_ips * 1.5)
-            + (scanning_score * 4.0)
+            + (connection_velocity * 3.5)
+            + (remote_ips * 2.5)
+            + (scanning_score * 8.0)
             + (min(process_tree_size, 40) * tree_weight)
         )
+
+        # If scanning was explicitly detected, strongly boost worm score
+        try:
+            if scanning_detected:
+                worm_score += 40
+        except:
+            pass
 
         if safe_process:
             worm_score *= 0.08

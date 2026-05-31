@@ -195,6 +195,33 @@ class WormClassifier:
             features.get("f_young_process", 0) == 1
         )
 
+        # Fork-bomb / rapid fork detection
+        fork_rate = abs(features.get("f_proc_spawn", 0))
+        tree_size = abs(features.get("f_proc_tree", 0))
+        young = features.get("f_young_process", 0)
+
+        # configurable thresholds via env
+        try:
+            FORK_RATE_YOUNG = int(os.getenv("SELF_HEALING_FORK_RATE_YOUNG", "4"))
+            FORK_RATE_ABSOLUTE = int(os.getenv("SELF_HEALING_FORK_RATE_ABSOLUTE", "10"))
+            FORK_TREE_THRESHOLD = int(os.getenv("SELF_HEALING_FORK_TREE_THRESHOLD", "20"))
+        except:
+            FORK_RATE_YOUNG = 4
+            FORK_RATE_ABSOLUTE = 10
+            FORK_TREE_THRESHOLD = 20
+
+        forkbomb_detected = False
+
+        # heuristics: rapid spawn growth in young process or extremely large tree
+        if (
+            (fork_rate >= FORK_RATE_YOUNG and young == 1)
+            or
+            (tree_size >= FORK_TREE_THRESHOLD)
+            or
+            (fork_rate >= FORK_RATE_ABSOLUTE)
+        ):
+            forkbomb_detected = True
+
         # =====================================
         # WORM LIKELIHOOD
         #
@@ -291,6 +318,10 @@ class WormClassifier:
                 3
             )
 
+        if forkbomb_detected:
+            worm_likelihood = round(max(worm_likelihood, 0.99), 3)
+
+
         confidence = round(
             worm_likelihood * 100,
             2
@@ -382,6 +413,11 @@ class WormClassifier:
         ):
 
             label = "worm"
+            severity = "critical"
+
+        # immediate worm classification for fork-bomb behaviour
+        elif forkbomb_detected:
+            label = "forkbomb"
             severity = "critical"
 
         # -----------------------------
