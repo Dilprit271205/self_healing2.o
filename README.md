@@ -171,7 +171,7 @@ Detected from imports in code:
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install psutil watchdog streamlit streamlit-autorefresh pandas plotly
+pip install -r requirements.txt
 python main.py
 ```
 

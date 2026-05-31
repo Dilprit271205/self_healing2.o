@@ -1,0 +1,2767 @@
+[FILE] Monitoring: /tmp
+[FILE] Monitoring: /tmp
+[FILE] Monitoring: /var/tmp
+📁 File monitor started
+📂 File monitor started
+
+🛡 Self-Healing Cyber Defense Started
+
+[NEW LOOP]
+[PROCESS COUNT] 44
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=289358 name=python3 label=suspicious severity=medium worm_score=0.269 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289360 name=python3 label=suspicious severity=medium worm_score=0.271 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289363 name=python3 label=suspicious severity=medium worm_score=0.276 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289365 name=python3 label=suspicious severity=medium worm_score=0.304 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289766 name=sleep label=forkbomb severity=critical worm_score=0.99 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[ResponseEngine] Attempting termination: pid=289766
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289768 name=sleep label=forkbomb severity=critical worm_score=0.99 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[ResponseEngine] Attempting termination: pid=289768
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289788 name=sleep label=suspicious severity=medium worm_score=0.191 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 38
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=289358 name=python3 label=worm severity=critical worm_score=0.572 final_trust=0.835 dynamic_trust=0.891 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=289358
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289360 name=python3 label=worm severity=critical worm_score=0.572 final_trust=0.835 dynamic_trust=0.891 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=289360
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289363 name=python3 label=worm severity=critical worm_score=0.572 final_trust=0.835 dynamic_trust=0.891 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=289363
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289365 name=python3 label=normal severity=low worm_score=-0.198 final_trust=0.835 dynamic_trust=0.891 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=289928 name=sleep label=suspicious severity=medium worm_score=0.196 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 7 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=289365 name=python3 label=worm severity=critical worm_score=0.656 final_trust=0.814 dynamic_trust=0.856 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=289365
+[LOGGED]
+🧹 Cleaned 4 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290054 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290117 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290182 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290246 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290386 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290444 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290534 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290595 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290774 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=290798 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=290889 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 2 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=291050 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 37
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=291268 name=sleep label=forkbomb severity=critical worm_score=0.99 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[ResponseEngine] Attempting termination: pid=291268
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=291296 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=291621 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 4 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 38
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=291651 name=git label=forkbomb severity=critical worm_score=0.99 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[ResponseEngine] Attempting termination: pid=291651
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=291652 name=git label=forkbomb severity=critical worm_score=0.99 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=291653 name=git-remote-https label=forkbomb severity=critical worm_score=0.99 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=291769 name=git label=forkbomb severity=critical worm_score=0.99 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=291818 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=291927 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 5 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=291990 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292055 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292117 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292177 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=292181 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292247 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 2 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292310 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292411 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292476 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292540 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292603 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292667 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292738 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292800 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292859 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292931 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=292995 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293129 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293192 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293257 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293325 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293389 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293454 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293517 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293581 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293645 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293779 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293869 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=293965 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294055 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294145 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294259 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294336 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294445 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294503 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294755 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294819 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294889 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=294952 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295088 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 72
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295132 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295133 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295135 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295136 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295137 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295138 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295142 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295144 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295147 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295149 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295152 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295154 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295157 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295164 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295165 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295168 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295180 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295183 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295186 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295197 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295201 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295203 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295205 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295208 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295213 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295215 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295218 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295220 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295223 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295225 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295228 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295230 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295233 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295234 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295236 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295237 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295238 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=295239 name=python3 label=forkbomb severity=critical worm_score=0.99 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295439 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 39 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295535 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295632 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295695 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295763 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295826 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295891 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=295978 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296037 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296199 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 39
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296374 name=python3 label=suspicious severity=medium worm_score=0.199 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296376 name=python3 label=suspicious severity=medium worm_score=0.199 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296380 name=python3 label=suspicious severity=medium worm_score=0.199 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296383 name=python3 label=suspicious severity=medium worm_score=0.199 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296388 name=python3 label=suspicious severity=medium worm_score=0.199 final_trust=0.9 dynamic_trust=1.0 static_trust=0.75
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296429 name=sleep label=suspicious severity=medium worm_score=0.201 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 38
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296374 name=python3 label=worm severity=critical worm_score=0.568 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=296374
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296376 name=python3 label=worm severity=critical worm_score=0.568 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=296376
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296380 name=python3 label=worm severity=critical worm_score=0.568 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=296380
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296383 name=python3 label=worm severity=critical worm_score=0.568 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=296383
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=296388 name=python3 label=worm severity=critical worm_score=0.568 final_trust=0.863 dynamic_trust=0.938 static_trust=0.75
+[ResponseEngine] Attempting termination: pid=296388
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296619 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 5 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296748 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296809 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296874 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296937 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=296995 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297071 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297131 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297196 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297261 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297324 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297392 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297456 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297526 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297590 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297654 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297722 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297779 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297852 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297918 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=297982 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298047 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298110 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298243 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298307 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298370 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298428 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298561 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298626 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298691 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298755 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298824 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298888 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=298953 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299042 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299099 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299164 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299229 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299292 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299363 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299427 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299490 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299561 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299625 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299691 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299758 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299821 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299885 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=299947 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300019 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300081 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300143 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300213 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300278 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300413 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300471 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=300472 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300534 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 2 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300600 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300666 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300732 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300799 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300866 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300928 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=300995 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301064 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301122 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=301129 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301193 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 2 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301257 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301322 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301392 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301454 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301590 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301654 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301744 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301789 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=301936 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302001 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302072 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302136 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302201 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302272 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302337 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302411 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302475 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302539 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=302540 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302604 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 2 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302675 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302741 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302811 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302875 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=302946 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303010 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303144 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303203 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303273 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303337 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303473 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303542 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303608 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303678 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303812 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303870 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=303941 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=303942 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304004 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 2 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304138 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304210 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304279 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304346 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304499 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304552 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304634 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304697 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304763 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=304864 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305111 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305206 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305296 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305386 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305486 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305575 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305754 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305846 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=305942 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306187 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306279 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306375 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306464 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306559 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306651 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306763 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306828 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=306900 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 33
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307034 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307098 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307169 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307235 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307305 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307373 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307432 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307502 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307566 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307636 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307700 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307771 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307842 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=307936 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308049 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308144 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308234 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308327 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308421 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308517 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308631 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308719 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308861 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308924 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=308995 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309058 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309122 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309192 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309255 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309325 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309456 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309598 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309690 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309814 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=309906 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=310019 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=310121 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=310238 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=310418 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=310578 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=310801 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=310897 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=310992 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311084 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311170 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311266 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311355 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311453 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311548 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311638 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311735 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311825 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=311922 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=312012 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=312129 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=312222 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=312316 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=312506 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=312596 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=312859 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=312948 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=313062 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=313153 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 36
+[ENTITIES] 11
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=313344 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+[FEATURES OK]
+[FLAGGED] pid=313345 name=top label=suspicious severity=medium worm_score=0.143 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=313434 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 2 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=313530 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 34
+[ENTITIES] 10
+[PROCESS LOOP START]
+🧹 Cleaned 1 dead processes
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=314254 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]
+
+[NEW LOOP]
+[PROCESS COUNT] 35
+[ENTITIES] 10
+[PROCESS LOOP START]
+[FEATURES OK]
+[FLAGGED] pid=314415 name=sleep label=suspicious severity=medium worm_score=0.175 final_trust=0.86 dynamic_trust=1.0 static_trust=0.65
+[LOGGED]

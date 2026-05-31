@@ -1,0 +1,7 @@
+psutil
+watchdog
+streamlit
+streamlit-autorefresh
+pandas
+plotly
+pytest

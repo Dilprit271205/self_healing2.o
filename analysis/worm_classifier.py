@@ -206,16 +206,31 @@ class WormClassifier:
         tree_size = abs(features.get("f_proc_tree", 0))
         young = features.get("f_young_process", 0)
         safe_process = features.get("safe_process", False)
+        
+        # PID table saturation detection (research-based)
+        # Linux default max PIDs: 32768 (can be tuned)
+        try:
+            import resource
+            pid_limit = 32768  # typical Linux
+            # Rough estimate: if process tree > 5% of available PIDs, flag as saturation risk
+            pid_saturation_risk = tree_size > (pid_limit * 0.05)  # >1638 PIDs
+        except:
+            pid_saturation_risk = tree_size > 1500
+        
+        # File propagation heuristic: detect dropped payloads
+        # Worms typically write to /tmp, /var/tmp, /var/spool
+        file_events = features.get("file_events", 0)
+        file_propagation_risk = file_events > 20 and fork_rate > 0  # creating files + forking
 
         # configurable thresholds via env
         try:
-            FORK_RATE_YOUNG = int(os.getenv("SELF_HEALING_FORK_RATE_YOUNG", "4"))
-            FORK_RATE_ABSOLUTE = int(os.getenv("SELF_HEALING_FORK_RATE_ABSOLUTE", "10"))
-            FORK_TREE_THRESHOLD = int(os.getenv("SELF_HEALING_FORK_TREE_THRESHOLD", "20"))
+            FORK_RATE_YOUNG = int(os.getenv("SELF_HEALING_FORK_RATE_YOUNG", "3"))  # tightened from 4
+            FORK_RATE_ABSOLUTE = int(os.getenv("SELF_HEALING_FORK_RATE_ABSOLUTE", "8"))  # tightened from 10
+            FORK_TREE_THRESHOLD = int(os.getenv("SELF_HEALING_FORK_TREE_THRESHOLD", "15"))  # tightened from 20
         except:
-            FORK_RATE_YOUNG = 4
-            FORK_RATE_ABSOLUTE = 10
-            FORK_TREE_THRESHOLD = 20
+            FORK_RATE_YOUNG = 3
+            FORK_RATE_ABSOLUTE = 8
+            FORK_TREE_THRESHOLD = 15
 
         forkbomb_detected = False
 
@@ -231,6 +246,14 @@ class WormClassifier:
 
             # absolute extreme fork rate (very aggressive) with youth
             if young == 1 and fork_rate >= FORK_RATE_ABSOLUTE:
+                forkbomb_detected = True
+                
+            # PID saturation is critical - immediate escalation
+            if pid_saturation_risk:
+                forkbomb_detected = True
+                
+            # File propagation + forking is worm-like
+            if file_propagation_risk:
                 forkbomb_detected = True
 
         # =====================================

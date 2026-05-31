@@ -52,24 +52,95 @@ class ResponseEngine:
         except:
             self.protected_pids = set()
 
-        if safe_mode is None:
-            self.safe_mode = os.getenv(
-                "SELF_HEALING_SAFE_MODE",
-                "false"
-            ).lower() in (
-                "1",
-                "true",
-                "yes",
-                "y"
-            )
-        else:
-            self.safe_mode = bool(safe_mode)
-
     def add_protected_pid(self, pid):
         try:
             self.protected_pids.add(int(pid))
         except:
             pass
+
+    def _normalize_text(self, value):
+        try:
+            return str(value).lower()
+        except Exception:
+            return ""
+
+    def _matches_safe_tokens(self, text, tokens):
+        text = self._normalize_text(text)
+        return any(token in text for token in tokens)
+
+    def is_protected_process(self, pid, process_name="", cmdline="", exe_path=""):
+        process_name = self._normalize_text(process_name)
+        cmdline = self._normalize_text(cmdline)
+        exe_path = self._normalize_text(exe_path)
+
+        if pid in getattr(self, "protected_pids", set()):
+            return True
+
+        safe_names = [
+            "systemd",
+            "init",
+            "kernel",
+            "gnome-shell",
+            "xorg",
+            "kde",
+            "plasmashell",
+            "bash",
+            "zsh",
+            "sh",
+            "fish",
+            "tmux",
+            "screen",
+            "xterm",
+            "gnome-terminal",
+            "konsole",
+            "terminator",
+            "tilix",
+            "kitty",
+            "alacritty",
+            "wezterm",
+            "hyper",
+            "chrome",
+            "google-chrome",
+            "chromium",
+            "chrome-wrapper",
+            "chrome_sandbox",
+            "firefox",
+            "brave",
+            "msedge",
+            "opera",
+            "vivaldi",
+            "code",
+            "streamlit",
+            "jupyter",
+            "notebook",
+            "explorer.exe",
+            "svchost.exe"
+        ]
+
+        safe_cmd_keywords = [
+            "dashboard.py",
+            "dashboard_v1",
+            "dashboard_v1_backup.py",
+            "streamlit",
+            "jupyter",
+            "notebook",
+            "main.py",
+            "code-server",
+            "vscode-server",
+            "jetbrains",
+            "pycharm"
+        ]
+
+        if any(token in process_name for token in safe_names):
+            return True
+
+        if self._matches_safe_tokens(cmdline, safe_cmd_keywords):
+            return True
+
+        if self._matches_safe_tokens(exe_path, safe_cmd_keywords):
+            return True
+
+        return False
 
     # -----------------------------------------
     # PRIVILEGED ACTIONS (network / cgroup quarantine)
@@ -228,21 +299,12 @@ class ResponseEngine:
             )
 
             # Protect explicitly configured PIDs (monitor, parent, etc.)
-            if pid in getattr(self, "protected_pids", set()):
-
+            if self.is_protected_process(pid, process_name, cmdline, exe_path):
                 return {
-
-                    "pid":
-                        pid,
-
-                    "stage":
-                        "protected",
-
-                    "action_taken":
-                        False,
-
-                    "status":
-                        "protected pid"
+                    "pid": pid,
+                    "stage": "protected",
+                    "action_taken": False,
+                    "status": "protected pid"
                 }
 
             system_safe = [
@@ -647,6 +709,23 @@ class ResponseEngine:
             ):
 
                 try:
+                    child_name = self._normalize_text(child.name())
+                    try:
+                        child_cmd = " ".join(child.cmdline())
+                    except Exception:
+                        child_cmd = ""
+                    child_exe = self._normalize_text(
+                        child.exe() if hasattr(child, "exe") else ""
+                    )
+
+                    if self.is_protected_process(
+                        child.pid,
+                        child_name,
+                        child_cmd,
+                        child_exe
+                    ):
+                        continue
+
                     child.suspend()
                 except:
                     pass
@@ -706,8 +785,27 @@ class ResponseEngine:
 
             print(f"[ResponseEngine] Attempting termination: pid={pid}")
 
-            # Protect monitor and parent from being killed
-            if pid in getattr(self, "protected_pids", set()):
+            try:
+                proc_name = self._normalize_text(proc.name())
+            except Exception:
+                proc_name = ""
+
+            try:
+                proc_cmdline = " ".join(proc.cmdline())
+            except Exception:
+                proc_cmdline = ""
+
+            try:
+                proc_exe = self._normalize_text(proc.exe())
+            except Exception:
+                proc_exe = ""
+
+            if self.is_protected_process(
+                pid,
+                proc_name,
+                proc_cmdline,
+                proc_exe
+            ):
                 return {
                     "pid": pid,
                     "stage": "terminate",
@@ -715,10 +813,8 @@ class ResponseEngine:
                     "status": "protected pid - not terminated"
                 }
 
-            # Limit the number of children to kill at once to avoid resource storms
             children = proc.children(recursive=True)
 
-            # Safety: do not attempt destructive kills for extremely large trees
             try:
                 MAX_SAFE_KILL = int(os.getenv("SELF_HEALING_MAX_SAFE_KILL", "300"))
             except:
@@ -736,18 +832,24 @@ class ResponseEngine:
 
             kill_targets = []
 
-            # Prefer graceful terminate, then escalate to kill if needed
             for child in children:
                 try:
-                    if child.pid in getattr(self, "protected_pids", set()):
-                        continue
-
+                    child_name = self._normalize_text(child.name())
                     try:
-                        c_cmd = " ".join(child.cmdline())
-                        if "main.py" in c_cmd:
-                            continue
-                    except:
-                        pass
+                        child_cmd = " ".join(child.cmdline())
+                    except Exception:
+                        child_cmd = ""
+                    child_exe = self._normalize_text(
+                        child.exe() if hasattr(child, "exe") else ""
+                    )
+
+                    if self.is_protected_process(
+                        child.pid,
+                        child_name,
+                        child_cmd,
+                        child_exe
+                    ):
+                        continue
 
                     try:
                         child.terminate()
@@ -760,7 +862,6 @@ class ResponseEngine:
                 except Exception:
                     pass
 
-            # also terminate parent after children
             try:
                 proc.terminate()
                 kill_targets.append(proc)
@@ -771,7 +872,6 @@ class ResponseEngine:
 
             gone, alive = psutil.wait_procs(kill_targets, timeout=3)
 
-            # escalate remaining alive to kill
             if alive:
                 for p in alive:
                     try:
@@ -782,13 +882,14 @@ class ResponseEngine:
                         pass
 
                 gone2, alive2 = psutil.wait_procs(alive, timeout=2)
+                gone = gone + gone2
 
                 if alive2:
                     alive_pids = [p.pid for p in alive2 if p is not None]
                     return {
                         "pid": pid,
                         "stage": "terminate",
-                        "action_taken": bool(gone or gone2),
+                        "action_taken": bool(gone),
                         "status": (
                             "partial termination, alive pids=" f"{alive_pids}"
                         ),

@@ -141,6 +141,28 @@ class DetectorEngine:
                 pid,
                 feature
             )
+        
+        # -----------------------------------------
+        # FORK BOMB EARLY WARNING
+        # Detect rapid PID creation by age ratio
+        # -----------------------------------------
+        try:
+            # If a young process (age < 5s) already has 8+ PIDs, it's forking rapidly
+            proc_age = float(features.get("age_seconds", 60))
+            tree_size = int(features.get("f_proc_tree", 0))
+            
+            if proc_age > 0 and proc_age < 5:
+                fork_rate_per_sec = tree_size / proc_age
+                temporal_features["fork_rate_per_sec"] = round(fork_rate_per_sec, 2)
+                # Flag if forking >3 children per second in first 5 seconds
+                if fork_rate_per_sec > 3:
+                    temporal_features["fork_bomb_early_warning"] = True
+            else:
+                temporal_features["fork_rate_per_sec"] = 0
+                temporal_features["fork_bomb_early_warning"] = False
+        except:
+            temporal_features["fork_rate_per_sec"] = 0
+            temporal_features["fork_bomb_early_warning"] = False
 
         # -----------------------------------------
         # AGGREGATE ANOMALY
