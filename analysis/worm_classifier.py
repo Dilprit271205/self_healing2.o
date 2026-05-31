@@ -282,6 +282,15 @@ class WormClassifier:
                 3
             )
 
+        if explicit_worm_sim:
+            worm_likelihood = round(
+                max(
+                    worm_likelihood,
+                    0.92
+                ),
+                3
+            )
+
         confidence = round(
             worm_likelihood * 100,
             2
@@ -354,8 +363,12 @@ class WormClassifier:
         # -----------------------------
         elif (
             explicit_worm_sim
-            and
-            explicit_tree_explosion
+            or
+            (
+                explicit_worm_sim
+                and
+                explicit_tree_explosion
+            )
         ) or (
             (worm_likelihood >= 0.50 and combined_risk >= 0.40)
             or

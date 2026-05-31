@@ -21,7 +21,7 @@ class ResponseEngine:
     → trust_recovery
     """
 
-    def __init__(self):
+    def __init__(self, safe_mode=None):
 
         self.response_history = (
             defaultdict(list)
@@ -37,6 +37,19 @@ class ResponseEngine:
             }
         except:
             self.protected_pids = set()
+
+        if safe_mode is None:
+            self.safe_mode = os.getenv(
+                "SELF_HEALING_SAFE_MODE",
+                "false"
+            ).lower() in (
+                "1",
+                "true",
+                "yes",
+                "y"
+            )
+        else:
+            self.safe_mode = bool(safe_mode)
 
     def add_protected_pid(self, pid):
         try:
@@ -56,11 +69,8 @@ class ResponseEngine:
 
         # =====================================
         # SAFE MODE
-        # disable actual healing by default while
-        # monitoring a live system for stability.
+        # disable actual healing only when explicitly configured
         # =====================================
-        SAFE_MODE = True
-
         stage = persistence_state.get(
             "stage",
             "observe"
@@ -78,9 +88,9 @@ class ResponseEngine:
 
             # =====================================
             # SAFE TEST MODE
-            # disables actual healing
+            # disables actual healing unless explicitly enabled
             # =====================================
-            if SAFE_MODE:
+            if self.safe_mode:
 
                 return {
 
@@ -589,6 +599,7 @@ class ResponseEngine:
             children = proc.children(recursive=True)
 
             max_kill = 200
+            kill_targets = []
 
             for i, child in enumerate(children):
 
@@ -609,13 +620,44 @@ class ResponseEngine:
                         pass
 
                     child.kill()
+                    kill_targets.append(child)
+                except psutil.NoSuchProcess:
+                    pass
                 except:
                     pass
 
             try:
                 proc.kill()
+                kill_targets.append(proc)
+            except psutil.NoSuchProcess:
+                pass
             except:
                 pass
+
+            gone, alive = psutil.wait_procs(
+                kill_targets,
+                timeout=3
+            )
+
+            if alive:
+                alive_pids = [p.pid for p in alive if p is not None]
+                return {
+
+                    "pid":
+                        pid,
+
+                    "stage":
+                        "terminate",
+
+                    "action_taken":
+                        bool(gone),
+
+                    "status":
+                        (
+                            "partial termination, alive pids="
+                            f"{alive_pids}"
+                        )
+                }
 
             return {
 
@@ -626,7 +668,7 @@ class ResponseEngine:
                     "terminate",
 
                 "action_taken":
-                    True,
+                    bool(gone),
 
                 "status":
                     "terminated"

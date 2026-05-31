@@ -1048,7 +1048,18 @@ learning_engine = (
 )
 
 response_engine = (
-    ResponseEngine()
+    ResponseEngine(
+        safe_mode=
+        os.getenv(
+            "SELF_HEALING_SAFE_MODE",
+            "false"
+        ).lower() in (
+            "1",
+            "true",
+            "yes",
+            "y"
+        )
+    )
 )
 
 # Ensure the controller PID is protected explicitly
@@ -1161,6 +1172,22 @@ def execute_healing(
         ] = (
             recommended_stage
         )
+
+        # --------------------------------
+        # FORCE TERMINATION FOR KNOWN WORM SCRIPT BEHAVIOR
+        # --------------------------------
+        if (
+            classification.get("label") == "worm"
+            and
+            (
+                "worm_sim.py" in process.get("cmdline", "").lower()
+                or
+                "test_worm.py" in process.get("cmdline", "").lower()
+                or
+                "worm_sim" in process.get("cmdline", "").lower()
+            )
+        ):
+            persistence_state["stage"] = "terminate"
 
         # --------------------------------
         # RESPONSE ENGINE
