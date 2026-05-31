@@ -1026,6 +1026,12 @@ response_engine = (
     ResponseEngine()
 )
 
+# Ensure the controller PID is protected explicitly
+try:
+    response_engine.add_protected_pid(os.getpid())
+except:
+    pass
+
 # ===================================================
 # DEAD PID TRACKER
 # prevents memory leak

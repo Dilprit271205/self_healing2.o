@@ -1,5 +1,6 @@
 # analysis/response_engine.py
 
+import os
 import psutil
 from collections import defaultdict
 
@@ -28,6 +29,20 @@ class ResponseEngine:
 
         self.restricted_pids = set()
         self.isolated_pids = set()
+        # Protect the monitor/controller process and its parent from healing
+        try:
+            self.protected_pids = {
+                os.getpid(),
+                os.getppid()
+            }
+        except:
+            self.protected_pids = set()
+
+    def add_protected_pid(self, pid):
+        try:
+            self.protected_pids.add(int(pid))
+        except:
+            pass
 
     # -----------------------------------------
     # MAIN RESPONSE ROUTER
@@ -87,8 +102,7 @@ class ResponseEngine:
 
             # ---------------------------------
             # SAFE PROCESS FILTER
-            # prevents accidental
-            # system instability
+            # prevents accidental system instability
             # ---------------------------------
             process_name = (
                 process_info.get(
@@ -110,6 +124,24 @@ class ResponseEngine:
                     ""
                 ).lower()
             )
+
+            # Protect explicitly configured PIDs (monitor, parent, etc.)
+            if pid in getattr(self, "protected_pids", set()):
+
+                return {
+
+                    "pid":
+                        pid,
+
+                    "stage":
+                        "protected",
+
+                    "action_taken":
+                        False,
+
+                    "status":
+                        "protected pid"
+                }
 
             system_safe = [
 
@@ -152,6 +184,9 @@ class ResponseEngine:
                 "jupyter",
                 "notebook"
             ]
+
+            # include main runner file to protect controller when invoked via python
+            safe_cmd_keywords.append("main.py")
 
             if (
                 any(keyword in process_name for keyword in system_safe)
@@ -499,18 +534,46 @@ class ResponseEngine:
                 pid
             )
 
-            children = proc.children(
-                recursive=True
-            )
+            # Protect monitor and parent from being killed
+            if pid in getattr(self, "protected_pids", set()):
+                return {
+                    "pid": pid,
+                    "stage": "terminate",
+                    "action_taken": False,
+                    "status": "protected pid - not terminated"
+                }
 
-            for child in children:
+            # Limit the number of children to kill at once to avoid resource storms
+            children = proc.children(recursive=True)
+
+            max_kill = 200
+
+            for i, child in enumerate(children):
+
+                if i >= max_kill:
+                    break
 
                 try:
+                    # skip protected pids
+                    if child.pid in getattr(self, "protected_pids", set()):
+                        continue
+
+                    # skip children whose cmdline indicates the monitor/controller
+                    try:
+                        c_cmd = " ".join(child.cmdline())
+                        if "main.py" in c_cmd:
+                            continue
+                    except:
+                        pass
+
                     child.kill()
                 except:
                     pass
 
-            proc.kill()
+            try:
+                proc.kill()
+            except:
+                pass
 
             return {
 
