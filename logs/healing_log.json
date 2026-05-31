@@ -12187,3 +12187,29 @@
 {"timestamp":"2026-05-31T13:36:50","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
 {"timestamp":"2026-05-31T13:36:50","type":"healing","pid":270011,"stage":"observe","action_taken":false,"status":"monitoring"}
 >>>>>>> ac1a1358 (Update)
+{"timestamp":"2026-05-31T14:02:21","type":"healing","pid":289227,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-05-31T14:03:16","type":"healing","pid":289358,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:03:16","type":"healing","pid":289360,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:03:16","type":"healing","pid":289363,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:03:16","type":"healing","pid":289365,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:03:16","type":"healing","pid":289766,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-05-31T14:03:16","type":"healing","pid":289768,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-05-31T14:03:16","type":"healing","pid":289788,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:03:26","type":"healing","pid":289358,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-05-31T14:03:26","type":"healing","pid":289360,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-05-31T14:03:26","type":"healing","pid":289363,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-05-31T14:03:26","type":"healing","pid":289365,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:03:26","type":"healing","pid":289928,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:03:37","type":"healing","pid":289365,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-05-31T14:03:47","type":"healing","pid":290054,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:03:58","type":"healing","pid":290117,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:04:08","type":"healing","pid":290182,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:04:19","type":"healing","pid":290246,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:04:39","type":"healing","pid":290386,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:04:50","type":"healing","pid":290444,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:05:00","type":"healing","pid":290534,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:05:11","type":"healing","pid":290595,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:05:21","type":"healing","pid":290774,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:05:21","type":"healing","pid":290798,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:05:32","type":"healing","pid":290889,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T14:05:42","type":"healing","pid":291050,"stage":"observe","action_taken":false,"status":"monitoring"}
