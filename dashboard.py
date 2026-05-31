@@ -355,6 +355,25 @@ latest["worm_score"] = pd.to_numeric(
 ).fillna(0)
 
 # ---------------------------------------
+# SIZE SANITIZER
+# ensure plotly receives valid non-negative
+# numeric values for marker sizing
+# ---------------------------------------
+def _safe_size_col(df, col, tmp_name):
+    try:
+        if col in df.columns:
+            df[tmp_name] = pd.to_numeric(df[col], errors="coerce").fillna(0).clip(lower=0)
+        else:
+            df[tmp_name] = 0
+    except Exception:
+        df[tmp_name] = 0
+
+
+# prepare common safe size columns on latest
+_safe_size_col(latest, "worm_score", "__size_worm_score")
+_safe_size_col(latest, "confidence", "__size_confidence")
+
+# ---------------------------------------
 # BASE SIGNALS
 # ---------------------------------------
 avg_trust = (
@@ -706,7 +725,7 @@ if page == "🛡 Operations":
 
             y="threads",
 
-            size="worm_score",
+            size="__size_worm_score",
 
             color="severity",
 
@@ -858,7 +877,7 @@ if page == "🛡 Operations":
 
             y="worm_score",
 
-            size="worm_score",
+            size="__size_worm_score",
 
             color="severity",
 
@@ -950,7 +969,7 @@ if page == "🛡 Operations":
 
                 color="stage",
 
-                size="confidence",
+                size="__size_confidence",
 
                 hover_data=[
                     "name",
@@ -1225,6 +1244,8 @@ elif page == "🧬 Threat Intelligence":
 
         with e2:
 
+            _safe_size_col(latest_entity, "children_count", "__size_children_count")
+
             fig = px.scatter(
 
                 latest_entity,
@@ -1232,7 +1253,7 @@ elif page == "🧬 Threat Intelligence":
                 x="growth_velocity",
                 y="children_count",
 
-                size="children_count",
+                size="__size_children_count",
 
                 hover_data=[
                     "entity_root"
@@ -1359,6 +1380,8 @@ elif page == "🐇 Worm Lab":
 
         with w3:
 
+            _safe_size_col(worm_df, "worm_score", "__size_worm_score")
+
             fig = px.bar(
 
                 worm_df.head(10),
@@ -1388,7 +1411,7 @@ elif page == "🐇 Worm Lab":
                 x="connections",
                 y="threads",
 
-                size="worm_score",
+                size="__size_worm_score",
 
                 color="severity",
 
