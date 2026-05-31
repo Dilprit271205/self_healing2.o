@@ -1041,8 +1041,18 @@ learning_engine = (
     LearningEngine()
 )
 
+HEALING_SAFE_MODE = os.environ.get(
+    "HEALING_SAFE_MODE",
+    "false"
+).strip().lower() in {
+    "1",
+    "true",
+    "yes"
+}
+
 response_engine = (
     ResponseEngine(
+<<<<<<< HEAD
         safe_mode=
         os.getenv(
             "SELF_HEALING_SAFE_MODE",
@@ -1053,8 +1063,14 @@ response_engine = (
             "yes",
             "y"
         )
+=======
+        safe_mode=HEALING_SAFE_MODE
+>>>>>>> ac1a1358 (Update)
     )
 )
+
+if HEALING_SAFE_MODE:
+    print("💡 Healing safe mode enabled via HEALING_SAFE_MODE")
 
 # Ensure the controller PID is protected explicitly
 try:

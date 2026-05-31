@@ -368,9 +368,13 @@ class PersistenceEngine:
         if (
             worm_count >= 2
             and
+<<<<<<< HEAD
             (avg_worm_score >= 0.75 or ema_worm_score >= 0.75)
+=======
+            avg_worm_score >= 0.70
+>>>>>>> ac1a1358 (Update)
             and
-            avg_severity >= 0.85
+            avg_severity >= 0.80
             and
             persistent
             and
@@ -381,15 +385,15 @@ class PersistenceEngine:
         elif (
             worm_count >= 1
             and
-            avg_worm_score >= 0.65
-            and
             avg_severity >= 0.8
             and
             persistent
             and
-            stage in ["observe", "restrict"]
+            avg_worm_score >= 0.45
+            and
+            stage in ["observe", "restrict", "isolate"]
         ):
-            stage = "isolate"
+            stage = "terminate"
 
         return {
 

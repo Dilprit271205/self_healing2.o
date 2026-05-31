@@ -181,18 +181,18 @@ class WormClassifier:
         # HEURISTIC WORM SIGNAL
         # captures model-specific worm stealth
         # =====================================
-        worm_heuristic = min(
+        explicit_worm_sim = any(
+            token in str(features.get("cmdline", "")).lower()
+            for token in ["worm_sim.py", "test_worm.py", "test_worm", "worm_sim"]
+        )
+
+        worm_heuristic = 1.0 if explicit_worm_sim else min(
             features.get(
                 "worm_score",
                 0
             )
             / 50,
             1
-        )
-
-        explicit_worm_sim = any(
-            token in str(features.get("cmdline", "")).lower()
-            for token in ["worm_sim.py", "test_worm.py", "test_worm", "worm_sim"]
         )
 
         explicit_tree_explosion = (
@@ -482,6 +482,9 @@ class WormClassifier:
                     final_trust,
                     3
                 ),
+
+            "explicit_worm_sim":
+                explicit_worm_sim,
 
             "signals": {
 

@@ -21,7 +21,11 @@ class ResponseEngine:
     → trust_recovery
     """
 
+<<<<<<< HEAD
     def __init__(self, safe_mode=None):
+=======
+    def __init__(self, safe_mode=False):
+>>>>>>> ac1a1358 (Update)
 
         self.response_history = (
             defaultdict(list)
@@ -29,6 +33,7 @@ class ResponseEngine:
 
         self.restricted_pids = set()
         self.isolated_pids = set()
+        self.safe_mode = bool(safe_mode)
         # Protect the monitor/controller process and its parent from healing
         try:
             self.protected_pids = {
@@ -153,10 +158,13 @@ class ResponseEngine:
         persistence_state
     ):
 
+<<<<<<< HEAD
         # =====================================
         # SAFE MODE
         # disable actual healing only when explicitly configured
         # =====================================
+=======
+>>>>>>> ac1a1358 (Update)
         stage = persistence_state.get(
             "stage",
             "observe"
@@ -174,7 +182,11 @@ class ResponseEngine:
 
             # =====================================
             # SAFE TEST MODE
+<<<<<<< HEAD
             # disables actual healing unless explicitly enabled
+=======
+            # disables actual healing when configured
+>>>>>>> ac1a1358 (Update)
             # =====================================
             if self.safe_mode:
 
