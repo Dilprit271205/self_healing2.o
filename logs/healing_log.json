@@ -2384,3 +2384,507 @@
 {"timestamp":"2026-05-31T09:57:27","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
 {"timestamp":"2026-05-31T09:57:27","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
 {"timestamp":"2026-05-31T09:57:27","type":"healing","pid":101262,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:36","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:57:36","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:57:36","type":"healing","pid":101465,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:38","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:57:38","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:57:38","type":"healing","pid":101492,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:38","type":"healing","pid":101559,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:47","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:57:47","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:57:47","type":"healing","pid":101707,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:47","type":"healing","pid":101708,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:47","type":"healing","pid":101709,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:47","type":"healing","pid":101794,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:47","type":"healing","pid":101884,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:47","type":"healing","pid":101891,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:49","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:57:49","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:57:49","type":"healing","pid":101707,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:49","type":"healing","pid":101708,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:49","type":"healing","pid":101709,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:49","type":"healing","pid":101794,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:49","type":"healing","pid":101908,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:57","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:57:57","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:57:57","type":"healing","pid":102085,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:57:59","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:57:59","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:57:59","type":"healing","pid":102131,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:08","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:08","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:08","type":"healing","pid":102214,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:10","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:10","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:10","type":"healing","pid":102249,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:18","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:18","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:18","type":"healing","pid":102371,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:20","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:20","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:20","type":"healing","pid":102419,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:28","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:28","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:28","type":"healing","pid":102502,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:31","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:31","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:31","type":"healing","pid":102538,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:39","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:39","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:39","type":"healing","pid":102633,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:41","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:41","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:41","type":"healing","pid":102669,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:49","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:49","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:49","type":"healing","pid":102764,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:58:51","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:58:51","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:58:51","type":"healing","pid":102805,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:00","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:00","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:00","type":"healing","pid":102894,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:02","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:02","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:02","type":"healing","pid":102930,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:10","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:10","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:10","type":"healing","pid":103025,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:12","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:12","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:12","type":"healing","pid":103066,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:21","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:21","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:21","type":"healing","pid":103155,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:23","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:23","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:23","type":"healing","pid":103196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:31","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:31","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:31","type":"healing","pid":103279,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:33","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:33","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:33","type":"healing","pid":103315,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:41","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:41","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:41","type":"healing","pid":103428,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:44","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:44","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:44","type":"healing","pid":103457,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:52","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:52","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:52","type":"healing","pid":103555,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T09:59:54","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T09:59:54","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T09:59:54","type":"healing","pid":103576,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:02","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:02","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:02","type":"healing","pid":103682,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:04","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:04","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:13","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:13","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:13","type":"healing","pid":103812,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:15","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:15","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:15","type":"healing","pid":103835,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:23","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:23","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:23","type":"healing","pid":103967,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:25","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:25","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:25","type":"healing","pid":103985,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:34","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:34","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:34","type":"healing","pid":104101,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:36","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:36","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:36","type":"healing","pid":104121,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:44","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:44","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:44","type":"healing","pid":104230,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:46","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:46","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:46","type":"healing","pid":104248,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:54","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:00:54","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:54","type":"healing","pid":104360,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:00:57","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:00:57","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:05","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:05","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:05","type":"healing","pid":104491,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:07","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:07","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:07","type":"healing","pid":104515,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:15","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:15","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:15","type":"healing","pid":104616,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:17","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:17","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:17","type":"healing","pid":104640,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:26","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:26","type":"healing","pid":104747,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:28","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:28","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:28","type":"healing","pid":104776,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:36","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:36","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:36","type":"healing","pid":104876,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:38","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:38","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:38","type":"healing","pid":104899,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:47","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:47","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:47","type":"healing","pid":105005,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:49","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:49","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:49","type":"healing","pid":105023,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:49","type":"healing","pid":105029,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:57","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:57","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:57","type":"healing","pid":105136,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:01:59","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:01:59","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:01:59","type":"healing","pid":105159,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:07","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:07","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:07","type":"healing","pid":105266,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:09","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:09","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:09","type":"healing","pid":105284,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:18","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:18","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:18","type":"healing","pid":105397,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:20","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:20","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:20","type":"healing","pid":105420,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:28","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:28","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:28","type":"healing","pid":105527,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:30","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:30","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:30","type":"healing","pid":105545,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:39","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:39","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:39","type":"healing","pid":105652,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:41","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:41","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:41","type":"healing","pid":105676,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:49","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:49","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:49","type":"healing","pid":105785,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:51","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:51","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:51","type":"healing","pid":105808,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:02:59","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:02:59","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:02:59","type":"healing","pid":105909,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:02","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:02","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:02","type":"healing","pid":105932,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:10","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:10","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:12","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:12","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:12","type":"healing","pid":106067,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:20","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:20","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:20","type":"healing","pid":106168,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:22","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:22","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:22","type":"healing","pid":106192,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:31","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:31","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:31","type":"healing","pid":106292,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:33","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:33","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:33","type":"healing","pid":106310,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:33","type":"healing","pid":106322,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:41","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:41","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:41","type":"healing","pid":106429,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:43","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:43","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:43","type":"healing","pid":106452,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:52","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:52","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:52","type":"healing","pid":106551,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:03:54","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:03:54","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:03:54","type":"healing","pid":106569,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:02","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:02","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:02","type":"healing","pid":106681,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:04","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:04","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:04","type":"healing","pid":106711,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:12","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:12","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:12","type":"healing","pid":106815,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:14","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:14","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:14","type":"healing","pid":106830,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:23","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:23","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:23","type":"healing","pid":106943,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:25","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:25","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:25","type":"healing","pid":106961,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:33","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:33","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:33","type":"healing","pid":107105,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:35","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:35","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:35","type":"healing","pid":107152,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:44","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:44","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:44","type":"healing","pid":107271,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:46","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:46","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:46","type":"healing","pid":107295,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:54","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:54","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:54","type":"healing","pid":107579,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:04:56","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:04:56","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:04:56","type":"healing","pid":107597,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:05","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:05","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:05","type":"healing","pid":107709,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:07","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:07","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:07","type":"healing","pid":107739,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:15","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:15","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:15","type":"healing","pid":107839,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:17","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:17","type":"healing","pid":107857,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:25","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:25","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:27","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:27","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:27","type":"healing","pid":107993,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:36","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:36","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:36","type":"healing","pid":108099,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:38","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:38","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:38","type":"healing","pid":108117,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:46","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:46","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:46","type":"healing","pid":108229,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:48","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:48","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:48","type":"healing","pid":108244,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:57","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:57","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:57","type":"healing","pid":108361,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:05:59","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:05:59","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:05:59","type":"healing","pid":108384,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:07","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:07","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:07","type":"healing","pid":108485,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:09","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:09","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:09","type":"healing","pid":108508,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:17","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:17","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:17","type":"healing","pid":108611,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:20","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:20","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:20","type":"healing","pid":108666,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:28","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:28","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:28","type":"healing","pid":108749,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:30","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:30","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:30","type":"healing","pid":108774,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:38","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:38","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:38","type":"healing","pid":108873,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:40","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:40","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:40","type":"healing","pid":108897,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:49","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:49","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:49","type":"healing","pid":109003,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:51","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:51","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:51","type":"healing","pid":109051,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:06:59","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:06:59","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:06:59","type":"healing","pid":109134,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:01","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:01","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:01","type":"healing","pid":109170,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:10","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:10","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:10","type":"healing","pid":109264,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:12","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:12","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:12","type":"healing","pid":109303,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:20","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:20","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:20","type":"healing","pid":109442,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:22","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:22","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:22","type":"healing","pid":109483,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:31","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:31","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:31","type":"healing","pid":109684,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:33","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:33","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:33","type":"healing","pid":109719,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:41","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:41","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:41","type":"healing","pid":109814,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:43","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:43","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:43","type":"healing","pid":109855,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:51","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:51","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:51","type":"healing","pid":109938,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:07:54","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:07:54","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:07:54","type":"healing","pid":109979,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:02","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:02","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:02","type":"healing","pid":110034,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:02","type":"healing","pid":110113,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:04","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:04","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:04","type":"healing","pid":110034,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:12","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:12","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:12","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:12","type":"healing","pid":110338,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:14","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:14","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:14","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:14","type":"healing","pid":110365,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:23","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:23","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:23","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:23","type":"healing","pid":110452,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:25","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:25","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:25","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:25","type":"healing","pid":110482,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:33","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:33","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:33","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:33","type":"healing","pid":110594,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:35","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:35","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:35","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:35","type":"healing","pid":110617,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:35","type":"healing","pid":110618,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:44","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:44","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:44","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:44","type":"healing","pid":110722,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:46","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:46","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:46","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:46","type":"healing","pid":110740,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:54","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:54","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:54","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:56","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:08:56","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:08:56","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:08:56","type":"healing","pid":110877,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:05","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:05","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:05","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:05","type":"healing","pid":110982,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:07","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:07","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:07","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:07","type":"healing","pid":111000,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:15","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:15","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:15","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:15","type":"healing","pid":111112,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:17","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:17","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:17","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:25","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:25","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:25","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:25","type":"healing","pid":111244,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:28","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:28","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:28","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:28","type":"healing","pid":111268,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:36","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:36","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:36","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:36","type":"healing","pid":111368,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:38","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:38","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:38","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:38","type":"healing","pid":111392,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:46","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:46","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:46","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:49","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:49","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:49","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:49","type":"healing","pid":111529,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:57","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:57","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:57","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:57","type":"healing","pid":111628,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:59","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:09:59","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:09:59","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:09:59","type":"healing","pid":111652,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:07","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:07","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:07","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:10","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:10","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:10","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:18","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:18","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:18","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:18","type":"healing","pid":112067,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:20","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:20","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:20","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:20","type":"healing","pid":112085,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:28","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:28","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:28","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:28","type":"healing","pid":112198,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:30","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:30","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:30","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:39","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:39","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:39","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:39","type":"healing","pid":112330,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:41","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:41","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:41","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:41","type":"healing","pid":112353,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:49","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:49","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:49","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:49","type":"healing","pid":112465,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:51","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:10:51","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:10:51","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:10:51","type":"healing","pid":112483,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:11:00","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:11:00","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:11:00","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:11:00","type":"healing","pid":112596,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:11:02","type":"healing","pid":53514,"stage":"protected","action_taken":false,"status":"trusted process"}
+{"timestamp":"2026-05-31T10:11:02","type":"healing","pid":63671,"stage":"protected","action_taken":false,"status":"protected pid"}
+{"timestamp":"2026-05-31T10:11:02","type":"healing","pid":110196,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-05-31T10:11:02","type":"healing","pid":112619,"stage":"observe","action_taken":false,"status":"monitoring"}
