@@ -56,10 +56,10 @@ class ResponseEngine:
 
         # =====================================
         # SAFE MODE
-        # enable actual healing now so
-        # worm termination can occur automatically.
+        # disable actual healing by default while
+        # monitoring a live system for stability.
         # =====================================
-        SAFE_MODE = False
+        SAFE_MODE = True
 
         stage = persistence_state.get(
             "stage",
@@ -157,6 +157,24 @@ class ResponseEngine:
                 "kde",
                 "plasmashell",
 
+                # terminal / shell safety
+                "bash",
+                "zsh",
+                "sh",
+                "fish",
+                "tmux",
+                "screen",
+                "xterm",
+                "gnome-terminal",
+                "konsole",
+                "terminator",
+                "tilix",
+                "kitty",
+                "alacritty",
+                "wezterm",
+                "hyper",
+                "lxterminal",
+
                 # browser safety
                 "chrome",
                 "google-chrome",
@@ -182,18 +200,42 @@ class ResponseEngine:
                 "dashboard_v1_backup.py",
                 "streamlit",
                 "jupyter",
-                "notebook"
+                "notebook",
+                "main.py"
             ]
 
-            # include main runner file to protect controller when invoked via python
-            safe_cmd_keywords.append("main.py")
+            terminal_safe_cmd_keywords = [
+                "vscode-server",
+                "code-server",
+                "jetbrains",
+                "pycharm",
+                "terminal",
+                "gnome-terminal",
+                "konsole",
+                "alacritty",
+                "wezterm",
+                "kitty"
+            ]
+
+            safe_shell_names = [
+                "bash",
+                "zsh",
+                "sh",
+                "fish",
+                "tmux",
+                "screen"
+            ]
 
             if (
                 any(keyword in process_name for keyword in system_safe)
                 or
+                any(keyword in process_name for keyword in safe_shell_names)
+                or
                 any(keyword in cmdline for keyword in safe_cmd_keywords)
                 or
                 any(keyword in exe_path for keyword in safe_cmd_keywords)
+                or
+                any(keyword in cmdline for keyword in terminal_safe_cmd_keywords)
             ):
 
                 return {

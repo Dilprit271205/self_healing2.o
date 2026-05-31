@@ -1,5 +1,6 @@
 # main.py
 
+import os
 import time
 import threading
 import traceback
@@ -83,7 +84,8 @@ from logger.logger import (
 MONITOR_INTERVAL = 10
 SYSTEM_SAFE_PIDS = {
     0,
-    1
+    1,
+    os.getpid()
 }
 
 # ===================================================
@@ -713,6 +715,20 @@ def monitor_loop():
                             keyword in process_name
                             for keyword
                             in trusted_processes
+                        ):
+
+                            static_score = 0.95
+
+                        elif (
+                            "vscode" in cmdline
+                            or
+                            ".vscode-remote" in cmdline
+                            or
+                            "code-server" in cmdline
+                            or
+                            "shellintegration-bash.sh" in cmdline
+                            or
+                            "cpuusage.sh" in cmdline
                         ):
 
                             static_score = 0.95
