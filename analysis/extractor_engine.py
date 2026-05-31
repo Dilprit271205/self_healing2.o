@@ -329,9 +329,29 @@ class ExtractorEngine:
             "blueman"
         ]
 
-        safe_process = any(
-            keyword in process_name
-            for keyword in safe_names
+        safe_process = (
+            any(
+                keyword in process_name
+                for keyword in safe_names
+            )
+            or
+            any(
+                token in cmdline
+                for token in [
+                    "vscode",
+                    ".vscode-remote",
+                    "code-server",
+                    "shellintegration-bash.sh",
+                    "cpuusage.sh"
+                ]
+            )
+        )
+
+        tree_weight = (
+            0.3
+            if process_growth == 0
+            and young_process == 0
+            else 1.2
         )
 
         worm_score = (
@@ -343,7 +363,7 @@ class ExtractorEngine:
             + (connection_velocity * 2.0)
             + (remote_ips * 1.5)
             + (scanning_score * 4.0)
-            + (min(process_tree_size, 40) * 1.2)
+            + (min(process_tree_size, 40) * tree_weight)
         )
 
         if safe_process:

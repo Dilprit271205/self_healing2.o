@@ -77,11 +77,16 @@ class WormClassifier:
             )
         )
 
+        tree_pressure = max(
+            process_tree - 10,
+            0
+        ) * 0.20
+
         propagation_signal = min(
             (
-                process_growth * 2
+                process_growth * 4
                 +
-                process_tree
+                tree_pressure
                 +
                 features.get(
                     "f_process_trend",
@@ -91,7 +96,7 @@ class WormClassifier:
                 features.get(
                     "f_young_process",
                     0
-                ) * 3
+                ) * 4
             )
             / 30,
             1
