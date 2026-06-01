@@ -299,12 +299,7 @@ class ExtractorEngine:
         # -----------------------------------------
         # HEURISTIC WORM SIGNALS
         # -----------------------------------------
-        suspicious_name = 1 if (
-            "worm" in process_name
-            or "worm_sim" in cmdline
-            or "stress.py" in cmdline
-            or "payload" in cmdline
-        ) else 0
+        suspicious_name = 0
 
         safe_names = [
             "systemd",

@@ -9,15 +9,9 @@ from analysis.static.static_analyzer import compute_static_trust
 # ---------------------------------------------------
 process_history = {}
 
-# Explicit simulator indicators
-SUSPECT_KEYWORDS = [
-    "worm_sim",
-    "worm",
-    "stress.py",
-    "stress",
-    "forkbomb",
-    "payload"
-]
+# Legacy extractor kept behavior-first; active detection must not depend on
+# simulator/file names.
+SUSPECT_KEYWORDS = []
 
 # Safe/common processes that should not score high
 SAFE_NAMES = [

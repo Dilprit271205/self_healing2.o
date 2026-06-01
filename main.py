@@ -760,14 +760,7 @@ def monitor_loop():
 
                         elif process_name in {"python", "python3"}:
 
-                            if (
-                                "worm_sim.py" in cmdline
-                                or
-                                "test_worm.py" in cmdline
-                            ):
-                                static_score = 0.35
-                            else:
-                                static_score = 0.75
+                            static_score = 0.75
 
                         # young / unknown process
                         elif features.get(
@@ -1191,18 +1184,6 @@ def execute_healing(
         trust_state = {"dynamic_trust": 1.0, "final_trust": 1.0}
 
     try:
-        process_cmdline = (
-            str(
-                process.get(
-                    "cmdline",
-                    ""
-                )
-                or
-                ""
-            )
-            .lower()
-        )
-
         # --------------------------------
         # LEARNING ADAPTATION
         # slide 17-18
@@ -1228,32 +1209,7 @@ def execute_healing(
             recommended_stage
         )
 
-        # --------------------------------
-        # FORCE TERMINATION FOR KNOWN WORM SCRIPT BEHAVIOR
-        # --------------------------------
-        if (
-            classification.get("label") == "worm"
-            and
-            (
-                "worm_sim.py" in process_cmdline
-                or
-                "test_worm.py" in process_cmdline
-                or
-                "worm_sim" in process_cmdline
-            )
-        ):
-            persistence_state["stage"] = "terminate"
-            persistence_state["force_terminate"] = True
-
-        if (
-            "forkbomb_sim.py" in process_cmdline
-            or
-            "forkbomb_sim" in process_cmdline
-        ):
-            persistence_state["stage"] = "terminate"
-            persistence_state["force_terminate"] = True
-
-        # Force termination for fork-bomb or explicit forkbomb classification
+        # Force termination from behavioral classification only.
         if classification.get("label") in ("worm", "forkbomb"):
             persistence_state["stage"] = "terminate"
 

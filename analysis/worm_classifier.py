@@ -181,16 +181,6 @@ class WormClassifier:
         # HEURISTIC WORM SIGNAL
         # captures model-specific worm stealth
         # =====================================
-        explicit_worm_sim = any(
-            token in str(features.get("cmdline", "")).lower()
-            for token in ["worm_sim.py", "test_worm.py", "test_worm", "worm_sim"]
-        )
-
-        explicit_forkbomb_sim = any(
-            token in str(features.get("cmdline", "")).lower()
-            for token in ["forkbomb_sim.py", "forkbomb_sim", "forkbomb"]
-        )
-
         shell_forkbomb_signature = any(
             token in str(features.get("cmdline", "")).lower()
             for token in [
@@ -203,7 +193,7 @@ class WormClassifier:
             ]
         )
 
-        worm_heuristic = 1.0 if explicit_worm_sim else min(
+        worm_heuristic = min(
             features.get(
                 "worm_score",
                 0
@@ -247,7 +237,7 @@ class WormClassifier:
 
         # Avoid false positives for known safe processes
         if not safe_process:
-            if explicit_forkbomb_sim or shell_forkbomb_signature:
+            if shell_forkbomb_signature:
                 forkbomb_detected = True
 
             # require youth for most rapid-fork detections
@@ -363,15 +353,6 @@ class WormClassifier:
                 3
             )
 
-        if explicit_worm_sim:
-            worm_likelihood = round(
-                max(
-                    worm_likelihood,
-                    0.92
-                ),
-                3
-            )
-
         if forkbomb_detected:
             worm_likelihood = round(max(worm_likelihood, 0.99), 3)
 
@@ -447,8 +428,6 @@ class WormClassifier:
         # WORM
         # -----------------------------
         elif (
-            explicit_worm_sim
-        ) or (
             (worm_likelihood >= 0.50 and combined_risk >= 0.40)
             or
             (
@@ -519,12 +498,6 @@ class WormClassifier:
                     final_trust,
                     3
                 ),
-
-            "explicit_worm_sim":
-                explicit_worm_sim,
-
-            "explicit_forkbomb_sim":
-                explicit_forkbomb_sim,
 
             "shell_forkbomb_signature":
                 shell_forkbomb_signature,

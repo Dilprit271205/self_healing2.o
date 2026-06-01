@@ -1,6 +1,5 @@
 import os
 import glob
-import psutil
 
 # -----------------------------
 # CONFIG
@@ -26,27 +25,11 @@ def clean_temp_files():
 
 
 # -----------------------------
-# KILL STRESS PROCESSES
+# PROCESS TERMINATION
 # -----------------------------
 def kill_stress_processes():
-    print("[CLEANUP] Killing stress-related processes...")
-
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        try:
-            name = proc.info['name'] or ""
-            cmd = " ".join(proc.info['cmdline'] or [])
-
-            # Kill only safe known stress processes
-            if (
-                "stress.py" in cmd or
-                "sleep" in name or
-                "temp_stress" in cmd
-            ):
-                proc.kill()
-                print(f"Killed PID {proc.pid} ({name})")
-
-        except Exception:
-            pass
+    print("[CLEANUP] Skipping process termination.")
+    print("[CLEANUP] Runtime worm handling is behavior-based in main.py.")
 
 
 # -----------------------------

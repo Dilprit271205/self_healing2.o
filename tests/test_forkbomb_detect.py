@@ -129,11 +129,38 @@ def test_glycin_svg_helper_is_safe():
 
 def spawn_forkbomb():
     env = os.environ.copy()
-    env["FORKBOMB_MAX_CHILDREN"] = "8"
+    env["FORKBOMB_MAX_CHILDREN"] = "18"
     env["FORKBOMB_SPAWN_DELAY"] = "0.05"
     env["FORKBOMB_RUN_TIME"] = "15"
+    env["SELF_HEALING_FORK_TREE_THRESHOLD"] = "8"
     cmd = [sys.executable, os.path.join(os.path.dirname(__file__), "..", "forkbomb_sim.py")]
     return subprocess.Popen(cmd, env=env)
+
+
+def process_tree_records(proc):
+    records = [
+        {
+            "pid": proc.pid,
+            "ppid": proc.ppid(),
+            "name": proc.name(),
+            "cmdline": " ".join(proc.cmdline()) if proc.cmdline() else "",
+        }
+    ]
+
+    for child in proc.children(recursive=True):
+        try:
+            records.append(
+                {
+                    "pid": child.pid,
+                    "ppid": child.ppid(),
+                    "name": child.name(),
+                    "cmdline": " ".join(child.cmdline()) if child.cmdline() else "",
+                }
+            )
+        except psutil.Error:
+            continue
+
+    return records
 
 
 def test_forkbomb_detection():
@@ -155,7 +182,7 @@ def test_forkbomb_detection():
             "cmdline": " ".join(proc.cmdline()) if proc.cmdline() else "",
         }
 
-        entity_map = {p.pid: [c.pid for c in proc.children(recursive=True)]}
+        entity_map = {p.pid: process_tree_records(proc)}
         features = extractor.extract(snap, entity_map, {})
 
         classification = classifier.classify(
@@ -164,7 +191,8 @@ def test_forkbomb_detection():
             {"dynamic_trust": 0.5, "final_trust": 0.5},
         )
 
-        assert classification["label"] in {"worm", "forkbomb", "suspicious"}
+        assert classification["label"] == "forkbomb"
+        assert classification["signals"]["forkbomb_detected"] is True
 
         import main as main_mod
         time.sleep(1.5)
@@ -179,7 +207,14 @@ def test_forkbomb_detection():
             "create_time": proc.create_time(),
             "cmdline": " ".join(proc.cmdline()) if proc.cmdline() else "",
         }
-        features2 = extractor.extract(snap2, {p.pid: [c.pid for c in proc.children(recursive=True)]}, {})
+        features2 = extractor.extract(
+            snap2,
+            {
+                p.pid:
+                    process_tree_records(proc)
+            },
+            {}
+        )
 
         persistence_state = {"stage": "observe"}
         trust_state = {"dynamic_trust": 0.5, "final_trust": 0.5}
