@@ -285,9 +285,34 @@ df["timestamp"] = pd.to_datetime(
     df["timestamp"]
 )
 
+LIVE_WINDOW_SECONDS = 45
+
+latest_timestamp = df[
+    "timestamp"
+].max()
+
+live_cutoff = (
+    latest_timestamp
+    -
+    pd.Timedelta(
+        seconds=LIVE_WINDOW_SECONDS
+    )
+)
+
+live_df = (
+    df[
+        df["timestamp"]
+        >=
+        live_cutoff
+    ]
+)
+
+if live_df.empty:
+    live_df = df
+
 latest = (
 
-    df.sort_values(
+    live_df.sort_values(
         "timestamp"
     )
 
@@ -314,6 +339,8 @@ defaults = {
     "severity": "low",
 
     "stage": "observe",
+
+    "response": "none",
 
     "cpu": 0,
     "memory": 0,
@@ -503,6 +530,23 @@ health_score = max(
 # ===================================================
 # EXECUTIVE KPIs
 # ===================================================
+ACTIVE_HEALING_STAGES = [
+    "restrict",
+    "isolate",
+    "block_resources",
+    "terminate",
+    "trust_recovery"
+]
+
+NON_ACTION_RESPONSES = [
+    "skipped",
+    "monitoring",
+    "none",
+    "protected pid",
+    "trusted process",
+    "safe mode (healing disabled)"
+]
+
 active_processes = len(
     latest
 )
@@ -519,9 +563,13 @@ critical_processes = len(
 healing_active = len(
 
     latest[
-        latest["stage"]
-        !=
-        "observe"
+        latest["stage"].isin(
+            ACTIVE_HEALING_STAGES
+        )
+        &
+        ~latest["response"].isin(
+            NON_ACTION_RESPONSES
+        )
     ]
 )
 
