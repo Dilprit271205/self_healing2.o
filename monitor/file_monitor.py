@@ -289,7 +289,7 @@ def start_file_monitor(
     observer.start()
 
     print(
-        "📁 File monitor started"
+        "[FILE] File monitor observer started"
     )
 
     return observer

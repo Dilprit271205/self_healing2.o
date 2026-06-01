@@ -80,6 +80,28 @@ def test_force_terminate_cannot_kill_hard_protected_pid():
     assert result["action_taken"] is False
 
 
+def test_missing_process_text_fields_do_not_crash_response():
+    resp = ResponseEngine(safe_mode=False)
+
+    result = resp.execute(
+        pid=999999,
+        process_info={
+            "pid": 999999,
+            "name": None,
+            "cmdline": None,
+            "exe": None,
+        },
+        persistence_state={
+            "stage": "terminate",
+            "force_terminate": True,
+        },
+    )
+
+    assert result["stage"] == "terminate"
+    assert result["action_taken"] is False
+    assert "error:" not in result["status"]
+
+
 def test_terminate_worm_sim_process_tree():
     resp = ResponseEngine(safe_mode=False)
     proc = subprocess.Popen(

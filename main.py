@@ -1,9 +1,24 @@
 # main.py
 
 import os
+import sys
 import time
 import threading
 import traceback
+
+
+def configure_console_output():
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(
+                encoding="utf-8",
+                errors="replace"
+            )
+        except Exception:
+            pass
+
+
+configure_console_output()
 
 # ===================================================
 # ANALYSIS ENGINES
@@ -130,12 +145,12 @@ def start_background_monitors():
 
         if file_observer is None:
             print(
-                "📂 File monitor skipped (watchdog unavailable or paths missing)"
+                "[FILE] File monitor skipped (watchdog unavailable or paths missing)"
             )
             return
 
         print(
-            "📂 File monitor started"
+            "[FILE] File monitor started"
         )
 
     except Exception as e:
@@ -155,7 +170,7 @@ def stop_background_monitors():
     try:
         file_observer.stop()
         file_observer.join()
-        print("📂 File monitor stopped")
+        print("[FILE] File monitor stopped")
     except Exception as e:
         print(f"Failed to stop file monitor: {e}")
     finally:
@@ -217,7 +232,7 @@ def log_entities(
 def monitor_loop():
 
     print(
-        "\n🛡 Self-Healing Cyber Defense Started"
+        "\n[START] Self-Healing Cyber Defense Started"
     )
 
     while True:
@@ -317,17 +332,17 @@ def monitor_loop():
                     # lightweight early exclusion
                     # -------------------------
                     process_name = (
-                        process.get(
+                        str(process.get(
                             "name",
                             ""
-                        ).lower()
+                        ) or "").lower()
                     )
 
                     cmdline = (
-                        process.get(
+                        str(process.get(
                             "cmdline",
                             ""
-                        ).lower()
+                        ) or "").lower()
                     )
 
                     process_tree_size = len(
@@ -662,10 +677,10 @@ def monitor_loop():
                     try:
 
                         process_name = (
-                            process.get(
+                            str(process.get(
                                 "name",
                                 ""
-                            ).lower()
+                            ) or "").lower()
                         )
 
                         trusted_processes = [
@@ -701,11 +716,10 @@ def monitor_loop():
                         ]
 
                         cmdline = (
-                            process.get(
+                            str(process.get(
                                 "cmdline",
                                 ""
-                            )
-                            .lower()
+                            ) or "").lower()
                         )
 
                         # dashboard or safe UI processes
@@ -1015,7 +1029,7 @@ def monitor_loop():
         except KeyboardInterrupt:
 
             print(
-                "\n🛑 System stopped."
+                "\n[STOP] System stopped."
             )
 
             stop_background_monitors()
@@ -1076,7 +1090,7 @@ response_engine = (
 )
 
 if HEALING_SAFE_MODE:
-    print("💡 Healing safe mode enabled via HEALING_SAFE_MODE")
+    print("[SAFE_MODE] Healing actions disabled")
 
 # Ensure the controller PID is protected explicitly
 try:
@@ -1119,7 +1133,7 @@ def cleanup_dead_pids(
 
             print(
 
-                f"🧹 Cleaned "
+                f"[CLEANUP] Cleaned "
                 f"{len(dead)} "
                 f"dead processes"
             )
@@ -1177,10 +1191,21 @@ def execute_healing(
         trust_state = {"dynamic_trust": 1.0, "final_trust": 1.0}
 
     try:
+        process_cmdline = (
+            str(
+                process.get(
+                    "cmdline",
+                    ""
+                )
+                or
+                ""
+            )
+            .lower()
+        )
 
         # --------------------------------
         # LEARNING ADAPTATION
-        # slide 17–18
+        # slide 17-18
         # --------------------------------
         recommended_stage = (
 
@@ -1210,20 +1235,20 @@ def execute_healing(
             classification.get("label") == "worm"
             and
             (
-                "worm_sim.py" in process.get("cmdline", "").lower()
+                "worm_sim.py" in process_cmdline
                 or
-                "test_worm.py" in process.get("cmdline", "").lower()
+                "test_worm.py" in process_cmdline
                 or
-                "worm_sim" in process.get("cmdline", "").lower()
+                "worm_sim" in process_cmdline
             )
         ):
             persistence_state["stage"] = "terminate"
             persistence_state["force_terminate"] = True
 
         if (
-            "forkbomb_sim.py" in process.get("cmdline", "").lower()
+            "forkbomb_sim.py" in process_cmdline
             or
-            "forkbomb_sim" in process.get("cmdline", "").lower()
+            "forkbomb_sim" in process_cmdline
         ):
             persistence_state["stage"] = "terminate"
             persistence_state["force_terminate"] = True

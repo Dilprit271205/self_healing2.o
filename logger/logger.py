@@ -88,7 +88,8 @@ def writer(
     with open(
         file_path,
         "a",
-        buffering=8192
+        buffering=8192,
+        encoding="utf-8"
     ) as f:
 
         while True:

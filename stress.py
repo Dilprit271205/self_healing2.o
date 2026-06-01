@@ -15,7 +15,7 @@ def cpu_stress():
     while RUN:
         for _ in range(10**6):
             pass
-        time.sleep(0.01)  # 🔥 IMPORTANT
+        time.sleep(0.01)  # important
 
 
 # -----------------------------
@@ -62,7 +62,7 @@ def network_stress():
 def spawn_process():
     while RUN:
         subprocess.Popen(["sleep", "0.5"])
-        time.sleep(0.2)  # 🔥 limit spawn rate
+        time.sleep(0.2)  # limit spawn rate
 
 
 # -----------------------------
@@ -71,7 +71,7 @@ def spawn_process():
 if __name__ == "__main__":
     processes = []
 
-    print("🔥 Starting CONTROLLED attack simulation...")
+    print("[STRESS] Starting controlled attack simulation...")
 
     # CPU (LIMITED)
     for _ in range(max(1, multiprocessing.cpu_count() // 3)):
@@ -99,13 +99,13 @@ if __name__ == "__main__":
     spawner.start()
     processes.append(spawner)
 
-    print("🚀 Running... Press CTRL + C to stop")
+    print("[STRESS] Running... Press CTRL+C to stop")
 
     try:
         for p in processes:
             p.join()
     except KeyboardInterrupt:
-        print("\n🛑 Stopping...")
+        print("\n[STRESS] Stopping...")
 
         RUN = False
         time.sleep(1)

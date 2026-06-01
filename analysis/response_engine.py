@@ -298,24 +298,24 @@ class ResponseEngine:
             # prevents accidental system instability
             # ---------------------------------
             process_name = (
-                process_info.get(
+                self._normalize_text(process_info.get(
                     "name",
                     ""
-                ).lower()
+                ))
             )
 
             cmdline = (
-                process_info.get(
+                self._normalize_text(process_info.get(
                     "cmdline",
                     ""
-                ).lower()
+                ))
             )
 
             exe_path = (
-                process_info.get(
+                self._normalize_text(process_info.get(
                     "exe",
                     ""
-                ).lower()
+                ))
             )
 
             # Protect explicitly configured PIDs (monitor, parent, etc.)

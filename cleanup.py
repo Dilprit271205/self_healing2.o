@@ -12,7 +12,7 @@ LOG_FILE = "logs/system_log.json"
 # DELETE TEMP FILES
 # -----------------------------
 def clean_temp_files():
-    print("🧹 Cleaning temp files...")
+    print("[CLEANUP] Cleaning temp files...")
 
     files = glob.glob("temp_*.txt") + ["temp_stress.txt"]
 
@@ -29,7 +29,7 @@ def clean_temp_files():
 # KILL STRESS PROCESSES
 # -----------------------------
 def kill_stress_processes():
-    print("🔪 Killing stress-related processes...")
+    print("[CLEANUP] Killing stress-related processes...")
 
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         try:
@@ -53,7 +53,7 @@ def kill_stress_processes():
 # OPTIONAL: CLEAR LOG FILE
 # -----------------------------
 def clear_logs():
-    print("🧾 Clearing logs...")
+    print("[CLEANUP] Clearing logs...")
 
     try:
         with open(LOG_FILE, "w") as f:
@@ -67,7 +67,7 @@ def clear_logs():
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("⚠️ Running cleanup...")
+    print("[CLEANUP] Running cleanup...")
 
     clean_temp_files()
     kill_stress_processes()
@@ -75,4 +75,4 @@ if __name__ == "__main__":
     # Uncomment if you want fresh start
     # clear_logs()
 
-    print("✅ Cleanup complete")
+    print("[CLEANUP] Cleanup complete")
