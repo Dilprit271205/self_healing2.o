@@ -84,3 +84,29 @@ def test_forkbomb_detection():
         if p.poll() is None:
             p.kill()
             p.wait(timeout=5)
+
+
+def test_shell_forkbomb_signature_is_critical():
+    classifier = WormClassifier()
+
+    classification = classifier.classify(
+        {
+            "cmdline": "bash -c ':(){ :|:& };:'",
+            "f_proc_spawn": 0,
+            "f_proc_tree": 4,
+            "f_process_trend": 0,
+            "f_young_process": 1,
+            "f_thread_velocity": 0,
+            "f_connection_velocity": 0,
+            "f_remote_ips": 0,
+            "file_events": 0,
+            "worm_score": 0,
+            "safe_process": False,
+        },
+        {"anomalies": {}, "temporal": {}},
+        {"dynamic_trust": 1.0, "final_trust": 1.0},
+    )
+
+    assert classification["label"] == "forkbomb"
+    assert classification["severity"] == "critical"
+    assert classification["signals"]["forkbomb_detected"] is True

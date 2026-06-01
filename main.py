@@ -1218,6 +1218,7 @@ def execute_healing(
             )
         ):
             persistence_state["stage"] = "terminate"
+            persistence_state["force_terminate"] = True
 
         if (
             "forkbomb_sim.py" in process.get("cmdline", "").lower()
@@ -1225,6 +1226,7 @@ def execute_healing(
             "forkbomb_sim" in process.get("cmdline", "").lower()
         ):
             persistence_state["stage"] = "terminate"
+            persistence_state["force_terminate"] = True
 
         # Force termination for fork-bomb or explicit forkbomb classification
         if classification.get("label") in ("worm", "forkbomb"):
@@ -1232,6 +1234,7 @@ def execute_healing(
 
         if classification.get("signals", {}).get("forkbomb_detected"):
             persistence_state["stage"] = "terminate"
+            persistence_state["force_terminate"] = True
 
         # Immediate fork-bomb mitigation based on features (env-configurable)
         try:
@@ -1252,6 +1255,7 @@ def execute_healing(
                     )
                 ):
                     persistence_state["stage"] = "terminate"
+                    persistence_state["force_terminate"] = True
         except Exception:
             pass
 

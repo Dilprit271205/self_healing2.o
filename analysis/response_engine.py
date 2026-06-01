@@ -68,12 +68,21 @@ class ResponseEngine:
         text = self._normalize_text(text)
         return any(token in text for token in tokens)
 
+    def _is_hard_protected_pid(self, pid):
+        try:
+            return int(pid) in getattr(self, "protected_pids", set()) or int(pid) <= 1
+        except Exception:
+            return True
+
+    def _can_override_name_protection(self, force=False):
+        return bool(force)
+
     def is_protected_process(self, pid, process_name="", cmdline="", exe_path=""):
         process_name = self._normalize_text(process_name)
         cmdline = self._normalize_text(cmdline)
         exe_path = self._normalize_text(exe_path)
 
-        if pid in getattr(self, "protected_pids", set()):
+        if self._is_hard_protected_pid(pid):
             return True
 
         safe_names = [
@@ -242,6 +251,17 @@ class ResponseEngine:
             "observe"
         )
 
+        force_terminate = (
+            stage == "terminate"
+            and
+            bool(
+                persistence_state.get(
+                    "force_terminate",
+                    False
+                )
+            )
+        )
+
         result = {
 
             "pid": pid,
@@ -299,7 +319,11 @@ class ResponseEngine:
             )
 
             # Protect explicitly configured PIDs (monitor, parent, etc.)
-            if self.is_protected_process(pid, process_name, cmdline, exe_path):
+            if (
+                self.is_protected_process(pid, process_name, cmdline, exe_path)
+                and
+                not self._can_override_name_protection(force_terminate)
+            ):
                 return {
                     "pid": pid,
                     "stage": "protected",
@@ -402,20 +426,21 @@ class ResponseEngine:
                 any(keyword in cmdline for keyword in terminal_safe_cmd_keywords)
             ):
 
-                return {
+                if not self._can_override_name_protection(force_terminate):
+                    return {
 
-                    "pid":
-                        pid,
+                        "pid":
+                            pid,
 
-                    "stage":
-                        "protected",
+                        "stage":
+                            "protected",
 
-                    "action_taken":
-                        False,
+                        "action_taken":
+                            False,
 
-                    "status":
-                        "trusted process"
-                }
+                        "status":
+                            "trusted process"
+                    }
 
             # ---------------------------------
             # OBSERVE
@@ -497,7 +522,8 @@ class ResponseEngine:
 
                 result = (
                     self.terminate_process(
-                        pid
+                        pid,
+                        force=force_terminate
                     )
                 )
 
@@ -774,7 +800,8 @@ class ResponseEngine:
     # -----------------------------------------
     def terminate_process(
         self,
-        pid
+        pid,
+        force=False
     ):
 
         try:
@@ -800,11 +827,23 @@ class ResponseEngine:
             except Exception:
                 proc_exe = ""
 
-            if self.is_protected_process(
+            if self._is_hard_protected_pid(pid):
+                return {
+                    "pid": pid,
+                    "stage": "terminate",
+                    "action_taken": False,
+                    "status": "hard protected pid - not terminated"
+                }
+
+            if (
+                self.is_protected_process(
                 pid,
                 proc_name,
                 proc_cmdline,
                 proc_exe
+                )
+                and
+                not self._can_override_name_protection(force)
             ):
                 return {
                     "pid": pid,
@@ -820,7 +859,22 @@ class ResponseEngine:
             except:
                 MAX_SAFE_KILL = 300
 
-            if len(children) > MAX_SAFE_KILL:
+            try:
+                MAX_FORCE_KILL = int(os.getenv("SELF_HEALING_MAX_FORCE_KILL", "2000"))
+            except:
+                MAX_FORCE_KILL = 2000
+
+            if len(children) > MAX_FORCE_KILL:
+                return {
+                    "pid": pid,
+                    "stage": "block_resources",
+                    "action_taken": False,
+                    "status": (
+                        "process tree exceeds forced termination ceiling"
+                    )
+                }
+
+            if len(children) > MAX_SAFE_KILL and not force:
                 return {
                     "pid": pid,
                     "stage": "block_resources",
@@ -843,11 +897,18 @@ class ResponseEngine:
                         child.exe() if hasattr(child, "exe") else ""
                     )
 
-                    if self.is_protected_process(
+                    if self._is_hard_protected_pid(child.pid):
+                        continue
+
+                    if (
+                        self.is_protected_process(
                         child.pid,
                         child_name,
                         child_cmd,
                         child_exe
+                        )
+                        and
+                        not self._can_override_name_protection(force)
                     ):
                         continue
 

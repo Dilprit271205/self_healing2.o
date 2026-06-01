@@ -41,6 +41,45 @@ def test_safe_process_is_not_terminated():
             process.wait(timeout=5)
 
 
+def test_shell_process_requires_forced_evidence_to_terminate():
+    resp = ResponseEngine(safe_mode=False)
+
+    result = resp.execute(
+        pid=999999,
+        process_info={
+            "pid": 999999,
+            "name": "bash",
+            "cmdline": "bash",
+            "exe": "/bin/bash",
+        },
+        persistence_state={"stage": "terminate"},
+    )
+
+    assert result["stage"] == "protected"
+    assert result["action_taken"] is False
+
+
+def test_force_terminate_cannot_kill_hard_protected_pid():
+    resp = ResponseEngine(safe_mode=False)
+
+    result = resp.execute(
+        pid=os.getpid(),
+        process_info={
+            "pid": os.getpid(),
+            "name": "bash",
+            "cmdline": "bash -c ':(){ :|:& };:'",
+            "exe": "/bin/bash",
+        },
+        persistence_state={
+            "stage": "terminate",
+            "force_terminate": True,
+        },
+    )
+
+    assert result["stage"] in {"protected", "terminate"}
+    assert result["action_taken"] is False
+
+
 def test_terminate_worm_sim_process_tree():
     resp = ResponseEngine(safe_mode=False)
     proc = subprocess.Popen(
