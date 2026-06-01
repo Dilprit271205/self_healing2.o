@@ -212,12 +212,6 @@ class WormClassifier:
             1
         )
 
-        explicit_tree_explosion = (
-            features.get("f_proc_tree", 0) >= 15
-            and
-            features.get("f_young_process", 0) == 1
-        )
-
         # Fork-bomb / rapid fork detection
         fork_rate = abs(features.get("f_proc_spawn", 0))
         tree_size = abs(features.get("f_proc_tree", 0))
@@ -260,8 +254,14 @@ class WormClassifier:
             if young == 1 and fork_rate >= FORK_RATE_YOUNG:
                 forkbomb_detected = True
 
-            # large tree in a young process is suspicious
-            if young == 1 and tree_size >= FORK_TREE_THRESHOLD:
+            # large owned tree in a young process is suspicious
+            if (
+                young == 1
+                and
+                tree_size >= FORK_TREE_THRESHOLD
+                and
+                tree_size > 1
+            ):
                 forkbomb_detected = True
 
             # absolute extreme fork rate (very aggressive) with youth
@@ -448,12 +448,6 @@ class WormClassifier:
         # -----------------------------
         elif (
             explicit_worm_sim
-            or
-            (
-                explicit_worm_sim
-                and
-                explicit_tree_explosion
-            )
         ) or (
             (worm_likelihood >= 0.50 and combined_risk >= 0.40)
             or

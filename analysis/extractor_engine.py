@@ -96,7 +96,8 @@ class ExtractorEngine:
             []
         )
 
-        process_tree_size = len(
+        process_tree_size = self._descendant_count(
+            pid,
             entity
         )
 
@@ -307,20 +308,26 @@ class ExtractorEngine:
 
         safe_names = [
             "systemd",
+            "systemd-journald",
             "kthreadd",
             "kworker",
             "packagekitd",
             "gdm",
+            "xorg",
+            "xfce4-session",
+            "xfwm4",
             "pipewire",
             "dnsmasq",
             "mariadbd",
             "prometheus",
+            "networkmanager",
             "chrome",
             "chromium",
             "firefox",
             "code",
             "streamlit",
             "nm-applet",
+            "nm-dispatcher",
             "vmtoolsd",
             "xdg-desktop-portal",
             "xdg-desktop-portal-gtk",
@@ -328,7 +335,12 @@ class ExtractorEngine:
             "glycin-heif",
             "bwrap",
             "qterminal",
-            "blueman"
+            "blueman",
+            "tumblerd",
+            "obexd",
+            "colord",
+            "udisksd",
+            "gvfsd"
         ]
 
         safe_process = (
@@ -454,3 +466,60 @@ class ExtractorEngine:
             "cmdline":
                 cmdline
         }
+
+    def _descendant_count(
+        self,
+        pid,
+        entity
+    ):
+        children_by_parent = defaultdict(list)
+
+        for proc in entity:
+            try:
+                child_pid = proc.get(
+                    "pid"
+                )
+
+                parent_pid = proc.get(
+                    "ppid"
+                )
+
+                if child_pid is None or parent_pid is None:
+                    continue
+
+                children_by_parent[
+                    parent_pid
+                ].append(
+                    child_pid
+                )
+            except Exception:
+                continue
+
+        count = 1
+        stack = list(
+            children_by_parent.get(
+                pid,
+                []
+            )
+        )
+        seen = set()
+
+        while stack:
+            child_pid = stack.pop()
+
+            if child_pid in seen:
+                continue
+
+            seen.add(
+                child_pid
+            )
+            count += 1
+
+            stack.extend(
+                children_by_parent.get(
+                    child_pid,
+                    []
+                )
+            )
+
+        return count

@@ -9,6 +9,81 @@ from analysis.extractor_engine import ExtractorEngine
 from analysis.worm_classifier import WormClassifier
 
 
+def test_entity_family_does_not_become_process_tree():
+    extractor = ExtractorEngine()
+
+    parent = {
+        "pid": 100,
+        "ppid": 1,
+        "name": "xfce4-session",
+        "cpu": 0,
+        "memory": 0,
+        "threads": 2,
+        "create_time": time.time() - 500,
+        "cmdline": "xfce4-session",
+    }
+    child = {
+        "pid": 101,
+        "ppid": 100,
+        "name": "nm-dispatcher",
+        "cpu": 0,
+        "memory": 0,
+        "threads": 1,
+        "create_time": time.time() - 5,
+        "cmdline": "nm-dispatcher",
+    }
+    sibling = {
+        "pid": 102,
+        "ppid": 100,
+        "name": "xorg",
+        "cpu": 0,
+        "memory": 0,
+        "threads": 1,
+        "create_time": time.time() - 500,
+        "cmdline": "Xorg",
+    }
+
+    features = extractor.extract(
+        child,
+        {
+            101: [
+                parent,
+                child,
+                sibling,
+            ]
+        },
+        {},
+        {},
+    )
+
+    assert features["f_proc_tree"] == 1
+
+
+def test_benign_session_service_is_not_forkbomb():
+    classifier = WormClassifier()
+
+    classification = classifier.classify(
+        {
+            "cmdline": "nm-dispatcher",
+            "f_proc_spawn": 0,
+            "f_proc_tree": 1,
+            "f_process_trend": 0,
+            "f_young_process": 1,
+            "f_thread_velocity": 0,
+            "f_connection_velocity": 0,
+            "f_remote_ips": 0,
+            "file_events": 0,
+            "worm_score": 0,
+            "safe_process": True,
+        },
+        {"anomalies": {}, "temporal": {}},
+        {"dynamic_trust": 0.95, "final_trust": 0.9},
+    )
+
+    assert classification["label"] == "normal"
+    assert classification["signals"]["forkbomb_detected"] is False
+
+
 def spawn_forkbomb():
     env = os.environ.copy()
     env["FORKBOMB_MAX_CHILDREN"] = "8"
