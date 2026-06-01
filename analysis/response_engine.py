@@ -77,12 +77,85 @@ class ResponseEngine:
     def _can_override_name_protection(self, force=False):
         return bool(force)
 
+    def _is_desktop_session_process(
+        self,
+        process_name="",
+        cmdline="",
+        exe_path=""
+    ):
+        process_name = self._normalize_text(
+            process_name
+        )
+        cmdline = self._normalize_text(
+            cmdline
+        )
+        exe_path = self._normalize_text(
+            exe_path
+        )
+
+        desktop_tokens = [
+            "xorg",
+            "xwayland",
+            "wayland",
+            "xfwm4",
+            "xfce4-session",
+            "xfsettingsd",
+            "xfdesktop",
+            "gnome-shell",
+            "gnome-session",
+            "plasmashell",
+            "kwin",
+            "mutter",
+            "cinnamon",
+            "mate-session",
+            "lxsession",
+            "openbox",
+            "lightdm",
+            "gdm",
+            "sddm",
+            "display-manager",
+            "xdg-desktop-portal",
+            "xdg-desktop-portal-gtk",
+            "nm-applet",
+            "nm-dispatcher",
+            "networkmanager",
+            "tumblerd",
+            "glycin",
+            "bwrap",
+            "qterminal",
+            "vmtoolsd",
+            "obexd",
+            "colord",
+            "udisksd",
+            "gvfsd"
+        ]
+
+        joined = " ".join(
+            [
+                process_name,
+                cmdline,
+                exe_path
+            ]
+        )
+
+        return any(
+            token in joined
+            for token in desktop_tokens
+        )
+
     def is_protected_process(self, pid, process_name="", cmdline="", exe_path=""):
         process_name = self._normalize_text(process_name)
         cmdline = self._normalize_text(cmdline)
         exe_path = self._normalize_text(exe_path)
 
         if self._is_hard_protected_pid(pid):
+            return True
+
+        if self._is_desktop_session_process(
+            process_name,
+            cmdline,
+            exe_path
+        ):
             return True
 
         safe_names = [
@@ -319,6 +392,18 @@ class ResponseEngine:
             )
 
             # Protect explicitly configured PIDs (monitor, parent, etc.)
+            if self._is_desktop_session_process(
+                process_name,
+                cmdline,
+                exe_path
+            ):
+                return {
+                    "pid": pid,
+                    "stage": "protected",
+                    "action_taken": False,
+                    "status": "desktop/session process"
+                }
+
             if (
                 self.is_protected_process(pid, process_name, cmdline, exe_path)
                 and
@@ -835,6 +920,18 @@ class ResponseEngine:
                     "status": "hard protected pid - not terminated"
                 }
 
+            if self._is_desktop_session_process(
+                proc_name,
+                proc_cmdline,
+                proc_exe
+            ):
+                return {
+                    "pid": pid,
+                    "stage": "terminate",
+                    "action_taken": False,
+                    "status": "desktop/session process - not terminated"
+                }
+
             if (
                 self.is_protected_process(
                 pid,
@@ -898,6 +995,13 @@ class ResponseEngine:
                     )
 
                     if self._is_hard_protected_pid(child.pid):
+                        continue
+
+                    if self._is_desktop_session_process(
+                        child_name,
+                        child_cmd,
+                        child_exe
+                    ):
                         continue
 
                     if (

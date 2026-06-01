@@ -84,6 +84,49 @@ def test_benign_session_service_is_not_forkbomb():
     assert classification["signals"]["forkbomb_detected"] is False
 
 
+def test_glycin_svg_helper_is_safe():
+    extractor = ExtractorEngine()
+    classifier = WormClassifier()
+
+    process = {
+        "pid": 201,
+        "ppid": 100,
+        "name": "glycin-svg",
+        "cpu": 0,
+        "memory": 0.1,
+        "threads": 2,
+        "create_time": time.time() - 5,
+        "cmdline": "glycin-svg",
+    }
+
+    features = extractor.extract(
+        process,
+        {
+            201: [
+                {
+                    "pid": 100,
+                    "ppid": 1,
+                    "name": "xfce4-session",
+                },
+                process,
+            ]
+        },
+        {},
+        {},
+    )
+
+    classification = classifier.classify(
+        features,
+        {"anomalies": {}, "temporal": {}},
+        {"dynamic_trust": 1.0, "final_trust": 1.0},
+    )
+
+    assert features["safe_process"] is True
+    assert features["f_proc_tree"] == 1
+    assert classification["label"] == "normal"
+    assert classification["signals"]["forkbomb_detected"] is False
+
+
 def spawn_forkbomb():
     env = os.environ.copy()
     env["FORKBOMB_MAX_CHILDREN"] = "8"

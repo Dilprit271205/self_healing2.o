@@ -80,6 +80,34 @@ def test_force_terminate_cannot_kill_hard_protected_pid():
     assert result["action_taken"] is False
 
 
+def test_force_terminate_cannot_kill_desktop_session_process():
+    resp = ResponseEngine(safe_mode=False)
+
+    assert resp.is_protected_process(
+        pid=999999,
+        process_name="xfwm4",
+        cmdline="xfwm4",
+        exe_path="/usr/bin/xfwm4",
+    )
+
+    result = resp.execute(
+        pid=999999,
+        process_info={
+            "pid": 999999,
+            "name": "xfwm4",
+            "cmdline": "xfwm4",
+            "exe": "/usr/bin/xfwm4",
+        },
+        persistence_state={
+            "stage": "terminate",
+            "force_terminate": True,
+        },
+    )
+
+    assert result["stage"] == "protected"
+    assert result["action_taken"] is False
+
+
 def test_missing_process_text_fields_do_not_crash_response():
     resp = ResponseEngine(safe_mode=False)
 
