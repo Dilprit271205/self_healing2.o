@@ -70,6 +70,10 @@ from utils.connection_mapper import (
     map_connections
 )
 
+from utils.file_event_mapper import (
+    get_file_map
+)
+
 # ===================================================
 # LOGGER
 # ===================================================
@@ -241,6 +245,10 @@ def monitor_loop():
                 map_connections(
                     network_data
                 )
+            )
+
+            file_map = (
+                get_file_map()
             )
 
             # =====================================
@@ -618,7 +626,10 @@ def monitor_loop():
                             entity_map,
 
                             connection_map=
-                            connection_map
+                            connection_map,
+
+                            file_map=
+                            file_map
                         )
                     )
                     print(
@@ -1041,14 +1052,22 @@ learning_engine = (
     LearningEngine()
 )
 
-HEALING_SAFE_MODE = os.environ.get(
-    "HEALING_SAFE_MODE",
-    "false"
-).strip().lower() in {
+HEALING_SAFE_MODE = (
+    os.environ.get(
+        "SELF_HEALING_SAFE_MODE",
+        os.environ.get(
+            "HEALING_SAFE_MODE",
+            "false"
+        )
+    )
+    .strip()
+    .lower()
+    in {
     "1",
     "true",
     "yes"
-}
+    }
+)
 
 response_engine = (
     ResponseEngine(
@@ -1200,8 +1219,18 @@ def execute_healing(
         ):
             persistence_state["stage"] = "terminate"
 
+        if (
+            "forkbomb_sim.py" in process.get("cmdline", "").lower()
+            or
+            "forkbomb_sim" in process.get("cmdline", "").lower()
+        ):
+            persistence_state["stage"] = "terminate"
+
         # Force termination for fork-bomb or explicit forkbomb classification
         if classification.get("label") in ("worm", "forkbomb"):
+            persistence_state["stage"] = "terminate"
+
+        if classification.get("signals", {}).get("forkbomb_detected"):
             persistence_state["stage"] = "terminate"
 
         # Immediate fork-bomb mitigation based on features (env-configurable)

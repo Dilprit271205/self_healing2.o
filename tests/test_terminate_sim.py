@@ -10,7 +10,7 @@ from analysis.response_engine import ResponseEngine
 
 def spawn_worm_sim():
     cmd = [sys.executable, os.path.join(os.path.dirname(__file__), "..", "worm_sim.py")]
-    return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return subprocess.Popen(cmd)
 
 
 def test_terminate_sim_process_tree():

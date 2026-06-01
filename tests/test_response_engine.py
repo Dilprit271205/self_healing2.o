@@ -11,9 +11,7 @@ from analysis.response_engine import ResponseEngine
 
 def spawn_sleep_process():
     return subprocess.Popen(
-        [sys.executable, "-c", "import time; time.sleep(60)"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        [sys.executable, "-c", "import time; time.sleep(60)"]
     )
 
 
@@ -46,9 +44,7 @@ def test_safe_process_is_not_terminated():
 def test_terminate_worm_sim_process_tree():
     resp = ResponseEngine(safe_mode=False)
     proc = subprocess.Popen(
-        [sys.executable, os.path.join(os.path.dirname(__file__), "..", "worm_sim.py")],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        [sys.executable, os.path.join(os.path.dirname(__file__), "..", "worm_sim.py")]
     )
 
     try:

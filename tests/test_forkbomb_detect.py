@@ -15,7 +15,7 @@ def spawn_forkbomb():
     env["FORKBOMB_SPAWN_DELAY"] = "0.05"
     env["FORKBOMB_RUN_TIME"] = "15"
     cmd = [sys.executable, os.path.join(os.path.dirname(__file__), "..", "forkbomb_sim.py")]
-    return subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return subprocess.Popen(cmd, env=env)
 
 
 def test_forkbomb_detection():
@@ -79,7 +79,7 @@ def test_forkbomb_detection():
         assert result["response"]["action_taken"] is True
 
         proc.wait(timeout=10)
-        assert proc.poll() is not None
+        assert not psutil.pid_exists(p.pid)
     finally:
         if p.poll() is None:
             p.kill()

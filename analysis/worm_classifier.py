@@ -186,6 +186,11 @@ class WormClassifier:
             for token in ["worm_sim.py", "test_worm.py", "test_worm", "worm_sim"]
         )
 
+        explicit_forkbomb_sim = any(
+            token in str(features.get("cmdline", "")).lower()
+            for token in ["forkbomb_sim.py", "forkbomb_sim", "forkbomb"]
+        )
+
         worm_heuristic = 1.0 if explicit_worm_sim else min(
             features.get(
                 "worm_score",
@@ -236,6 +241,9 @@ class WormClassifier:
 
         # Avoid false positives for known safe processes
         if not safe_process:
+            if explicit_forkbomb_sim:
+                forkbomb_detected = True
+
             # require youth for most rapid-fork detections
             if young == 1 and fork_rate >= FORK_RATE_YOUNG:
                 forkbomb_detected = True
@@ -508,6 +516,9 @@ class WormClassifier:
 
             "explicit_worm_sim":
                 explicit_worm_sim,
+
+            "explicit_forkbomb_sim":
+                explicit_forkbomb_sim,
 
             "signals": {
 

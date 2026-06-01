@@ -160,6 +160,15 @@ threading.Thread(
 def log_process(data):
 
     try:
+        features = data.get(
+            "features",
+            {}
+        ) or {}
+
+        anomalies = data.get(
+            "anomalies",
+            {}
+        ) or {}
 
         normalized = {
 
@@ -250,6 +259,58 @@ def log_process(data):
                 ),
 
             # -----------------------------
+            # top-level telemetry
+            # dashboard compatibility
+            # -----------------------------
+            "cpu":
+                features.get(
+                    "cpu",
+                    data.get(
+                        "cpu",
+                        0
+                    )
+                ),
+
+            "memory":
+                features.get(
+                    "memory",
+                    data.get(
+                        "memory",
+                        0
+                    )
+                ),
+
+            "threads":
+                features.get(
+                    "f_thread",
+                    features.get(
+                        "threads",
+                        data.get(
+                            "threads",
+                            0
+                        )
+                    )
+                ),
+
+            "connections":
+                features.get(
+                    "connections",
+                    data.get(
+                        "connections",
+                        0
+                    )
+                ),
+
+            "file_events":
+                features.get(
+                    "file_events",
+                    data.get(
+                        "file_events",
+                        0
+                    )
+                ),
+
+            # -----------------------------
             # learning
             # -----------------------------
             "learning_state":
@@ -261,16 +322,10 @@ def log_process(data):
             # telemetry
             # -----------------------------
             "anomalies":
-                data.get(
-                    "anomalies",
-                    {}
-                ),
+                anomalies,
 
             "features":
-                data.get(
-                    "features",
-                    {}
-                )
+                features
         }
 
         process_queue.put_nowait(

@@ -46,7 +46,8 @@ class ExtractorEngine:
         self,
         process,
         entity_map,
-        connection_map
+        connection_map,
+        file_map=None
     ):
 
         pid = process["pid"]
@@ -102,7 +103,8 @@ class ExtractorEngine:
         # -----------------------------------------
         # FILE FEATURES
         # -----------------------------------------
-        file_map = get_file_map()
+        if file_map is None:
+            file_map = get_file_map()
 
         file_events = file_map.get(
             pid,
@@ -416,6 +418,12 @@ class ExtractorEngine:
 
             "f_young_process":
                 young_process,
+
+            "age_seconds":
+                round(
+                    age_seconds,
+                    2
+                ),
 
             "f_syscall_freq":
                 syscall_proxy,

@@ -24,10 +24,16 @@ from analysis.trust_engine import (
     TrustEngine
 )
 
+from analysis.baseline_engine import (
+    BaselineEngine
+)
+
 # -----------------------------------------
 # singleton engine
 # -----------------------------------------
 trust_engine = TrustEngine()
+
+baseline_engine = BaselineEngine()
 
 
 # -----------------------------------------
@@ -79,7 +85,7 @@ def update_trust(
             or {}
         )
 
-        features = {
+        anomaly_vector = {
 
             "cpu":
                 float(
@@ -97,7 +103,7 @@ def update_trust(
                     )
                 ),
 
-            "f_thread":
+            "threads":
                 float(
                     anomalies.get(
                         "threads",
@@ -108,19 +114,89 @@ def update_trust(
             "connections":
                 float(
                     anomalies.get(
-                        "net",
-                        0
+                        "connections",
+                        anomalies.get(
+                            "net",
+                            0
+                        )
                     )
                 ),
 
             "file_events":
                 float(
                     anomalies.get(
-                        "file",
+                        "file_events",
+                        anomalies.get(
+                            "file",
+                            0
+                        )
+                    )
+                )
+        }
+
+    else:
+
+        raw_features = {
+
+            "cpu":
+                float(
+                    features.get(
+                        "cpu",
+                        0
+                    )
+                ),
+
+            "memory":
+                float(
+                    features.get(
+                        "memory",
+                        0
+                    )
+                ),
+
+            "threads":
+                float(
+                    features.get(
+                        "threads",
+                        features.get(
+                            "f_thread",
+                            0
+                        )
+                    )
+                ),
+
+            "connections":
+                float(
+                    features.get(
+                        "connections",
+                        0
+                    )
+                ),
+
+            "file_events":
+                float(
+                    features.get(
+                        "file_events",
                         0
                     )
                 )
         }
+
+        anomaly_vector = {}
+
+        for feature, value in raw_features.items():
+            base = baseline_engine.get_baseline(
+                feature
+            )
+
+            anomaly_vector[feature] = (
+                baseline_engine.anomaly_score(
+                    feature=feature,
+                    value=value,
+                    mu=base["mu"],
+                    sigma=base["sigma"]
+                )
+            )
 
     # -----------------------------------------
     # Route to Batch 1 engine
@@ -128,7 +204,7 @@ def update_trust(
     trust_state = (
         trust_engine.update(
             pid=pid,
-            features=features,
+            anomaly_vector=anomaly_vector,
             static_score=
                 static_score
         )
