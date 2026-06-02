@@ -135,12 +135,14 @@ class FileHandler(
     # =====================================
     def process_event(
         self,
-        path
+        path,
+        event_type="event"
     ):
 
         record_file_event(
             None,
-            path
+            path,
+            event_type
         )
 
         if (
@@ -162,7 +164,8 @@ class FileHandler(
 
             record_file_event(
                 pid,
-                None
+                None,
+                event_type
             )
         else:
             pass
@@ -178,7 +181,8 @@ class FileHandler(
         ):
 
             self.process_event(
-                event.src_path
+                event.src_path,
+                "modify"
             )
 
     def on_created(
@@ -192,7 +196,8 @@ class FileHandler(
         ):
 
             self.process_event(
-                event.src_path
+                event.src_path,
+                "create"
             )
 
     def on_deleted(
@@ -206,7 +211,23 @@ class FileHandler(
         ):
 
             self.process_event(
-                event.src_path
+                event.src_path,
+                "delete"
+            )
+
+    def on_moved(
+        self,
+        event
+    ):
+
+        if (
+            not
+            event.is_directory
+        ):
+
+            self.process_event(
+                event.dest_path,
+                "rename"
             )
 
 

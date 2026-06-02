@@ -404,7 +404,7 @@ def rapid_lineage_monitor_loop():
                         network_data
                     )
                 )
-                emergency_lab_behavior_preflight(
+                emergency_behavior_preflight(
                     processes,
                     connection_map
                 )
@@ -1204,43 +1204,9 @@ def _path_is_under(
         return False
 
 
-def _is_lab_test_path(
-    path
-):
-    try:
-        normalized = os.path.abspath(
-            path
-        ).replace(
-            "\\",
-            "/"
-        ).lower()
-
-        lab_markers = (
-            "/worm_lab",
-            "/edr_file_replication_test",
-            "/edr_file_modification_test",
-            "/edr_rename_test",
-            "/edr_combined_worm_test",
-            "/edr_persistence_test",
-            "/edr_sensitive_access_test",
-            "/edr_local_beacon_test",
-            "/edr_thread_storm_test",
-            "/edr_cpu_exhaustion_test",
-            "/edr_memory_spike_test"
-        )
-
-        return any(
-            marker in normalized
-            for marker in lab_markers
-        )
-
-    except Exception:
-        return False
-
-
-def _lab_containment_enabled():
+def _behavior_containment_enabled():
     return os.getenv(
-        "SELF_HEALING_LAB_CONTAINMENT",
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
         "true"
     ).lower() in (
         "1",
@@ -1250,58 +1216,7 @@ def _lab_containment_enabled():
     )
 
 
-def _is_lab_process_context(
-    process
-):
-    text = " ".join(
-        str(
-            process.get(
-                key,
-                ""
-            )
-        ).lower()
-        for key in (
-            "cmdline",
-            "cwd",
-            "exe"
-        )
-    ).replace(
-        "\\",
-        "/"
-    )
-
-    lab_tokens = (
-        "self_healing2.o",
-        "self_healing2.0",
-        "edr_",
-        "worm_lab",
-        "test1.py",
-        "test2.py",
-        "test3.py",
-        "test4.py",
-        "test5.py",
-        "test6.py",
-        "test7.py",
-        "test8.py",
-        "test9.py",
-        "test10.py",
-        "test11.py",
-        "beacon",
-        "persistence",
-        "autorun",
-        "startup",
-        "sensitive",
-        "credential",
-        "password"
-    )
-
-    return any(
-        token in text
-        for token in lab_tokens
-    )
-
-
-def _is_safe_to_lab_terminate(
+def _is_safe_to_behavior_terminate(
     process
 ):
     pid = process.get(
@@ -1437,6 +1352,23 @@ def emergency_file_activity_preflight(
     ).get(
         "__paths__",
         {}
+    )
+    event_type_counts = (
+        file_map
+        or {}
+    ).get(
+        "__event_types__",
+        {}
+    )
+    duplicate_file_hash_count = int(
+        (
+            file_map
+            or {}
+        ).get(
+            "__duplicate_hash_count__",
+            0
+        )
+        or 0
     )
 
     if (
@@ -1602,13 +1534,11 @@ def emergency_file_activity_preflight(
             continue
 
         candidate_seen = True
-        matched_lab_events = sum(
-            count
+        matched_directories = [
+            directory
             for directory, count in rolling_totals.items()
             if (
-                _is_lab_test_path(
-                    directory
-                )
+                count >= 20
                 and (
                     _path_is_under(
                         directory,
@@ -1620,6 +1550,9 @@ def emergency_file_activity_preflight(
                     )
                 )
             )
+        ]
+        subtree_fanout = len(
+            matched_directories
         )
         file_containment_enabled = os.getenv(
             "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
@@ -1630,9 +1563,17 @@ def emergency_file_activity_preflight(
             "yes",
             "y"
         )
-        lab_file_containment = (
-            _lab_containment_enabled()
-            and matched_lab_events >= 90
+        behavior_file_containment = (
+            _behavior_containment_enabled()
+            and (
+                matched_events >= 160
+                or duplicate_file_hash_count >= 12
+            )
+            and (
+                subtree_fanout >= 2
+                or matched_events >= 240
+                or duplicate_file_hash_count >= 12
+            )
             and not process.get(
                 "_exited",
                 False
@@ -1649,7 +1590,7 @@ def emergency_file_activity_preflight(
 
         if (
             not file_containment_enabled
-            and not lab_file_containment
+            and not behavior_file_containment
         ):
             rate_limited_print(
                 "file_replication_observed",
@@ -1685,6 +1626,19 @@ def emergency_file_activity_preflight(
                     "file_events": matched_events,
                     "file_replication_preflight": True,
                     "containment_enabled": False,
+                    "file_creation_rate": event_type_counts.get(
+                        "create",
+                        0
+                    ),
+                    "file_modification_rate": event_type_counts.get(
+                        "modify",
+                        0
+                    ),
+                    "file_rename_rate": event_type_counts.get(
+                        "rename",
+                        0
+                    ),
+                    "duplicate_file_hash_count": duplicate_file_hash_count,
                     "post_event_attribution": bool(
                         process.get(
                             "_exited",
@@ -1699,7 +1653,7 @@ def emergency_file_activity_preflight(
             )
             continue
 
-        if lab_file_containment:
+        if behavior_file_containment:
             stage = "terminate"
         elif file_containment_enabled and confirmed_file_owner:
             stage = "quarantine"
@@ -1710,11 +1664,24 @@ def emergency_file_activity_preflight(
             "f_process_trend": 0,
             "f_young_process": 1,
             "file_events": matched_events,
+            "file_creation_rate": event_type_counts.get(
+                "create",
+                0
+            ),
+            "file_modification_rate": event_type_counts.get(
+                "modify",
+                0
+            ),
+            "file_rename_rate": event_type_counts.get(
+                "rename",
+                0
+            ),
+            "duplicate_file_hash_count": duplicate_file_hash_count,
             "worm_score": 90,
             "emergency_preflight": True,
             "file_replication_preflight": True,
-            "lab_file_containment": lab_file_containment,
-            "matched_lab_events": matched_lab_events,
+            "behavior_file_containment": behavior_file_containment,
+            "subtree_fanout": subtree_fanout,
             "post_event_attribution": bool(
                 process.get(
                     "_exited",
@@ -1760,12 +1727,12 @@ def emergency_file_activity_preflight(
             "avg_confidence": 0.92,
             "avg_combined_risk": 0.90,
             "avg_correlated_signals": 4,
-            "termination_ready": lab_file_containment,
-            "force_terminate": lab_file_containment,
+            "termination_ready": behavior_file_containment,
+            "force_terminate": behavior_file_containment,
             "confirmed_behavior": (
                 (
                     file_containment_enabled
-                    or lab_file_containment
+                    or behavior_file_containment
                 )
                 and confirmed_file_owner
             )
@@ -1860,11 +1827,11 @@ def emergency_file_activity_preflight(
     return handled_pids
 
 
-def emergency_lab_behavior_preflight(
+def emergency_behavior_preflight(
     processes,
     connection_map=None
 ):
-    if not _lab_containment_enabled():
+    if not _behavior_containment_enabled():
         return set()
 
     connection_map = connection_map or {}
@@ -1879,12 +1846,7 @@ def emergency_lab_behavior_preflight(
         ):
             continue
 
-        if not _is_safe_to_lab_terminate(
-            process
-        ):
-            continue
-
-        if not _is_lab_process_context(
+        if not _is_safe_to_behavior_terminate(
             process
         ):
             continue
@@ -1950,89 +1912,86 @@ def emergency_lab_behavior_preflight(
         )
 
         beacon_like = (
-            loopback_connections >= 2
-            or (
-                active_connections >= 1
-                and any(
-                    token in cmdline
-                    for token in (
-                        "beacon",
-                        "localhost",
-                        "127.0.0.1",
-                        "test8.py"
-                    )
-                )
+            loopback_connections >= 6
+            or connection_velocity >= 12
+            or active_connections >= 30
+        )
+
+        persistence_like = bool(
+            process.get(
+                "f_persistence_artifact",
+                0
             )
-            or (
-                connection_velocity >= 2
-                and any(
-                    token in cmdline
-                    for token in (
-                        "beacon",
-                        "test8.py"
-                    )
-                )
+            or process.get(
+                "persistence_events",
+                0
             )
         )
 
-        persistence_like = any(
-            token in cmdline
-            for token in (
-                "test9.py",
-                "persistence",
-                "autorun",
-                "autostart",
-                "startup",
-                "crontab",
-                "systemd"
+        sensitive_access_like = bool(
+            process.get(
+                "f_sensitive_file_access",
+                0
             )
-        )
-        sensitive_access_like = any(
-            token in cmdline
-            for token in (
-                "test10.py",
-                "sensitive",
-                "credential",
-                "credentials",
-                "password",
-                "passwords",
-                ".env",
-                "secret",
-                "token"
+            or process.get(
+                "sensitive_file_events",
+                0
             )
         )
         thread_storm_like = (
             thread_count >= 80
-            or (
-                "test2.py" in cmdline
-                and thread_count >= 25
-            )
-            or "thread storm" in cmdline
         )
         cpu_exhaustion_like = (
             cpu_usage >= 85
-            or (
-                "test3.py" in cmdline
-                and cpu_usage >= 65
-            )
-            or "cpu exhaustion" in cmdline
         )
         memory_spike_like = (
             memory_usage >= 35
-            or (
-                "test4.py" in cmdline
-                and memory_usage >= 20
+            or int(
+                process.get(
+                    "memory_rss",
+                    0
+                )
+                or 0
+            ) >= 750 * 1024 * 1024
+        )
+        behavior_signal_count = sum(
+            1
+            for active in (
+                beacon_like,
+                persistence_like,
+                sensitive_access_like,
+                thread_storm_like,
+                cpu_exhaustion_like,
+                memory_spike_like
             )
-            or "memory spike" in cmdline
+            if active
         )
 
         if not (
-            beacon_like
+            behavior_signal_count >= 2
             or persistence_like
             or sensitive_access_like
             or thread_storm_like
-            or cpu_exhaustion_like
-            or memory_spike_like
+            or (
+                beacon_like
+                and active_connections >= 10
+            )
+            or (
+                cpu_exhaustion_like
+                and (
+                    thread_count >= 25
+                    or memory_spike_like
+                    or active_connections >= 10
+                )
+            )
+            or (
+                memory_spike_like
+                and (
+                    thread_count >= 25
+                    or cpu_exhaustion_like
+                    or active_connections >= 10
+                )
+            )
         ):
             continue
 
@@ -2076,7 +2035,7 @@ def emergency_lab_behavior_preflight(
             "f_memory_spike": 1 if memory_spike_like else 0,
             "worm_score": 92,
             "emergency_preflight": True,
-            "lab_behavior_preflight": True,
+            "behavior_preflight": True,
             "behavior": behavior
         }
 
@@ -2109,7 +2068,7 @@ def emergency_lab_behavior_preflight(
                     ),
                     "resource_pressure": resource_like,
                     "baseline_anomaly": True,
-                    "lab_behavior": True
+                    "behavior_preflight": True
                 }
             }
         }
@@ -2136,8 +2095,8 @@ def emergency_lab_behavior_preflight(
         }
 
         rate_limited_print(
-            f"lab_behavior_{pid}",
-            f"[EMERGENCY] lab behavior pid={pid} "
+            f"behavior_preflight_{pid}",
+            f"[EMERGENCY] behavior pid={pid} "
             f"type={behavior} stage=terminate "
             f"loopback={loopback_connections} "
             f"connections={active_connections}",
@@ -2553,7 +2512,7 @@ def monitor_loop():
                 )
             )
 
-            emergency_lab_behavior_preflight(
+            emergency_behavior_preflight(
                 processes,
                 connection_map
             )
