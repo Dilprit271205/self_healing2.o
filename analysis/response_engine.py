@@ -148,6 +148,18 @@ class ResponseEngine:
             return stage
 
         if persistence_state.get(
+            "catastrophic_ready",
+            False
+        ) and persistence_state.get(
+            "force_terminate",
+            False
+        ):
+            return self._cap_stage(
+                stage,
+                "throttle"
+            )
+
+        if persistence_state.get(
             "confirmed_behavior",
             False
         ):

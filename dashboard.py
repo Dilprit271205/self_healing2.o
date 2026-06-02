@@ -1,5 +1,6 @@
 import sys
 import json
+from collections import deque
 
 try:
     import streamlit as st
@@ -232,7 +233,9 @@ page = st.radio(
 def _load_json_lines(file_path):
 
     try:
-        rows = []
+        rows = deque(
+            maxlen=4000
+        )
 
         with open(file_path, "r") as f:
             for line in f:
@@ -243,7 +246,11 @@ def _load_json_lines(file_path):
                 except Exception:
                     continue
 
-        return pd.DataFrame(rows[-4000:])
+        return pd.DataFrame(
+            list(
+                rows
+            )
+        )
 
     except Exception:
         return pd.DataFrame()
@@ -300,13 +307,38 @@ entity_df = load_entity_logs()
 healing_df = load_healing_logs()
 learning_kb_df = load_learning_kb()
 
-if df.empty:
+if df.empty and page != "ðŸ“š Learning Center":
 
     st.warning(
         "No logs found."
     )
 
     st.stop()
+
+if df.empty:
+    df = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now(),
+            "pid": 0,
+            "name": "no live process logs",
+            "dynamic_trust": 1.0,
+            "final_trust": 1.0,
+            "static_trust": 1.0,
+            "worm_score": 0,
+            "confidence": 0,
+            "label": "normal",
+            "severity": "low",
+            "stage": "observe",
+            "cpu": 0,
+            "memory": 0,
+            "threads": 0,
+            "connections": 0,
+            "file_events": 0,
+            "learning_state": None,
+            "features": {},
+            "anomalies": {}
+        }
+    ])
 
 # ===================================================
 # CLEAN DATA

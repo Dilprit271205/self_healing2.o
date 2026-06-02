@@ -127,6 +127,37 @@ def test_confirmed_suppressed_category_is_capped_at_throttle():
             process.wait(timeout=5)
 
 
+def test_catastrophic_suppressed_category_is_still_capped_without_override():
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "streamlit",
+                "cmdline": "streamlit run dashboard.py",
+                "exe": "/usr/bin/streamlit",
+            },
+            persistence_state={
+                "stage": "terminate",
+                "termination_ready": True,
+                "catastrophic_ready": True,
+                "force_terminate": True,
+            },
+        )
+
+        assert result["stage"] in {"observe", "throttle"}
+        assert result["action_taken"] is False or result["stage"] == "throttle"
+        assert psutil.Process(process.pid).status() != psutil.STATUS_STOPPED
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
 def test_shell_process_requires_forced_evidence_to_terminate():
     resp = ResponseEngine(safe_mode=False)
 

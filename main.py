@@ -114,6 +114,26 @@ try:
     )
 except Exception:
     MONITOR_INTERVAL = 1.0
+
+VERBOSE_RUNTIME_LOGS = os.getenv(
+    "SELF_HEALING_VERBOSE",
+    "false"
+).lower() in (
+    "1",
+    "true",
+    "yes",
+    "y"
+)
+
+
+def debug_print(
+    message
+):
+    if VERBOSE_RUNTIME_LOGS:
+        print(
+            message
+        )
+
 SYSTEM_SAFE_PIDS = {
     0,
     1,
@@ -147,6 +167,29 @@ rapid_lineage_thread = None
 rapid_lineage_stop = threading.Event()
 file_burst_window = defaultdict(list)
 resource_burst_window = defaultdict(list)
+last_console_events = {}
+
+
+def rate_limited_print(
+    key,
+    message,
+    interval=5
+):
+    now = time.time()
+    previous = last_console_events.get(
+        key,
+        0
+    )
+
+    if now - previous < interval:
+        return
+
+    last_console_events[
+        key
+    ] = now
+    print(
+        message
+    )
 
 # ===================================================
 # FILE MONITOR THREAD
@@ -687,6 +730,13 @@ def emergency_process_storm_preflight(
         ):
             continue
 
+        if policy_engine.is_suppressed_category(
+            policy_engine.infer_category(
+                process
+            )
+        ):
+            continue
+
         profile = _child_storm_profile(
             process,
             children_by_parent
@@ -788,13 +838,15 @@ def emergency_process_storm_preflight(
             "force_terminate": True
         }
 
-        print(
+        rate_limited_print(
+            f"process_storm_{pid}",
             f"[EMERGENCY] process storm pid={pid} "
             f"children={profile['direct_children']} "
             f"repeated={profile['repeated_child_count']} "
             f"similarity={profile['child_similarity']} "
             f"young_ratio={profile['young_child_ratio']} "
-            f"tree={descendants}"
+            f"tree={descendants}",
+            interval=3
         )
 
         healing_result = execute_healing(
@@ -882,6 +934,99 @@ def _path_event_totals(
         )
 
     return totals
+
+
+def _is_broad_file_root(
+    path
+):
+    try:
+        normalized = os.path.abspath(
+            path
+        )
+        normalized_posix = normalized.replace(
+            "\\",
+            "/"
+        ).rstrip(
+            "/"
+        )
+
+        home = os.path.abspath(
+            os.path.expanduser(
+                "~"
+            )
+        )
+
+        broad_roots = {
+            os.path.abspath(
+                os.sep
+            ),
+            home,
+            os.path.abspath(
+                "/tmp"
+            ),
+            os.path.abspath(
+                "/var/tmp"
+            )
+        }
+
+        if normalized in broad_roots:
+            return True
+
+        parts = [
+            part
+            for part in normalized_posix.split(
+                "/"
+            )
+            if part
+        ]
+
+        if (
+            len(parts) <= 3
+            and (
+                normalized_posix.endswith(
+                    "/home/kali"
+                )
+                or normalized_posix.endswith(
+                    "/home"
+                )
+                or normalized_posix.endswith(
+                    "/tmp"
+                )
+                or normalized_posix.endswith(
+                    "/var/tmp"
+                )
+            )
+        ):
+            return True
+
+        return False
+
+    except Exception:
+        return True
+
+
+def _path_is_under(
+    child,
+    parent
+):
+    try:
+        child_abs = os.path.abspath(
+            child
+        )
+        parent_abs = os.path.abspath(
+            parent
+        )
+
+        return (
+            child_abs == parent_abs
+            or
+            child_abs.startswith(
+                parent_abs + os.sep
+            )
+        )
+
+    except Exception:
+        return False
 
 
 def emergency_file_activity_preflight(
@@ -1032,25 +1177,16 @@ def emergency_file_activity_preflight(
         if cwd_abs:
             for directory, count in rolling_totals.items():
                 if (
-                    directory.startswith(
+                    not _is_broad_file_root(
                         cwd_abs
                     )
-                    or
-                    cwd_abs.startswith(
-                        directory
+                    and
+                    _path_is_under(
+                        directory,
+                        cwd_abs
                     )
                 ):
                     matched_events += count
-
-        if (
-            matched_events < 60
-            and total_events >= 100
-            and process.get(
-                "age_seconds",
-                9999
-            ) <= 60
-        ):
-            matched_events = total_events
 
         if not cwd_abs:
             cwd_abs = (
@@ -1066,6 +1202,22 @@ def emergency_file_activity_preflight(
             continue
 
         candidate_seen = True
+        confirmed_file_owner = (
+            matched_events >= 120
+            and not _is_broad_file_root(
+                cwd_abs
+            )
+        )
+
+        stage = (
+            "quarantine"
+            if confirmed_file_owner
+            else
+            "throttle"
+        )
+
+        if matched_events >= 240 and confirmed_file_owner:
+            stage = "quarantine"
 
         features = {
             "f_proc_spawn": 0,
@@ -1086,9 +1238,7 @@ def emergency_file_activity_preflight(
             "signals": {
                 "combined_risk": 0.90,
                 "correlated_signal_count": 4,
-                "catastrophic_behavior": (
-                    matched_events >= 120
-                ),
+                "catastrophic_behavior": False,
                 "forkbomb_detected": False,
                 "replication_detected": True,
                 "fanout_detected": False,
@@ -1110,21 +1260,21 @@ def emergency_file_activity_preflight(
         persistence_state = {
             "persistent": True,
             "confidence": 0.92,
-            "stage": "terminate",
+            "stage": stage,
             "avg_worm_score": 0.92,
             "avg_dynamic_trust": 0.35,
             "avg_final_trust": 0.35,
             "avg_confidence": 0.92,
             "avg_combined_risk": 0.90,
             "avg_correlated_signals": 4,
-            "termination_ready": True,
-            "catastrophic_ready": matched_events >= 120,
-            "force_terminate": matched_events >= 120
+            "confirmed_behavior": confirmed_file_owner
         }
 
-        print(
+        rate_limited_print(
+            f"file_replication_{pid}",
             f"[EMERGENCY] file replication pid={pid} "
-            f"events={matched_events} cwd={cwd_abs}"
+            f"stage={stage} events={matched_events} cwd={cwd_abs}",
+            interval=3
         )
 
         healing_result = execute_healing(
@@ -1198,10 +1348,12 @@ def emergency_file_activity_preflight(
                 reverse=True
             )[:3]
         )
-        print(
+        rate_limited_print(
+            "file_burst_no_candidate",
             f"[EMERGENCY] file burst observed events={total_events} "
             f"dirs={directory_summary} "
-            "but no eligible process candidate"
+            "but no eligible process candidate",
+            interval=8
         )
 
     return handled_pids
@@ -1668,7 +1820,7 @@ def monitor_loop():
                             file_map
                         )
                     )
-                    print(
+                    debug_print(
                         "[FEATURES OK]"
                     )
 
@@ -1912,7 +2064,7 @@ def monitor_loop():
                         "features":
                             features
                     })
-                    print(
+                    debug_print(
                         "[LOGGED]"
                     )
 

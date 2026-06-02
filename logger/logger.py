@@ -4,6 +4,7 @@ import json
 import os
 import threading
 import queue
+import time
 
 from datetime import datetime
 
@@ -27,6 +28,43 @@ ENTITY_LOG = (
 HEALING_LOG = (
     "logs/healing_log.json"
 )
+
+
+try:
+    MAX_LOG_BYTES = int(
+        os.getenv(
+            "SELF_HEALING_MAX_LOG_BYTES",
+            str(8 * 1024 * 1024)
+        )
+    )
+except Exception:
+    MAX_LOG_BYTES = 8 * 1024 * 1024
+
+try:
+    LOG_NORMAL_PROCESSES = os.getenv(
+        "SELF_HEALING_LOG_NORMAL_PROCESSES",
+        "false"
+    ).lower() in (
+        "1",
+        "true",
+        "yes",
+        "y"
+    )
+except Exception:
+    LOG_NORMAL_PROCESSES = False
+
+try:
+    ENTITY_LOG_INTERVAL = float(
+        os.getenv(
+            "SELF_HEALING_ENTITY_LOG_INTERVAL",
+            "10"
+        )
+    )
+except Exception:
+    ENTITY_LOG_INTERVAL = 10.0
+
+last_process_log = {}
+last_entity_log = {}
 
 
 # ---------------------------------------------------
@@ -77,6 +115,112 @@ def safe_json(data):
         })
 
 
+def rotate_if_needed(
+    file_path
+):
+    try:
+        if (
+            MAX_LOG_BYTES <= 0
+            or not os.path.exists(
+                file_path
+            )
+            or os.path.getsize(
+                file_path
+            ) < MAX_LOG_BYTES
+        ):
+            return
+
+        rotated = (
+            file_path
+            + ".1"
+        )
+
+        if os.path.exists(
+            rotated
+        ):
+            os.remove(
+                rotated
+            )
+
+        os.replace(
+            file_path,
+            rotated
+        )
+
+    except Exception:
+        pass
+
+
+def should_log_process(
+    data
+):
+    label = data.get(
+        "label",
+        "normal"
+    )
+    severity = data.get(
+        "severity",
+        "low"
+    )
+    stage = data.get(
+        "stage",
+        "observe"
+    )
+    response = str(
+        data.get(
+            "response",
+            ""
+        )
+        or
+        ""
+    ).lower()
+
+    if LOG_NORMAL_PROCESSES:
+        return True
+
+    interesting = (
+        label != "normal"
+        or severity not in {
+            "low",
+            "normal"
+        }
+        or stage not in {
+            "observe",
+            "protected"
+        }
+        or "terminated" in response
+        or "isolated" in response
+        or "throttled" in response
+    )
+
+    if not interesting:
+        return False
+
+    pid = data.get(
+        "pid"
+    )
+    key = (
+        pid,
+        label,
+        severity,
+        stage,
+        response
+    )
+    now = time.time()
+    previous = last_process_log.get(
+        key,
+        0
+    )
+
+    if now - previous < 3:
+        return False
+
+    last_process_log[
+        key
+    ] = now
+    return True
+
+
 # ---------------------------------------------------
 # WRITER THREAD
 # ---------------------------------------------------
@@ -105,6 +249,18 @@ def writer(
 
                 f.write(line)
                 f.flush()
+
+                if f.tell() >= MAX_LOG_BYTES > 0:
+                    f.close()
+                    rotate_if_needed(
+                        file_path
+                    )
+                    f = open(
+                        file_path,
+                        "a",
+                        buffering=8192,
+                        encoding="utf-8"
+                    )
 
             except:
                 pass
@@ -161,6 +317,11 @@ threading.Thread(
 def log_process(data):
 
     try:
+        if not should_log_process(
+            data
+        ):
+            return
+
         features = data.get(
             "features",
             {}
@@ -343,6 +504,21 @@ def log_process(data):
 def log_entity(data):
 
     try:
+        entity_root = data.get(
+            "entity_root"
+        )
+        now = time.time()
+        previous = last_entity_log.get(
+            entity_root,
+            0
+        )
+
+        if now - previous < ENTITY_LOG_INTERVAL:
+            return
+
+        last_entity_log[
+            entity_root
+        ] = now
 
         normalized = {
 
