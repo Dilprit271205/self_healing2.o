@@ -160,6 +160,31 @@ class PersistenceEngine:
             []
         )
 
+        if history:
+            latest = history[-1]
+            if (
+                latest.get("catastrophic_behavior", False)
+                and latest.get("combined_risk", 0) >= 0.94
+                and latest.get("confidence", 0) >= 0.90
+                and latest.get("correlated_signal_count", 0) >= 4
+            ):
+                return {
+                    "persistent": True,
+                    "confidence": latest.get("confidence", 0),
+                    "stage": "terminate",
+                    "avg_worm_score": latest.get("worm_score", 0),
+                    "avg_dynamic_trust": latest.get("dynamic_trust", 1.0),
+                    "avg_final_trust": latest.get("final_trust", 1.0),
+                    "avg_confidence": latest.get("confidence", 0),
+                    "avg_combined_risk": latest.get("combined_risk", 0),
+                    "avg_correlated_signals": latest.get(
+                        "correlated_signal_count",
+                        0
+                    ),
+                    "termination_ready": True,
+                    "catastrophic_ready": True
+                }
+
         # -----------------------------------------
         # insufficient evidence
         # -----------------------------------------
@@ -404,13 +429,26 @@ class PersistenceEngine:
         ):
             stage = "quarantine"
 
-        terminate_ready = (
+        propagation_terminate_ready = (
+            persistent
+            and worm_count >= max(2, self.delta - 1)
+            and avg_combined_risk >= 0.84
+            and avg_confidence >= 0.78
+            and avg_correlated_signals >= 3
+        )
+
+        high_confidence_terminate_ready = (
             persistent
             and worm_count >= max(2, self.delta - 1)
             and avg_combined_risk >= terminate.get("risk", 0.86)
             and avg_confidence >= terminate.get("confidence", 0.82)
             and avg_correlated_signals >= terminate.get("min_correlated_signals", 4)
-            and avg_final_trust <= 0.65
+        )
+
+        terminate_ready = (
+            propagation_terminate_ready
+            or
+            high_confidence_terminate_ready
         )
 
         catastrophic_ready = (

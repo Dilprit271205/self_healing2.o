@@ -5,6 +5,7 @@ import sys
 import time
 import threading
 import traceback
+from collections import Counter, defaultdict
 
 
 def configure_console_output():
@@ -67,6 +68,10 @@ from analysis.baseline_engine import (
     feature_history
 )
 
+from analysis.policy_engine import (
+    policy_engine
+)
+
 from analysis.extractor_engine import (
     process_history,
     thread_history,
@@ -104,11 +109,11 @@ try:
     MONITOR_INTERVAL = float(
         os.getenv(
             "SELF_HEALING_MONITOR_INTERVAL",
-            "2"
+            "1"
         )
     )
 except Exception:
-    MONITOR_INTERVAL = 2.0
+    MONITOR_INTERVAL = 1.0
 SYSTEM_SAFE_PIDS = {
     0,
     1,
@@ -138,6 +143,10 @@ network_monitor = (
 )
 
 file_observer = None
+rapid_lineage_thread = None
+rapid_lineage_stop = threading.Event()
+file_burst_window = defaultdict(list)
+resource_burst_window = defaultdict(list)
 
 # ===================================================
 # FILE MONITOR THREAD
@@ -171,6 +180,7 @@ def start_background_monitors():
 def stop_background_monitors():
 
     global file_observer
+    rapid_lineage_stop.set()
 
     if file_observer is None:
         return
@@ -183,6 +193,192 @@ def stop_background_monitors():
         print(f"Failed to stop file monitor: {e}")
     finally:
         file_observer = None
+
+
+def _lightweight_process_snapshot():
+    try:
+        import psutil
+    except Exception:
+        return []
+
+    processes = []
+    now = time.time()
+
+    attrs = [
+        "pid",
+        "ppid",
+        "name",
+        "exe",
+        "cwd",
+        "create_time",
+        "cpu_percent",
+        "memory_percent",
+        "memory_info",
+        "cmdline",
+        "username",
+        "status",
+        "num_threads"
+    ]
+
+    for proc in psutil.process_iter(attrs):
+        try:
+            with proc.oneshot():
+                info = proc.info
+
+                cmdline = " ".join(
+                    info.get(
+                        "cmdline",
+                        []
+                    )
+                    or []
+                )
+
+                create_time = info.get(
+                    "create_time",
+                    now
+                )
+
+                processes.append({
+                    "pid": info.get(
+                        "pid"
+                    ),
+                    "ppid": info.get(
+                        "ppid",
+                        0
+                    ),
+                    "name": info.get(
+                        "name",
+                        "unknown"
+                    ),
+                    "exe": info.get(
+                        "exe",
+                        ""
+                    ),
+                    "cwd": info.get(
+                        "cwd",
+                        ""
+                    ),
+                    "username": info.get(
+                        "username",
+                        ""
+                    ),
+                    "status": info.get(
+                        "status",
+                        ""
+                    ),
+                    "cpu": round(
+                        info.get(
+                            "cpu_percent",
+                            0
+                        )
+                        or 0,
+                        2
+                    ),
+                    "memory": round(
+                        info.get(
+                            "memory_percent",
+                            0
+                        )
+                        or 0,
+                        4
+                    ),
+                    "memory_rss": (
+                        info.get(
+                            "memory_info"
+                        ).rss
+                        if info.get(
+                            "memory_info"
+                        )
+                        else 0
+                    ),
+                    "threads": info.get(
+                        "num_threads",
+                        1
+                    ),
+                    "cmdline": cmdline,
+                    "create_time": create_time,
+                    "age_seconds": round(
+                        now - create_time,
+                        2
+                    ),
+                    "open_files": 0,
+                    "connections": 0
+                })
+
+        except (
+            psutil.NoSuchProcess,
+            psutil.AccessDenied,
+            psutil.ZombieProcess
+        ):
+            continue
+
+        except Exception:
+            continue
+
+    return processes
+
+
+def rapid_lineage_monitor_loop():
+    try:
+        interval = float(
+            os.getenv(
+                "SELF_HEALING_RAPID_LINEAGE_INTERVAL",
+                "0.5"
+            )
+        )
+    except Exception:
+        interval = 0.5
+
+    while not rapid_lineage_stop.is_set():
+        try:
+            processes = _lightweight_process_snapshot()
+
+            if processes:
+                emergency_process_storm_preflight(
+                    processes,
+                    {},
+                    {}
+                )
+
+                file_map = get_file_map()
+                emergency_file_activity_preflight(
+                    processes,
+                    file_map
+                )
+
+                emergency_resource_preflight(
+                    processes
+                )
+
+        except Exception as e:
+            print(
+                f"[RAPID] lineage monitor error: {e}"
+            )
+
+        rapid_lineage_stop.wait(
+            max(
+                interval,
+                0.1
+            )
+        )
+
+
+def start_rapid_lineage_monitor():
+    global rapid_lineage_thread
+
+    if rapid_lineage_thread is not None:
+        return
+
+    rapid_lineage_stop.clear()
+    rapid_lineage_thread = threading.Thread(
+        target=rapid_lineage_monitor_loop,
+        name="rapid-lineage-monitor",
+        daemon=True
+    )
+    rapid_lineage_thread.start()
+    print(
+        "[RAPID] Lineage storm monitor started"
+    )
 
 # ===================================================
 # SAFE PROCESS FILTERS
@@ -235,6 +431,1098 @@ def log_entities(
         )
 
 # ===================================================
+# PROCESS PRIORITY
+# ===================================================
+def process_priority(
+    process,
+    entity_map
+):
+    try:
+        pid = process.get(
+            "pid"
+        )
+
+        entity_size = len(
+            entity_map.get(
+                pid,
+                []
+            )
+        )
+
+        young_bonus = (
+            50
+            if process.get(
+                "age_seconds",
+                9999
+            ) < 90
+            else 0
+        )
+
+        return (
+            entity_size * 10
+            + float(process.get("cpu", 0)) * 2
+            + int(process.get("threads", 0))
+            + int(process.get("open_files", 0))
+            + young_bonus
+        )
+
+    except Exception:
+        return 0
+
+
+def should_deep_inspect(
+    process,
+    entity_map
+):
+    try:
+        pid = process.get(
+            "pid"
+        )
+
+        entity_size = len(
+            entity_map.get(
+                pid,
+                []
+            )
+        )
+
+        return (
+            process.get("age_seconds", 9999) < 120
+            or float(process.get("cpu", 0)) >= 2.0
+            or float(process.get("memory", 0)) >= 5.0
+            or int(process.get("threads", 0)) >= 25
+            or int(process.get("open_files", 0)) >= 25
+            or entity_size >= 8
+            or pid in persistence_engine.history
+        )
+
+    except Exception:
+        return True
+
+
+# ===================================================
+# CATASTROPHIC PREFLIGHT
+# ===================================================
+def _process_signature(
+    process
+):
+    name = str(
+        process.get(
+            "name",
+            ""
+        )
+    ).lower()
+
+    cmdline = str(
+        process.get(
+            "cmdline",
+            ""
+        )
+    ).lower()
+
+    if cmdline:
+        return cmdline[:180]
+
+    return name
+
+
+def _child_storm_profile(
+    process,
+    children_by_parent
+):
+    pid = process.get(
+        "pid"
+    )
+
+    direct_children = children_by_parent.get(
+        pid,
+        []
+    )
+
+    if not direct_children:
+        return {
+            "direct_children": 0,
+            "repeated_child_count": 0,
+            "child_similarity": 0,
+            "young_child_ratio": 0
+        }
+
+    signatures = Counter(
+        _process_signature(child)
+        for child in direct_children
+    )
+
+    repeated_child_count = max(
+        signatures.values()
+    )
+
+    young_children = sum(
+        1
+        for child in direct_children
+        if child.get(
+            "age_seconds",
+            9999
+        ) <= 90
+    )
+
+    child_similarity = (
+        repeated_child_count
+        /
+        max(
+            len(direct_children),
+            1
+        )
+    )
+
+    young_child_ratio = (
+        young_children
+        /
+        max(
+            len(direct_children),
+            1
+        )
+    )
+
+    return {
+        "direct_children": len(direct_children),
+        "repeated_child_count": repeated_child_count,
+        "child_similarity": round(child_similarity, 3),
+        "young_child_ratio": round(young_child_ratio, 3)
+    }
+
+
+def _build_children_by_parent(
+    processes
+):
+    children_by_parent = defaultdict(list)
+
+    for process in processes:
+        children_by_parent[
+            process.get(
+                "ppid"
+            )
+        ].append(process)
+
+    return children_by_parent
+
+
+def _count_descendants(
+    pid,
+    children_by_parent
+):
+    total = 0
+    stack = list(
+        children_by_parent.get(
+            pid,
+            []
+        )
+    )
+    seen = set()
+
+    while stack:
+        child = stack.pop()
+        child_pid = child.get(
+            "pid"
+        )
+
+        if child_pid in seen:
+            continue
+
+        seen.add(
+            child_pid
+        )
+        total += 1
+        stack.extend(
+            children_by_parent.get(
+                child_pid,
+                []
+            )
+        )
+
+    return total
+
+
+def emergency_process_storm_preflight(
+    processes,
+    entity_map,
+    root_map
+):
+    children_by_parent = _build_children_by_parent(
+        processes
+    )
+    handled_pids = set()
+
+    for process in sorted(
+        processes,
+        key=lambda p: len(
+            children_by_parent.get(
+                p.get(
+                    "pid"
+                ),
+                []
+            )
+        ),
+        reverse=True
+    ):
+        pid = process.get(
+            "pid"
+        )
+
+        if (
+            pid in SYSTEM_SAFE_PIDS
+            or (
+                pid is not None
+                and
+                int(pid) <= 10
+            )
+            or pid in getattr(
+                globals().get(
+                    "response_engine",
+                    None
+                ),
+                "protected_pids",
+                set()
+            )
+            or pid in handled_pids
+        ):
+            continue
+
+        profile = _child_storm_profile(
+            process,
+            children_by_parent
+        )
+
+        descendants = _count_descendants(
+            pid,
+            children_by_parent
+        )
+
+        catastrophic_storm = (
+            profile["direct_children"] >= 12
+            and profile["repeated_child_count"] >= 8
+            and profile["child_similarity"] >= 0.65
+            and profile["young_child_ratio"] >= 0.65
+            and descendants >= 12
+        )
+
+        emergency_storm = (
+            profile["direct_children"] >= 20
+            and profile["repeated_child_count"] >= 12
+            and profile["child_similarity"] >= 0.70
+            and profile["young_child_ratio"] >= 0.50
+            and descendants >= 20
+        )
+
+        if not (
+            catastrophic_storm
+            or emergency_storm
+        ):
+            continue
+
+        features = {
+            "f_proc_spawn": profile["direct_children"],
+            "f_proc_tree": descendants,
+            "f_process_trend": profile["direct_children"],
+            "f_young_process": (
+                1
+                if process.get(
+                    "age_seconds",
+                    9999
+                ) <= 180
+                else 0
+            ),
+            "f_repeated_child_count": profile[
+                "repeated_child_count"
+            ],
+            "f_child_similarity": profile[
+                "child_similarity"
+            ],
+            "f_short_lived_child_ratio": profile[
+                "young_child_ratio"
+            ],
+            "file_events": 0,
+            "worm_score": 95,
+            "emergency_preflight": True
+        }
+
+        classification = {
+            "label": "forkbomb",
+            "severity": "critical",
+            "worm_score": 0.96,
+            "confidence": 96,
+            "signals": {
+                "combined_risk": 0.96,
+                "correlated_signal_count": 5,
+                "catastrophic_behavior": True,
+                "forkbomb_detected": True,
+                "replication_detected": False,
+                "fanout_detected": False,
+                "correlated_signals": {
+                    "rapid_child_spawning": True,
+                    "large_or_growing_tree": True,
+                    "repeated_similar_children": True,
+                    "short_lived_recursive_children": True,
+                    "process_storm_burst": True
+                }
+            }
+        }
+
+        trust_state = {
+            "dynamic_trust": 0.25,
+            "final_trust": 0.25,
+            "static_trust": 0.78
+        }
+
+        persistence_state = {
+            "persistent": True,
+            "confidence": 0.96,
+            "stage": "terminate",
+            "avg_worm_score": 0.96,
+            "avg_dynamic_trust": 0.25,
+            "avg_final_trust": 0.25,
+            "avg_confidence": 0.96,
+            "avg_combined_risk": 0.96,
+            "avg_correlated_signals": 5,
+            "termination_ready": True,
+            "catastrophic_ready": True,
+            "force_terminate": True
+        }
+
+        print(
+            f"[EMERGENCY] process storm pid={pid} "
+            f"children={profile['direct_children']} "
+            f"repeated={profile['repeated_child_count']} "
+            f"similarity={profile['child_similarity']} "
+            f"young_ratio={profile['young_child_ratio']} "
+            f"tree={descendants}"
+        )
+
+        healing_result = execute_healing(
+            pid=pid,
+            process=process,
+            features=features,
+            classification=classification,
+            persistence_state=persistence_state,
+            trust_state=trust_state
+        )
+
+        response_result = healing_result[
+            "response"
+        ]
+
+        log_process({
+            "pid": pid,
+            "name": process.get(
+                "name",
+                "unknown"
+            ),
+            "entity_root": root_map.get(
+                pid,
+                process.get(
+                    "ppid",
+                    0
+                )
+            ),
+            "trust": trust_state,
+            "worm_score": classification[
+                "worm_score"
+            ],
+            "confidence": classification[
+                "confidence"
+            ],
+            "label": classification[
+                "label"
+            ],
+            "severity": classification[
+                "severity"
+            ],
+            "stage": response_result[
+                "stage"
+            ],
+            "response": response_result[
+                "status"
+            ],
+            "learning_state": healing_result[
+                "learning"
+            ],
+            "anomalies": {},
+            "features": features
+        })
+
+        handled_pids.add(
+            pid
+        )
+
+    return handled_pids
+
+
+def _path_event_totals(
+    path_events
+):
+    totals = defaultdict(int)
+
+    for path, count in (
+        path_events
+        or {}
+    ).items():
+        try:
+            normalized = os.path.abspath(
+                path
+            )
+            directory = os.path.dirname(
+                normalized
+            )
+        except Exception:
+            continue
+
+        totals[
+            directory
+        ] += int(
+            count
+        )
+
+    return totals
+
+
+def emergency_file_activity_preflight(
+    processes,
+    file_map
+):
+    path_events = (
+        file_map
+        or {}
+    ).get(
+        "__paths__",
+        {}
+    )
+
+    if (
+        not path_events
+        and
+        not file_burst_window
+    ):
+        return set()
+
+    directory_totals = _path_event_totals(
+        path_events
+    )
+
+    now = time.time()
+    for directory, count in directory_totals.items():
+        file_burst_window[
+            directory
+        ].append(
+            (
+                now,
+                int(count)
+            )
+        )
+
+    for directory in list(
+        file_burst_window.keys()
+    ):
+        file_burst_window[
+            directory
+        ] = [
+            (
+                timestamp,
+                count
+            )
+            for timestamp, count in file_burst_window[
+                directory
+            ]
+            if now - timestamp <= 5
+        ]
+
+        if not file_burst_window[
+            directory
+        ]:
+            file_burst_window.pop(
+                directory,
+                None
+            )
+
+    rolling_totals = {
+        directory: sum(
+            count
+            for _, count in samples
+        )
+        for directory, samples in file_burst_window.items()
+    }
+
+    total_events = sum(
+        rolling_totals.values()
+    )
+
+    if total_events < 60:
+        return set()
+
+    active_directories = [
+        directory
+        for directory, count in rolling_totals.items()
+        if count >= 35
+    ]
+
+    if not active_directories:
+        return set()
+
+    handled_pids = set()
+    candidate_seen = False
+
+    for process in sorted(
+        processes,
+        key=lambda p: p.get(
+            "age_seconds",
+            9999
+        )
+    ):
+        pid = process.get(
+            "pid"
+        )
+
+        if pid in SYSTEM_SAFE_PIDS:
+            continue
+
+        if pid in getattr(
+            globals().get(
+                "response_engine",
+                None
+            ),
+            "protected_pids",
+            set()
+        ):
+            continue
+
+        if process.get(
+            "age_seconds",
+            9999
+        ) > 240:
+            continue
+
+        if policy_engine.is_critical_process_hint(
+            process
+        ):
+            continue
+
+        category = policy_engine.infer_category(
+            process
+        )
+
+        if policy_engine.is_suppressed_category(
+            category
+        ):
+            continue
+
+        cwd = process.get(
+            "cwd",
+            ""
+        )
+
+        matched_events = 0
+        cwd_abs = ""
+
+        if cwd:
+            try:
+                cwd_abs = os.path.abspath(
+                    cwd
+                )
+            except Exception:
+                cwd_abs = ""
+
+        if cwd_abs:
+            for directory, count in rolling_totals.items():
+                if (
+                    directory.startswith(
+                        cwd_abs
+                    )
+                    or
+                    cwd_abs.startswith(
+                        directory
+                    )
+                ):
+                    matched_events += count
+
+        if (
+            matched_events < 60
+            and total_events >= 100
+            and process.get(
+                "age_seconds",
+                9999
+            ) <= 60
+        ):
+            matched_events = total_events
+
+        if not cwd_abs:
+            cwd_abs = (
+                process.get(
+                    "cwd",
+                    ""
+                )
+                or
+                "unknown"
+            )
+
+        if matched_events < 60:
+            continue
+
+        candidate_seen = True
+
+        features = {
+            "f_proc_spawn": 0,
+            "f_proc_tree": 1,
+            "f_process_trend": 0,
+            "f_young_process": 1,
+            "file_events": matched_events,
+            "worm_score": 90,
+            "emergency_preflight": True,
+            "file_replication_preflight": True
+        }
+
+        classification = {
+            "label": "worm",
+            "severity": "critical",
+            "worm_score": 0.92,
+            "confidence": 92,
+            "signals": {
+                "combined_risk": 0.90,
+                "correlated_signal_count": 4,
+                "catastrophic_behavior": (
+                    matched_events >= 120
+                ),
+                "forkbomb_detected": False,
+                "replication_detected": True,
+                "fanout_detected": False,
+                "correlated_signals": {
+                    "file_replication": True,
+                    "high_file_velocity": True,
+                    "extreme_file_velocity": matched_events >= 75,
+                    "baseline_anomaly": True
+                }
+            }
+        }
+
+        trust_state = {
+            "dynamic_trust": 0.35,
+            "final_trust": 0.35,
+            "static_trust": 0.78
+        }
+
+        persistence_state = {
+            "persistent": True,
+            "confidence": 0.92,
+            "stage": "terminate",
+            "avg_worm_score": 0.92,
+            "avg_dynamic_trust": 0.35,
+            "avg_final_trust": 0.35,
+            "avg_confidence": 0.92,
+            "avg_combined_risk": 0.90,
+            "avg_correlated_signals": 4,
+            "termination_ready": True,
+            "catastrophic_ready": matched_events >= 120,
+            "force_terminate": matched_events >= 120
+        }
+
+        print(
+            f"[EMERGENCY] file replication pid={pid} "
+            f"events={matched_events} cwd={cwd_abs}"
+        )
+
+        healing_result = execute_healing(
+            pid=pid,
+            process=process,
+            features=features,
+            classification=classification,
+            persistence_state=persistence_state,
+            trust_state=trust_state
+        )
+
+        response_result = healing_result[
+            "response"
+        ]
+
+        log_process({
+            "pid": pid,
+            "name": process.get(
+                "name",
+                "unknown"
+            ),
+            "entity_root": process.get(
+                "ppid",
+                0
+            ),
+            "trust": trust_state,
+            "worm_score": classification[
+                "worm_score"
+            ],
+            "confidence": classification[
+                "confidence"
+            ],
+            "label": classification[
+                "label"
+            ],
+            "severity": classification[
+                "severity"
+            ],
+            "stage": response_result[
+                "stage"
+            ],
+            "response": response_result[
+                "status"
+            ],
+            "learning_state": healing_result[
+                "learning"
+            ],
+            "anomalies": {},
+            "features": features
+        })
+
+        if response_result.get(
+            "action_taken",
+            False
+        ):
+            handled_pids.add(
+                pid
+            )
+            break
+
+    if (
+        not handled_pids
+        and not candidate_seen
+        and total_events >= 100
+    ):
+        directory_summary = ", ".join(
+            f"{os.path.basename(directory) or directory}:{count}"
+            for directory, count in sorted(
+                rolling_totals.items(),
+                key=lambda item: item[1],
+                reverse=True
+            )[:3]
+        )
+        print(
+            f"[EMERGENCY] file burst observed events={total_events} "
+            f"dirs={directory_summary} "
+            "but no eligible process candidate"
+        )
+
+    return handled_pids
+
+
+def emergency_resource_preflight(
+    processes
+):
+    now = time.time()
+    handled_pids = set()
+
+    live_pids = {
+        process.get(
+            "pid"
+        )
+        for process in processes
+    }
+
+    for pid in list(
+        resource_burst_window.keys()
+    ):
+        if pid not in live_pids:
+            resource_burst_window.pop(
+                pid,
+                None
+            )
+
+    for process in processes:
+        pid = process.get(
+            "pid"
+        )
+
+        if (
+            pid in SYSTEM_SAFE_PIDS
+            or (
+                pid is not None
+                and
+                int(pid) <= 10
+            )
+            or pid in getattr(
+                globals().get(
+                    "response_engine",
+                    None
+                ),
+                "protected_pids",
+                set()
+            )
+        ):
+            continue
+
+        if policy_engine.is_critical_process_hint(
+            process
+        ):
+            continue
+
+        category = policy_engine.infer_category(
+            process
+        )
+
+        if policy_engine.is_suppressed_category(
+            category
+        ):
+            continue
+
+        sample = {
+            "timestamp": now,
+            "cpu": float(
+                process.get(
+                    "cpu",
+                    0
+                )
+            ),
+            "memory": float(
+                process.get(
+                    "memory",
+                    0
+                )
+            ),
+            "memory_rss": int(
+                process.get(
+                    "memory_rss",
+                    0
+                )
+            ),
+            "threads": int(
+                process.get(
+                    "threads",
+                    0
+                )
+            )
+        }
+
+        history = resource_burst_window[
+            pid
+        ]
+        history.append(
+            sample
+        )
+        resource_burst_window[
+            pid
+        ] = [
+            item
+            for item in history
+            if now - item[
+                "timestamp"
+            ] <= 6
+        ]
+
+        history = resource_burst_window[
+            pid
+        ]
+
+        if len(
+            history
+        ) < 2:
+            continue
+
+        latest = history[-1]
+        previous = history[-2]
+
+        thread_velocity = (
+            latest["threads"]
+            -
+            previous["threads"]
+        )
+
+        memory_rss_mb = (
+            latest["memory_rss"]
+            /
+            (1024 * 1024)
+        )
+
+        thread_storm = (
+            (
+                latest["threads"] >= 100
+                and process.get(
+                    "age_seconds",
+                    9999
+                ) <= 180
+            )
+            or thread_velocity >= 50
+        )
+        cpu_exhaustion = (
+            latest["cpu"] >= 85
+            and previous["cpu"] >= 70
+        )
+        memory_spike = (
+            latest["memory"] >= 35
+            or memory_rss_mb >= 750
+        )
+
+        if not (
+            thread_storm
+            or cpu_exhaustion
+            or memory_spike
+        ):
+            continue
+
+        stage = "throttle"
+        severity = "medium"
+        label = "suspicious"
+        confidence = 58
+        combined_risk = 0.55
+
+        if thread_storm:
+            stage = "quarantine"
+            severity = "high"
+            confidence = 76
+            combined_risk = 0.74
+
+        if (
+            thread_storm
+            and (
+                cpu_exhaustion
+                or memory_spike
+            )
+        ):
+            stage = "quarantine"
+            severity = "critical"
+            confidence = 84
+            combined_risk = 0.82
+
+        features = {
+            "cpu": latest["cpu"],
+            "memory": latest["memory"],
+            "memory_rss": latest["memory_rss"],
+            "f_thread": latest["threads"],
+            "f_thread_velocity": thread_velocity,
+            "file_events": 0,
+            "worm_score": confidence,
+            "emergency_preflight": True,
+            "resource_preflight": True
+        }
+
+        classification = {
+            "label": label,
+            "severity": severity,
+            "worm_score": round(
+                confidence / 100,
+                2
+            ),
+            "confidence": confidence,
+            "signals": {
+                "combined_risk": combined_risk,
+                "correlated_signal_count": (
+                    3
+                    if thread_storm
+                    else 2
+                ),
+                "catastrophic_behavior": False,
+                "forkbomb_detected": False,
+                "replication_detected": False,
+                "fanout_detected": False,
+                "thread_storm_detected": thread_storm,
+                "correlated_signals": {
+                    "thread_explosion": thread_storm,
+                    "cpu_memory_escalation": (
+                        cpu_exhaustion
+                        or memory_spike
+                    ),
+                    "resource_pressure": True,
+                    "baseline_anomaly": True
+                }
+            }
+        }
+
+        trust_state = {
+            "dynamic_trust": 0.55,
+            "final_trust": 0.58,
+            "static_trust": 0.78
+        }
+
+        persistence_state = {
+            "persistent": True,
+            "confidence": round(
+                confidence / 100,
+                2
+            ),
+            "stage": stage,
+            "avg_worm_score": round(
+                confidence / 100,
+                2
+            ),
+            "avg_dynamic_trust": 0.55,
+            "avg_final_trust": 0.58,
+            "avg_confidence": round(
+                confidence / 100,
+                2
+            ),
+            "avg_combined_risk": combined_risk,
+            "avg_correlated_signals": (
+                3
+                if thread_storm
+                else 2
+            )
+        }
+
+        print(
+            f"[EMERGENCY] resource pressure pid={pid} "
+            f"stage={stage} cpu={latest['cpu']} "
+            f"mem={round(memory_rss_mb, 1)}MB "
+            f"threads={latest['threads']} "
+            f"thread_delta={thread_velocity}"
+        )
+
+        healing_result = execute_healing(
+            pid=pid,
+            process=process,
+            features=features,
+            classification=classification,
+            persistence_state=persistence_state,
+            trust_state=trust_state
+        )
+
+        response_result = healing_result[
+            "response"
+        ]
+
+        log_process({
+            "pid": pid,
+            "name": process.get(
+                "name",
+                "unknown"
+            ),
+            "entity_root": process.get(
+                "ppid",
+                0
+            ),
+            "trust": trust_state,
+            "worm_score": classification[
+                "worm_score"
+            ],
+            "confidence": classification[
+                "confidence"
+            ],
+            "label": classification[
+                "label"
+            ],
+            "severity": classification[
+                "severity"
+            ],
+            "stage": response_result[
+                "stage"
+            ],
+            "response": response_result[
+                "status"
+            ],
+            "learning_state": healing_result[
+                "learning"
+            ],
+            "anomalies": {},
+            "features": features
+        })
+
+        handled_pids.add(
+            pid
+        )
+
+    return handled_pids
+
+# ===================================================
 # MAIN LOOP
 # ===================================================
 def monitor_loop():
@@ -259,6 +1547,13 @@ def monitor_loop():
                 f"[PROCESS COUNT] "
                 f"{len(processes)}"
             )
+
+            emergency_handled = emergency_process_storm_preflight(
+                processes,
+                {},
+                {}
+            )
+
             network_data = (   
                network_monitor
                .get_network_data()
@@ -319,7 +1614,22 @@ def monitor_loop():
             print(
                 "[PROCESS LOOP START]"
             )
-            for process in processes:
+            ordered_processes = [
+                p for p in sorted(
+                    processes,
+                    key=lambda p: process_priority(
+                        p,
+                        entity_map
+                    ),
+                    reverse=True
+                )
+                if should_deep_inspect(
+                    p,
+                    entity_map
+                )
+            ][:30]
+
+            for process in ordered_processes:
 
                 try:
 
@@ -331,122 +1641,11 @@ def monitor_loop():
                         pid
                         in
                         SYSTEM_SAFE_PIDS
+                        or
+                        pid
+                        in
+                        emergency_handled
                     ):
-
-                        continue
-
-                    if is_idle_process(process):
-
-                        static_score = 0.92
-
-                        trust_state = (
-                            trust_engine
-                            .update(
-
-                                pid=
-                                pid,
-
-                                anomaly_vector={
-                                    "cpu": 0,
-                                    "memory": 0,
-                                    "threads": 0,
-                                    "connections": 0,
-                                    "file_events": 0
-                                },
-
-                                static_score=
-                                static_score
-                            )
-                        )
-
-                        classification = {
-                            "label": "normal",
-                            "severity": "low",
-                            "worm_score": 0.0,
-                            "confidence": 0.0,
-                            "dynamic_trust": trust_state["dynamic_trust"],
-                            "final_trust": trust_state["final_trust"]
-                        }
-
-                        persistence_engine.update(
-
-                            pid=
-                            pid,
-
-                            classification=
-                            classification,
-
-                            trust_state=
-                            trust_state
-                        )
-
-                        log_process({
-
-                            "pid":
-                                pid,
-
-                            "name":
-                                process.get(
-                                    "name",
-                                    "unknown"
-                                ),
-
-                            "entity_root":
-                                root_map.get(
-                                    pid,
-                                    process.get(
-                                        "ppid",
-                                        0
-                                    )
-                                ),
-
-                            "trust":
-                                trust_state,
-
-                            "worm_score":
-                                classification[
-                                    "worm_score"
-                                ],
-
-                            "confidence":
-                                classification[
-                                    "confidence"
-                                ],
-
-                            "label":
-                                classification[
-                                    "label"
-                                ],
-
-                            "severity":
-                                classification[
-                                    "severity"
-                                ],
-
-                            "stage":
-                                "observe",
-
-                            "response":
-                                "skipped",
-
-                            "learning_state":
-                                {
-                                    "reputation": 1.0,
-                                    "trust_level": "trusted"
-                                },
-
-                            "anomalies":
-                                {},
-
-                            "features":
-                                {
-                                    "cpu": process["cpu"],
-                                    "memory": process["memory"],
-                                    "connections": process["connections"],
-                                    "threads": process["threads"],
-                                    "open_files": process["open_files"]
-                                }
-                        })
 
                         continue
 
@@ -920,6 +2119,12 @@ def execute_healing(
         trust_state = {"dynamic_trust": 1.0, "final_trust": 1.0}
 
     try:
+        force_stage = (
+            persistence_state.get("termination_ready")
+            or
+            persistence_state.get("catastrophic_ready")
+        )
+
         # --------------------------------
         # LEARNING ADAPTATION
         # slide 17-18
@@ -944,6 +2149,9 @@ def execute_healing(
         ] = (
             recommended_stage
         )
+
+        if force_stage:
+            persistence_state["stage"] = "terminate"
 
         if persistence_state.get("catastrophic_ready"):
             persistence_state["force_terminate"] = True
@@ -1073,6 +2281,7 @@ def execute_healing(
 if __name__ == "__main__":
 
     start_background_monitors()
+    start_rapid_lineage_monitor()
 
     monitor_loop()
 

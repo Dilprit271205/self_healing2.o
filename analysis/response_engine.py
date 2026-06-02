@@ -71,7 +71,7 @@ class ResponseEngine:
 
     def _is_hard_protected_pid(self, pid):
         try:
-            return int(pid) in getattr(self, "protected_pids", set()) or int(pid) <= 1
+            return int(pid) in getattr(self, "protected_pids", set()) or int(pid) <= 10
         except Exception:
             return True
 

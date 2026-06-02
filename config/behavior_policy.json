@@ -66,7 +66,21 @@
     "system_update": ["packagekit", "update", "updater", "windows update"],
     "multiprocessing": ["multiprocessing", "joblib", "loky", "ray", "dask"],
     "build_system": ["make", "ninja", "cmake", "msbuild", "gradle", "maven", "webpack", "vite"],
-    "developer_tool": ["git", "ssh", "pytest", "terminal"]
+    "developer_tool": [
+      "git",
+      "ssh",
+      "pytest",
+      "terminal",
+      "powershell",
+      "pwsh",
+      "cmd.exe",
+      "wt.exe",
+      "qterminal",
+      "konsole",
+      "gnome-terminal",
+      "xfce4-terminal",
+      "xterm"
+    ]
   },
   "critical_process_hints": [
     "systemd",

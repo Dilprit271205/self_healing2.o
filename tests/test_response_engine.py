@@ -7,6 +7,7 @@ import psutil
 import pytest
 
 from analysis.response_engine import ResponseEngine
+import main as main_mod
 
 
 def spawn_sleep_process():
@@ -127,6 +128,48 @@ def test_missing_process_text_fields_do_not_crash_response():
     assert result["stage"] == "terminate"
     assert result["action_taken"] is False
     assert "error:" not in result["status"]
+
+
+def test_execute_healing_preserves_termination_ready(monkeypatch):
+    process = spawn_sleep_process()
+
+    try:
+        monkeypatch.setattr(
+            main_mod.learning_engine,
+            "recommend_stage",
+            lambda process_info, persistence_stage: "observe",
+        )
+
+        result = main_mod.execute_healing(
+            pid=process.pid,
+            process={
+                "pid": process.pid,
+                "name": "python",
+                "cmdline": "python process storm",
+                "exe": sys.executable,
+            },
+            features={},
+            classification={
+                "label": "forkbomb",
+                "severity": "critical",
+                "worm_score": 0.86,
+                "confidence": 86,
+                "signals": {},
+            },
+            persistence_state={
+                "stage": "terminate",
+                "termination_ready": True,
+                "catastrophic_ready": False,
+            },
+            trust_state={"dynamic_trust": 0.78, "final_trust": 0.82},
+        )
+
+        assert result["response"]["stage"] == "terminate"
+        assert result["response"]["action_taken"] is True
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
 
 
 def test_terminate_worm_sim_process_tree():

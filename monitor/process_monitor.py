@@ -82,15 +82,10 @@ def get_process_data():
                     )
                 )
 
-                try:
-
-                    connections = len(
-                        proc.net_connections()
-                    )
-
-                except:
-
-                    connections = 0
+                # NetworkMonitor performs one system-wide connection scan.
+                # Per-process net_connections() is very expensive and can make
+                # live response miss short bounded simulations.
+                connections = 0
 
             age_seconds = (
                 time.time()

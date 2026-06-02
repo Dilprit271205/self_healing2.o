@@ -6,6 +6,7 @@ import time
 import psutil
 
 from analysis.extractor_engine import ExtractorEngine
+from analysis.persistence_engine import PersistenceEngine
 from analysis.worm_classifier import WormClassifier
 
 
@@ -271,3 +272,130 @@ def test_shell_forkbomb_signature_alone_is_not_critical():
     assert classification["label"] == "normal"
     assert classification["severity"] == "low"
     assert classification["signals"]["forkbomb_detected"] is False
+
+
+def test_persistent_process_storm_terminates_without_trust_collapse():
+    classifier = WormClassifier()
+    persistence = PersistenceEngine()
+
+    features = {
+        "cmdline": "python process storm",
+        "cpu": 4,
+        "memory": 1,
+        "f_proc_spawn": 0,
+        "f_proc_tree": 12,
+        "f_process_trend": 0,
+        "f_young_process": 1,
+        "f_thread_velocity": 0,
+        "f_connection_velocity": 0,
+        "f_remote_ips": 0,
+        "file_events": 0,
+        "f_child_similarity": 1.0,
+        "f_repeated_child_count": 10,
+        "f_short_lived_child_ratio": 1.0,
+        "worm_score": 80,
+        "false_positive_suppression": 0,
+    }
+
+    classification = classifier.classify(
+        features,
+        {"anomalies": {"aggregate": 0.5}, "temporal": {}},
+        {"dynamic_trust": 0.78, "final_trust": 0.82},
+    )
+
+    assert classification["signals"]["forkbomb_detected"] is True
+
+    for _ in range(persistence.delta):
+        persistence.update(
+            12345,
+            classification,
+            {"dynamic_trust": 0.78, "final_trust": 0.82},
+        )
+
+    state = persistence.check_persistence(12345)
+
+    assert state["stage"] == "terminate"
+    assert state["termination_ready"] is True
+
+
+def test_catastrophic_process_storm_can_terminate_in_one_loop():
+    classifier = WormClassifier()
+    persistence = PersistenceEngine()
+
+    classification = classifier.classify(
+        {
+            "cmdline": "python process storm",
+            "cpu": 8,
+            "memory": 1,
+            "f_proc_spawn": 0,
+            "f_proc_tree": 25,
+            "f_process_trend": 0,
+            "f_young_process": 1,
+            "f_thread_velocity": 0,
+            "f_connection_velocity": 0,
+            "f_remote_ips": 0,
+            "file_events": 0,
+            "f_child_similarity": 1.0,
+            "f_repeated_child_count": 24,
+            "f_short_lived_child_ratio": 1.0,
+            "worm_score": 95,
+            "false_positive_suppression": 0,
+        },
+        {"anomalies": {"aggregate": 0.5}, "temporal": {}},
+        {"dynamic_trust": 0.8, "final_trust": 0.84},
+    )
+
+    persistence.update(
+        22222,
+        classification,
+        {"dynamic_trust": 0.8, "final_trust": 0.84},
+    )
+
+    state = persistence.check_persistence(22222)
+
+    assert classification["signals"]["catastrophic_behavior"] is True
+    assert state["stage"] == "terminate"
+    assert state["catastrophic_ready"] is True
+
+
+def test_file_replication_burst_terminates_after_persistence():
+    classifier = WormClassifier()
+    persistence = PersistenceEngine()
+
+    classification = classifier.classify(
+        {
+            "cmdline": "python file burst",
+            "cpu": 3,
+            "memory": 1,
+            "f_proc_spawn": 0,
+            "f_proc_tree": 1,
+            "f_process_trend": 0,
+            "f_young_process": 1,
+            "f_thread_velocity": 0,
+            "f_connection_velocity": 0,
+            "f_remote_ips": 0,
+            "file_events": 80,
+            "f_child_similarity": 0,
+            "f_repeated_child_count": 0,
+            "f_short_lived_child_ratio": 0,
+            "worm_score": 80,
+            "false_positive_suppression": 0,
+        },
+        {"anomalies": {"aggregate": 0.30}, "temporal": {}},
+        {"dynamic_trust": 0.82, "final_trust": 0.86},
+    )
+
+    assert classification["label"] == "worm"
+    assert classification["signals"]["replication_detected"] is True
+
+    for _ in range(persistence.delta):
+        persistence.update(
+            33333,
+            classification,
+            {"dynamic_trust": 0.82, "final_trust": 0.86},
+        )
+
+    state = persistence.check_persistence(33333)
+
+    assert state["stage"] == "terminate"
+    assert state["termination_ready"] is True

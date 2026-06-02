@@ -138,6 +138,20 @@ class FileHandler(
         path
     ):
 
+        record_file_event(
+            None,
+            path
+        )
+
+        if (
+            os.getenv(
+                "SELF_HEALING_FILE_PID_ATTRIBUTION",
+                "false"
+            ).lower()
+            not in ("1", "true", "yes", "y")
+        ):
+            return
+
         pid = (
             self.map_file_to_process(
                 path
@@ -148,13 +162,10 @@ class FileHandler(
 
             record_file_event(
                 pid,
-                path
+                None
             )
         else:
-            record_file_event(
-                None,
-                path
-            )
+            pass
 
     def on_modified(
         self,

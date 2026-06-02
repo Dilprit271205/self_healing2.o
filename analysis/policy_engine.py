@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from copy import deepcopy
 
 
@@ -84,9 +85,25 @@ class PolicyEngine:
         )
         matches = []
         for category, hints in self.get("category_hints", {}).items():
-            if any(str(hint).lower() in joined for hint in hints):
+            if any(self._hint_matches(joined, hint) for hint in hints):
                 matches.append(category)
         return matches[0] if matches else "unknown"
+
+    def _hint_matches(self, text, hint):
+        hint = str(hint).lower().strip()
+
+        if not hint:
+            return False
+
+        if any(separator in hint for separator in (" ", "/", "\\", ".", "-")):
+            return hint in text
+
+        return re.search(
+            r"(?<![a-z0-9_])"
+            + re.escape(hint)
+            + r"(?![a-z0-9_])",
+            text
+        ) is not None
 
     def is_suppressed_category(self, category):
         return category in set(
