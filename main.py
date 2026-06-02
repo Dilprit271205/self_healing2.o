@@ -109,11 +109,11 @@ try:
     MONITOR_INTERVAL = float(
         os.getenv(
             "SELF_HEALING_MONITOR_INTERVAL",
-            "1"
+            "3"
         )
     )
 except Exception:
-    MONITOR_INTERVAL = 1.0
+    MONITOR_INTERVAL = 3.0
 
 VERBOSE_RUNTIME_LOGS = os.getenv(
     "SELF_HEALING_VERBOSE",
@@ -366,11 +366,11 @@ def rapid_lineage_monitor_loop():
         interval = float(
             os.getenv(
                 "SELF_HEALING_RAPID_LINEAGE_INTERVAL",
-                "0.5"
+                "1.5"
             )
         )
     except Exception:
-        interval = 0.5
+        interval = 1.5
 
     while not rapid_lineage_stop.is_set():
         try:
@@ -1202,6 +1202,15 @@ def emergency_file_activity_preflight(
             continue
 
         candidate_seen = True
+        file_containment_enabled = os.getenv(
+            "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
+            "false"
+        ).lower() in (
+            "1",
+            "true",
+            "yes",
+            "y"
+        )
         confirmed_file_owner = (
             matched_events >= 120
             and not _is_broad_file_root(
@@ -1209,14 +1218,52 @@ def emergency_file_activity_preflight(
             )
         )
 
-        stage = (
-            "quarantine"
-            if confirmed_file_owner
-            else
-            "throttle"
-        )
+        stage = "observe"
 
-        if matched_events >= 240 and confirmed_file_owner:
+        if not file_containment_enabled:
+            rate_limited_print(
+                "file_replication_observed",
+                f"[OBSERVE] file activity pid={pid} "
+                f"events={matched_events} cwd={cwd_abs}",
+                interval=8
+            )
+
+            log_process({
+                "pid": pid,
+                "name": process.get(
+                    "name",
+                    "unknown"
+                ),
+                "entity_root": process.get(
+                    "ppid",
+                    0
+                ),
+                "trust": {
+                    "dynamic_trust": 0.75,
+                    "final_trust": 0.75,
+                    "static_trust": 0.78
+                },
+                "worm_score": 0.45,
+                "confidence": 45,
+                "label": "suspicious",
+                "severity": "medium",
+                "stage": "observe",
+                "response": "file activity observed",
+                "learning_state": {},
+                "anomalies": {},
+                "features": {
+                    "file_events": matched_events,
+                    "file_replication_preflight": True,
+                    "containment_enabled": False
+                }
+            })
+
+            handled_pids.add(
+                pid
+            )
+            continue
+
+        if file_containment_enabled and confirmed_file_owner:
             stage = "quarantine"
 
         features = {
@@ -1267,14 +1314,17 @@ def emergency_file_activity_preflight(
             "avg_confidence": 0.92,
             "avg_combined_risk": 0.90,
             "avg_correlated_signals": 4,
-            "confirmed_behavior": confirmed_file_owner
+            "confirmed_behavior": (
+                file_containment_enabled
+                and confirmed_file_owner
+            )
         }
 
         rate_limited_print(
-            f"file_replication_{pid}",
+            "file_replication_observed",
             f"[EMERGENCY] file replication pid={pid} "
             f"stage={stage} events={matched_events} cwd={cwd_abs}",
-            interval=3
+            interval=8
         )
 
         healing_result = execute_healing(
@@ -1684,9 +1734,6 @@ def monitor_loop():
     )
 
     while True:
-        print(
-            "\n[NEW LOOP]"
-        )
         try:
 
             # =====================================
@@ -1695,11 +1742,6 @@ def monitor_loop():
             processes = (
                 get_process_data()
             )
-            print(
-                f"[PROCESS COUNT] "
-                f"{len(processes)}"
-            )
-
             emergency_handled = emergency_process_storm_preflight(
                 processes,
                 {},
@@ -1734,11 +1776,6 @@ def monitor_loop():
                     processes
                 )
             )
-            print(
-                f"[ENTITIES] "
-                f"{len(entities)}"
-            )
-
             for (
                 root,
                 members
@@ -1763,9 +1800,6 @@ def monitor_loop():
             # =====================================
             # PROCESS PIPELINE
             # =====================================
-            print(
-                "[PROCESS LOOP START]"
-            )
             ordered_processes = [
                 p for p in sorted(
                     processes,
@@ -1780,6 +1814,16 @@ def monitor_loop():
                     entity_map
                 )
             ][:30]
+
+            rate_limited_print(
+                "monitor_loop_summary",
+                (
+                    f"[LOOP] processes={len(processes)} "
+                    f"entities={len(entities)} "
+                    f"deep_inspect={len(ordered_processes)}"
+                ),
+                interval=15.0
+            )
 
             for process in ordered_processes:
 

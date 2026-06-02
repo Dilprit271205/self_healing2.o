@@ -1,4 +1,5 @@
 from analysis.persistence_engine import PersistenceEngine
+from analysis.response_engine import ResponseEngine
 from analysis.worm_classifier import WormClassifier
 
 
@@ -218,3 +219,26 @@ def test_11_combined_worm_behavior_terminates():
     assert result["label"] in {"worm", "forkbomb"}
     assert result["signals"]["correlated_signal_count"] >= 6
     assert state["stage"] == "terminate"
+
+
+def test_12_legitimate_developer_workload_is_not_terminated():
+    response = ResponseEngine(safe_mode=False)
+
+    result = response.execute(
+        pid=999999,
+        process_info={
+            "pid": 999999,
+            "name": "nano",
+            "cmdline": "nano new_notes.txt",
+            "exe": "/usr/bin/nano",
+        },
+        persistence_state={
+            "stage": "terminate",
+            "persistent": True,
+            "confidence": 0.95,
+            "avg_correlated_signals": 1,
+        },
+    )
+
+    assert result["stage"] in {"observe", "protected"}
+    assert result["action_taken"] is False

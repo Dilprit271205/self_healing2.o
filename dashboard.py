@@ -1,4 +1,5 @@
 import sys
+import os
 import json
 from collections import deque
 
@@ -143,7 +144,7 @@ st.set_page_config(
 )
 
 st_autorefresh(
-    interval=3000,
+    interval=5000,
     key="refresh"
 )
 
@@ -230,11 +231,19 @@ page = st.radio(
 # ===================================================
 # LOADERS
 # ===================================================
+DASHBOARD_MAX_ROWS = int(
+    os.getenv(
+        "SELF_HEALING_DASHBOARD_MAX_ROWS",
+        "1500"
+    )
+)
+
+
 def _load_json_lines(file_path):
 
     try:
         rows = deque(
-            maxlen=4000
+            maxlen=DASHBOARD_MAX_ROWS
         )
 
         with open(file_path, "r") as f:
@@ -307,7 +316,7 @@ entity_df = load_entity_logs()
 healing_df = load_healing_logs()
 learning_kb_df = load_learning_kb()
 
-if df.empty and page != "ðŸ“š Learning Center":
+if df.empty and learning_kb_df.empty:
 
     st.warning(
         "No logs found."
@@ -588,6 +597,12 @@ health_score = max(
         )
     )
 )
+
+if len(latest) < 5 and critical_ratio >= 0.5:
+    health_score = max(
+        health_score,
+        65
+    )
 
 # ===================================================
 # EXECUTIVE KPIs

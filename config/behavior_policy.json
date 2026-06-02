@@ -79,7 +79,16 @@
       "konsole",
       "gnome-terminal",
       "xfce4-terminal",
-      "xterm"
+      "xterm",
+      "nano",
+      "vim",
+      "vi",
+      "nvim",
+      "emacs",
+      "gedit",
+      "mousepad",
+      "kate",
+      "leafpad"
     ]
   },
   "critical_process_hints": [

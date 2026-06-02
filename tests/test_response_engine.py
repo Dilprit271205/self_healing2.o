@@ -158,6 +158,35 @@ def test_catastrophic_suppressed_category_is_still_capped_without_override():
             process.wait(timeout=5)
 
 
+def test_nano_editor_process_is_never_quarantined():
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "nano",
+                "cmdline": "nano notes.txt",
+                "exe": "/usr/bin/nano",
+            },
+            persistence_state={
+                "stage": "quarantine",
+                "persistent": True,
+                "confirmed_behavior": True,
+            },
+        )
+
+        assert result["stage"] in {"observe", "throttle"}
+        assert psutil.Process(process.pid).status() != psutil.STATUS_STOPPED
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
 def test_shell_process_requires_forced_evidence_to_terminate():
     resp = ResponseEngine(safe_mode=False)
 

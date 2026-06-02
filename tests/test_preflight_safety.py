@@ -44,7 +44,7 @@ def test_file_preflight_does_not_attribute_home_burst_to_new_process(monkeypatch
     assert handled == set()
 
 
-def test_file_preflight_stages_specific_subdirectory_without_termination(monkeypatch):
+def test_file_preflight_observes_specific_subdirectory_by_default(monkeypatch):
     calls = []
 
     def fake_healing(**kwargs):
@@ -88,8 +88,98 @@ def test_file_preflight_stages_specific_subdirectory_without_termination(monkeyp
     )
 
     assert handled == {50002}
+    assert calls == []
+
+
+def test_file_preflight_does_not_let_learning_upgrade_default_observe(monkeypatch):
+    def fail_healing(**kwargs):
+        raise AssertionError("file-only observe mode must not call healing")
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        fail_healing,
+    )
+    monkeypatch.delenv(
+        "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
+        raising=False,
+    )
+
+    main_mod.file_burst_window.clear()
+
+    processes = [
+        {
+            "pid": 50003,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python file replication",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/self_healing2.o-main",
+            "age_seconds": 3,
+        }
+    ]
+
+    handled = main_mod.emergency_file_activity_preflight(
+        processes,
+        {
+            "__paths__": {
+                "/home/kali/self_healing2.o-main/worm_lab/file.txt": 400,
+            }
+        },
+    )
+
+    assert handled == {50003}
+
+
+def test_file_preflight_can_contain_in_explicit_lab_mode(monkeypatch):
+    calls = []
+
+    def fake_healing(**kwargs):
+        calls.append(kwargs)
+        return {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "temporarily isolated",
+                "action_taken": True,
+            },
+            "learning": {},
+        }
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        fake_healing,
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
+        "true",
+    )
+
+    main_mod.file_burst_window.clear()
+
+    processes = [
+        {
+            "pid": 50004,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python file replication",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/self_healing2.o-main",
+            "age_seconds": 3,
+        }
+    ]
+
+    handled = main_mod.emergency_file_activity_preflight(
+        processes,
+        {
+            "__paths__": {
+                "/home/kali/self_healing2.o-main/worm_lab/file.txt": 400,
+            }
+        },
+    )
+
+    assert handled == {50004}
     assert calls[0]["persistence_state"]["stage"] == "quarantine"
-    assert "termination_ready" not in calls[0]["persistence_state"]
 
 
 def test_process_storm_preflight_skips_terminal_parent(monkeypatch):

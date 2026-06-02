@@ -6,6 +6,7 @@ from collections import (
 )
 
 import statistics
+import os
 
 
 # ===================================================
@@ -22,28 +23,28 @@ BASELINES = {
     # -----------------------------------------
 
     "cpu": {
-        "mu": 0.5,
-        "sigma": 1.5
+        "mu": 5.0,
+        "sigma": 15.0
     },
 
     "memory": {
-        "mu": 1.2,
-        "sigma": 3.5
+        "mu": 3.0,
+        "sigma": 8.0
     },
 
     "threads": {
-        "mu": 2,
-        "sigma": 3
+        "mu": 8,
+        "sigma": 16
     },
 
     "connections": {
-        "mu": 0.5,
-        "sigma": 1.0
+        "mu": 2.0,
+        "sigma": 4.0
     },
 
     "file_events": {
-        "mu": 0.5,
-        "sigma": 1.5
+        "mu": 15.0,
+        "sigma": 35.0
     },
 
     # -----------------------------------------
@@ -57,8 +58,8 @@ BASELINES = {
     },
 
     "tree": {
-        "mu": 2,
-        "sigma": 2
+        "mu": 3,
+        "sigma": 5
     },
 
     "trend": {
@@ -77,8 +78,8 @@ BASELINES = {
     },
 
     "remote_ips": {
-        "mu": 1,
-        "sigma": 2
+        "mu": 2,
+        "sigma": 4
     },
 
     "child_similarity": {
@@ -97,7 +98,30 @@ BASELINES = {
 # higher K = more tolerant
 # ===================================================
 
-K = 2.0
+try:
+    K = float(
+        os.getenv(
+            "SELF_HEALING_BASELINE_K",
+            "4.0"
+        )
+    )
+except Exception:
+    K = 4.0
+
+BASELINE_LEARNING_LIMITS = {
+    "cpu": 75,
+    "memory": 45,
+    "threads": 90,
+    "connections": 60,
+    "file_events": 120,
+    "spawn": 8,
+    "tree": 40,
+    "trend": 30,
+    "young_process": 1,
+    "syscall_proxy": 140,
+    "remote_ips": 20,
+    "child_similarity": 0.95
+}
 
 
 # ===================================================
@@ -114,6 +138,12 @@ feature_history = defaultdict(
         lambda: deque(
             maxlen=20
         )
+    )
+)
+
+global_feature_history = defaultdict(
+    lambda: deque(
+        maxlen=500
     )
 )
 
@@ -237,6 +267,20 @@ class BaselineEngine:
                 value
             )
 
+            limit = BASELINE_LEARNING_LIMITS.get(
+                feature
+            )
+
+            if (
+                limit is None
+                or value <= limit
+            ):
+                global_feature_history[
+                    feature
+                ].append(
+                    value
+                )
+
     # ===================================================
     # BASELINE LOOKUP
     # ===================================================
@@ -246,7 +290,7 @@ class BaselineEngine:
         feature
     ):
 
-        return BASELINES.get(
+        static = BASELINES.get(
 
             feature,
 
@@ -255,6 +299,53 @@ class BaselineEngine:
                 "sigma": 1
             }
         )
+
+        history = list(
+            global_feature_history[
+                feature
+            ]
+        )
+
+        if len(history) < 30:
+            return static
+
+        try:
+            mu = statistics.median(
+                history
+            )
+            sigma = statistics.pstdev(
+                history
+            )
+
+            sigma = max(
+                sigma,
+                static.get(
+                    "sigma",
+                    1
+                )
+            )
+
+            mu = max(
+                mu,
+                static.get(
+                    "mu",
+                    0
+                )
+            )
+
+            return {
+                "mu": round(
+                    mu,
+                    3
+                ),
+                "sigma": round(
+                    sigma,
+                    3
+                )
+            }
+
+        except Exception:
+            return static
 
     # ===================================================
     # MOVING AVERAGE
