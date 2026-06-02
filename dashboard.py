@@ -188,6 +188,10 @@ HEALING_LOG = (
     "logs/healing_log.json"
 )
 
+LEARNING_KB_LOG = (
+    "logs/learning_kb.json"
+)
+
 IGNORE_ROOTS = [1, 2]
 
 # ===================================================
@@ -245,6 +249,25 @@ def _load_json_lines(file_path):
         return pd.DataFrame()
 
 
+def _load_json_file(file_path):
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if isinstance(data, dict):
+            rows = list(data.values())
+        elif isinstance(data, list):
+            rows = data
+        else:
+            rows = []
+
+        return pd.DataFrame(rows)
+
+    except Exception:
+        return pd.DataFrame()
+
+
 @st.cache_data(ttl=3)
 def load_process_logs():
 
@@ -263,12 +286,19 @@ def load_healing_logs():
     return _load_json_lines(HEALING_LOG)
 
 
+@st.cache_data(ttl=3)
+def load_learning_kb():
+
+    return _load_json_file(LEARNING_KB_LOG)
+
+
 # ===================================================
 # LOAD DATA
 # ===================================================
 df = load_process_logs()
 entity_df = load_entity_logs()
 healing_df = load_healing_logs()
+learning_kb_df = load_learning_kb()
 
 if df.empty:
 
@@ -1523,6 +1553,128 @@ elif page == "📚 Learning Center":
     st.subheader(
         "📚 Adaptive Learning Center"
     )
+
+    st.subheader(
+        "Behavior Knowledge Base"
+    )
+
+    if learning_kb_df.empty:
+
+        st.info(
+            "No learned behavior patterns yet."
+        )
+
+    else:
+
+        kb = learning_kb_df.copy()
+
+        for col, default in {
+            "confidence": 0,
+            "observations": 0,
+            "action_count": 0,
+            "false_positive_count": 0
+        }.items():
+            if col not in kb.columns:
+                kb[col] = default
+
+        if "last_seen" in kb.columns:
+            kb["last_seen_time"] = pd.to_datetime(
+                kb["last_seen"],
+                unit="s",
+                errors="coerce"
+            )
+
+        k1, k2, k3, k4 = st.columns(4)
+
+        k1.metric("Learned Patterns", len(kb))
+        k2.metric(
+            "Attack Families",
+            kb.get("attack_family", pd.Series(dtype=str)).nunique()
+        )
+
+        malicious_count = (
+            kb.get("disposition", pd.Series(dtype=str))
+            .eq("malicious")
+            .sum()
+        )
+
+        k3.metric("Malicious Patterns", int(malicious_count))
+        k4.metric("Avg Confidence", round(float(kb["confidence"].mean()), 3))
+
+        kb_top = (
+            kb.sort_values(
+                ["confidence", "observations"],
+                ascending=False
+            )
+            .head(12)
+        )
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            family_counts = (
+                kb["attack_family"].value_counts()
+                if "attack_family" in kb.columns
+                else pd.Series(dtype=int)
+            )
+
+            if len(family_counts):
+                fig = px.bar(
+                    x=family_counts.index,
+                    y=family_counts.values,
+                    labels={"x": "Attack Family", "y": "Patterns"},
+                    title="Learned Attack Families"
+                )
+                st.plotly_chart(fig, width="stretch")
+
+        with c2:
+            if "disposition" in kb.columns and len(kb):
+                disp = kb["disposition"].value_counts()
+                fig = px.pie(
+                    values=disp.values,
+                    names=disp.index,
+                    title="Knowledge Disposition"
+                )
+                st.plotly_chart(fig, width="stretch")
+
+        st.subheader("What The EDR Learned")
+
+        display_cols = [
+            "attack_family",
+            "disposition",
+            "confidence",
+            "recommended_stage",
+            "observations",
+            "action_count",
+            "false_positive_count",
+            "last_process_name",
+            "last_label",
+            "last_severity",
+            "summary",
+            "evidence",
+            "last_seen_time"
+        ]
+
+        display_cols = [
+            col
+            for col in display_cols
+            if col in kb_top.columns
+        ]
+
+        st.dataframe(
+            kb_top[display_cols],
+            width="stretch",
+            height=360
+        )
+
+        with st.expander("Knowledge Base Raw Patterns"):
+            st.dataframe(
+                kb.sort_values("observations", ascending=False),
+                width="stretch",
+                height=420
+            )
+
+    st.markdown("---")
 
     if "learning_state" not in latest.columns:
 

@@ -2144,10 +2144,30 @@ def execute_healing(
             )
         )
 
+        learned_stage = (
+            learning_engine
+            .recommend_from_knowledge(
+                process_info=
+                {
+                    **process,
+                    "process_category": features.get(
+                        "process_category",
+                        ""
+                    )
+                },
+
+                classification=
+                classification,
+
+                persistence_stage=
+                recommended_stage
+            )
+        )
+
         persistence_state[
             "stage"
         ] = (
-            recommended_stage
+            learned_stage
         )
 
         if force_stage:
@@ -2193,7 +2213,10 @@ def execute_healing(
             response_result,
 
             trust_state=
-            trust_state
+            trust_state,
+
+            features=
+            features
         )
 
         learning_state = (

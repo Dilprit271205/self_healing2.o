@@ -1,0 +1,52 @@
+{
+  "64d1cbc26805d0f8": {
+    "action_count": 2,
+    "attack_family": "process_storm",
+    "confidence": 0.759,
+    "disposition": "malicious",
+    "evidence": [
+      "behavioral_heuristic_pressure",
+      "cpu_memory_escalation",
+      "large_or_growing_tree",
+      "process_storm_burst",
+      "rapid_child_spawning",
+      "repeated_similar_children",
+      "resource_pressure",
+      "short_lived_recursive_children",
+      "trust_collapse"
+    ],
+    "false_positive_count": 0,
+    "first_seen": 1780384793,
+    "last_label": "worm",
+    "last_pid": 15064,
+    "last_process_name": "python.exe",
+    "last_seen": 1780384881,
+    "last_severity": "critical",
+    "last_stage": "terminate",
+    "observations": 2,
+    "pattern_id": "64d1cbc26805d0f8",
+    "process_category": "unknown",
+    "recommended_stage": "quarantine",
+    "summary": "Learned process storm attack pattern; evidence: behavioral_heuristic_pressure, cpu_memory_escalation, large_or_growing_tree, process_storm_burst."
+  },
+  "ff550d1a10ec9405": {
+    "action_count": 2,
+    "attack_family": "forkbomb",
+    "confidence": 0.777,
+    "disposition": "malicious",
+    "evidence": [],
+    "false_positive_count": 0,
+    "first_seen": 1780384793,
+    "last_label": "forkbomb",
+    "last_pid": 16088,
+    "last_process_name": "python",
+    "last_seen": 1780384881,
+    "last_severity": "critical",
+    "last_stage": "terminate",
+    "observations": 2,
+    "pattern_id": "ff550d1a10ec9405",
+    "process_category": "unknown",
+    "recommended_stage": "quarantine",
+    "summary": "Learned forkbomb attack pattern; evidence: correlated anomalous behavior."
+  }
+}

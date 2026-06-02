@@ -107,6 +107,57 @@ class ResponseEngine:
 
         return False
 
+    def _stage_rank(self, stage):
+        order = {
+            "observe": 0,
+            "trust_recovery": 0,
+            "restrict": 1,
+            "throttle": 1,
+            "isolate": 2,
+            "quarantine": 2,
+            "block_resources": 3,
+            "terminate": 4
+        }
+        return order.get(stage, 0)
+
+    def _cap_stage(self, stage, max_stage):
+        if self._stage_rank(stage) <= self._stage_rank(max_stage):
+            return stage
+
+        return max_stage
+
+    def _apply_false_positive_suppression(
+        self,
+        stage,
+        process_info,
+        persistence_state
+    ):
+        category = policy_engine.infer_category(
+            process_info
+        )
+
+        if not policy_engine.is_suppressed_category(
+            category
+        ):
+            return stage
+
+        if persistence_state.get(
+            "allow_disrupt_suppressed",
+            False
+        ):
+            return stage
+
+        if persistence_state.get(
+            "confirmed_behavior",
+            False
+        ):
+            return self._cap_stage(
+                stage,
+                "throttle"
+            )
+
+        return "observe"
+
     # -----------------------------------------
     # PRIVILEGED ACTIONS (network / cgroup quarantine)
     # guarded by SELF_HEALING_ALLOW_PRIVILEGE env var
@@ -280,6 +331,15 @@ class ResponseEngine:
                     ""
                 ))
             )
+
+            stage = self._apply_false_positive_suppression(
+                stage,
+                process_info,
+                persistence_state
+            )
+            result[
+                "stage"
+            ] = stage
 
             # Protect explicitly configured PIDs (monitor, parent, etc.)
             if self._is_critical_process_hint(

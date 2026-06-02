@@ -6,6 +6,9 @@ from collections import (
 )
 
 import hashlib
+import json
+import os
+import time
 
 
 class LearningEngine:
@@ -50,6 +53,16 @@ class LearningEngine:
             )
         )
 
+        self.kb_path = os.getenv(
+            "SELF_HEALING_KB_PATH",
+            os.path.join(
+                "logs",
+                "learning_kb.json"
+            )
+        )
+
+        self.knowledge_base = self._load_knowledge_base()
+
     # -----------------------------------------
     # SAFE PROCESS IDENTITY
     # prevents spoofing
@@ -82,6 +95,569 @@ class LearningEngine:
             identity.encode()
         ).hexdigest()
 
+    def _load_knowledge_base(self):
+        try:
+            with open(
+                self.kb_path,
+                "r",
+                encoding="utf-8"
+            ) as handle:
+                loaded = json.load(handle)
+
+            if isinstance(
+                loaded,
+                dict
+            ):
+                return loaded
+
+        except Exception:
+            pass
+
+        return {}
+
+    def _save_knowledge_base(self):
+        try:
+            os.makedirs(
+                os.path.dirname(
+                    self.kb_path
+                ),
+                exist_ok=True
+            )
+
+            tmp_path = (
+                self.kb_path
+                + ".tmp"
+            )
+
+            with open(
+                tmp_path,
+                "w",
+                encoding="utf-8"
+            ) as handle:
+                json.dump(
+                    self.knowledge_base,
+                    handle,
+                    indent=2,
+                    sort_keys=True,
+                    default=str
+                )
+
+            os.replace(
+                tmp_path,
+                self.kb_path
+            )
+
+        except Exception:
+            pass
+
+    def _active_signals(
+        self,
+        classification
+    ):
+        signals = (
+            classification.get(
+                "signals",
+                {}
+            )
+            or {}
+        )
+
+        correlated = (
+            signals.get(
+                "correlated_signals",
+                {}
+            )
+            or {}
+        )
+
+        return sorted(
+            name
+            for name, active in correlated.items()
+            if active
+        )
+
+    def _attack_family(
+        self,
+        active_signals,
+        classification
+    ):
+        signals = classification.get(
+            "signals",
+            {}
+        ) or {}
+
+        if signals.get(
+            "forkbomb_detected"
+        ):
+            return "process_storm"
+
+        if signals.get(
+            "replication_detected"
+        ):
+            if "suspicious_rename" in active_signals:
+                return "ransomware_like_file_rename"
+            return "file_replication"
+
+        if signals.get(
+            "fanout_detected"
+        ):
+            return "network_beacon_or_fanout"
+
+        if signals.get(
+            "artifact_abuse_detected"
+        ):
+            return "persistence_or_sensitive_access"
+
+        if signals.get(
+            "thread_storm_detected"
+        ):
+            return "thread_storm"
+
+        if "resource_pressure" in active_signals:
+            return "resource_pressure"
+
+        return classification.get(
+            "label",
+            "normal"
+        )
+
+    def _pattern_key(
+        self,
+        process_info,
+        classification
+    ):
+        active = self._active_signals(
+            classification
+        )
+
+        family = self._attack_family(
+            active,
+            classification
+        )
+
+        category = str(
+            process_info.get(
+                "process_category",
+                process_info.get(
+                    "category",
+                    ""
+                )
+            )
+            or
+            ""
+        )
+
+        if not category:
+            try:
+                from analysis.policy_engine import policy_engine
+
+                category = policy_engine.infer_category(
+                    process_info
+                )
+            except Exception:
+                category = "unknown"
+
+        material = "|".join([
+            family,
+            classification.get(
+                "label",
+                "normal"
+            ),
+            category,
+            ",".join(
+                active[:8]
+            )
+        ])
+
+        digest = hashlib.sha256(
+            material.encode(
+                "utf-8",
+                errors="ignore"
+            )
+        ).hexdigest()[:16]
+
+        return digest, family, active, category
+
+    def _merge_evidence(
+        self,
+        existing,
+        active_signals
+    ):
+        evidence = set(
+            existing.get(
+                "evidence",
+                []
+            )
+        )
+
+        evidence.update(
+            active_signals
+        )
+
+        return sorted(
+            evidence
+        )
+
+    def recommend_from_knowledge(
+        self,
+        process_info,
+        classification,
+        persistence_stage
+    ):
+        key, _, _, _ = self._pattern_key(
+            process_info,
+            classification
+        )
+
+        entry = self.knowledge_base.get(
+            key
+        )
+
+        if not entry:
+            return persistence_stage
+
+        confidence = float(
+            entry.get(
+                "confidence",
+                0
+            )
+        )
+
+        recommended = entry.get(
+            "recommended_stage",
+            persistence_stage
+        )
+
+        disposition = entry.get(
+            "disposition",
+            "unknown"
+        )
+
+        if disposition == "false_positive":
+            return "observe"
+
+        if (
+            disposition == "malicious"
+            and confidence >= 0.72
+        ):
+            return self._more_severe_stage(
+                persistence_stage,
+                recommended
+            )
+
+        return persistence_stage
+
+    def _stage_rank(self, stage):
+        order = {
+            "observe": 0,
+            "restrict": 1,
+            "throttle": 1,
+            "isolate": 2,
+            "quarantine": 2,
+            "block_resources": 3,
+            "terminate": 4
+        }
+
+        return order.get(
+            stage,
+            0
+        )
+
+    def _more_severe_stage(
+        self,
+        current,
+        learned
+    ):
+        if self._stage_rank(
+            learned
+        ) > self._stage_rank(
+            current
+        ):
+            return learned
+
+        return current
+
+    def update_knowledge_base(
+        self,
+        process_info,
+        classification,
+        response_result,
+        trust_state,
+        features=None
+    ):
+        features = features or {}
+        feature_category = features.get(
+            "process_category",
+            ""
+        )
+
+        key, family, active_signals, category = self._pattern_key(
+            {
+                **process_info,
+                "process_category": feature_category
+            },
+            classification
+        )
+
+        now = int(
+            time.time()
+        )
+
+        entry = self.knowledge_base.get(
+            key,
+            {
+                "pattern_id": key,
+                "attack_family": family,
+                "process_category": category,
+                "observations": 0,
+                "action_count": 0,
+                "false_positive_count": 0,
+                "first_seen": now,
+                "last_seen": now,
+                "confidence": 0.5,
+                "recommended_stage": "observe",
+                "disposition": "unknown",
+                "evidence": []
+            }
+        )
+
+        action_taken = bool(
+            response_result.get(
+                "action_taken",
+                False
+            )
+        )
+
+        stage = response_result.get(
+            "stage",
+            "observe"
+        )
+
+        label = classification.get(
+            "label",
+            "normal"
+        )
+
+        severity = classification.get(
+            "severity",
+            "low"
+        )
+
+        suppressed_or_protected = (
+            stage in {
+                "observe",
+                "protected"
+            }
+            and label in {
+                "normal",
+                "suspicious"
+            }
+        )
+
+        entry[
+            "observations"
+        ] += 1
+        entry[
+            "last_seen"
+        ] = now
+        entry[
+            "last_label"
+        ] = label
+        entry[
+            "last_severity"
+        ] = severity
+        entry[
+            "last_stage"
+        ] = stage
+        entry[
+            "last_process_name"
+        ] = process_info.get(
+            "name",
+            "unknown"
+        )
+        entry[
+            "last_pid"
+        ] = process_info.get(
+            "pid"
+        )
+        entry[
+            "evidence"
+        ] = self._merge_evidence(
+            entry,
+            active_signals
+        )
+
+        if action_taken:
+            entry[
+                "action_count"
+            ] += 1
+
+        if suppressed_or_protected:
+            entry[
+                "false_positive_count"
+            ] += 1
+
+        observations = max(
+            entry[
+                "observations"
+            ],
+            1
+        )
+
+        action_rate = (
+            entry[
+                "action_count"
+            ]
+            /
+            observations
+        )
+
+        false_positive_rate = (
+            entry[
+                "false_positive_count"
+            ]
+            /
+            observations
+        )
+
+        risk_signal = max(
+            float(
+                classification.get(
+                    "worm_score",
+                    0
+                )
+            ),
+            float(
+                classification.get(
+                    "confidence",
+                    0
+                )
+            )
+            /
+            100
+        )
+
+        confidence = (
+            risk_signal * 0.45
+            + action_rate * 0.35
+            + min(
+                observations / 10,
+                1
+            ) * 0.20
+            - false_positive_rate * 0.45
+        )
+
+        confidence = max(
+            0,
+            min(
+                1,
+                confidence
+            )
+        )
+
+        entry[
+            "confidence"
+        ] = round(
+            confidence,
+            3
+        )
+
+        if false_positive_rate >= 0.5:
+            entry[
+                "disposition"
+            ] = "false_positive"
+            entry[
+                "recommended_stage"
+            ] = "observe"
+        elif label in {
+            "worm",
+            "forkbomb"
+        } or severity in {
+            "high",
+            "critical"
+        }:
+            entry[
+                "disposition"
+            ] = "malicious"
+
+            if family in {
+                "process_storm",
+                "file_replication",
+                "ransomware_like_file_rename"
+            } and confidence >= 0.82:
+                entry[
+                    "recommended_stage"
+                ] = "terminate"
+            elif confidence >= 0.65:
+                entry[
+                    "recommended_stage"
+                ] = "quarantine"
+            else:
+                entry[
+                    "recommended_stage"
+                ] = "throttle"
+        else:
+            entry[
+                "disposition"
+            ] = "unknown"
+            entry[
+                "recommended_stage"
+            ] = "observe"
+
+        entry[
+            "summary"
+        ] = self._knowledge_summary(
+            entry
+        )
+
+        self.knowledge_base[
+            key
+        ] = entry
+        self._save_knowledge_base()
+
+        return entry
+
+    def _knowledge_summary(
+        self,
+        entry
+    ):
+        family = entry.get(
+            "attack_family",
+            "behavior"
+        ).replace(
+            "_",
+            " "
+        )
+
+        evidence = ", ".join(
+            entry.get(
+                "evidence",
+                []
+            )[:4]
+        )
+
+        disposition = entry.get(
+            "disposition",
+            "unknown"
+        )
+
+        if disposition == "false_positive":
+            return (
+                f"Learned to suppress {family} pattern; "
+                f"evidence: {evidence or 'low-risk runtime behavior'}."
+            )
+
+        if disposition == "malicious":
+            return (
+                f"Learned {family} attack pattern; "
+                f"evidence: {evidence or 'correlated anomalous behavior'}."
+            )
+
+        return (
+            f"Tracking {family} behavior; "
+            f"evidence: {evidence or 'insufficient repeated evidence'}."
+        )
+
     # -----------------------------------------
     # STORE OUTCOME
     # -----------------------------------------
@@ -91,7 +667,8 @@ class LearningEngine:
         process_info,
         classification,
         response_result,
-        trust_state
+        trust_state,
+        features=None
     ):
 
         process_id = (
@@ -257,6 +834,16 @@ class LearningEngine:
                 process_id
             ] = reputation
 
+        kb_entry = self.update_knowledge_base(
+            process_info=process_info,
+            classification=classification,
+            response_result=response_result,
+            trust_state=trust_state,
+            features=features
+        )
+
+        return kb_entry
+
     # -----------------------------------------
     # RESPONSE ADAPTATION
     # slide 18
@@ -400,5 +987,10 @@ class LearningEngine:
                 reputation,
 
             "trust_level":
-                level
+                level,
+
+            "knowledge_patterns":
+                len(
+                    self.knowledge_base
+                )
         }

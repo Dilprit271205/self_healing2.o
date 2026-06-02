@@ -13032,3 +13032,10 @@
 {"timestamp":"2026-06-02T12:21:14","type":"healing","pid":18292,"stage":"terminate","action_taken":true,"status":"terminated"}
 {"timestamp":"2026-06-02T12:21:14","type":"healing","pid":21360,"stage":"terminate","action_taken":true,"status":"terminated"}
 {"timestamp":"2026-06-02T12:21:48","type":"healing","pid":14012,"stage":"quarantine","action_taken":true,"status":"temporarily isolated"}
+{"timestamp":"2026-06-02T12:41:32","type":"healing","pid":12948,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T12:41:53","type":"healing","pid":20584,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T12:41:53","type":"healing","pid":11152,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T12:49:53","type":"healing","pid":17940,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T12:49:53","type":"healing","pid":6508,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T12:51:21","type":"healing","pid":15064,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T12:51:21","type":"healing","pid":16088,"stage":"terminate","action_taken":true,"status":"terminated"}

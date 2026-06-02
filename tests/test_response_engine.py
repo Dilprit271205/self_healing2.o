@@ -41,6 +41,92 @@ def test_safe_process_is_not_terminated():
             process.wait(timeout=5)
 
 
+def test_dashboard_process_is_not_quarantined_or_suspended():
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "python",
+                "cmdline": "streamlit run dashboard.py",
+                "exe": sys.executable,
+            },
+            persistence_state={
+                "stage": "quarantine",
+                "persistent": True,
+                "confidence": 0.9,
+            },
+        )
+
+        assert result["stage"] == "observe"
+        assert result["action_taken"] is False
+        assert process.poll() is None
+        assert psutil.Process(process.pid).status() != psutil.STATUS_STOPPED
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
+def test_suppressed_category_termination_ready_is_observed_without_confirmed_behavior():
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "Code",
+                "cmdline": "code --remote vscode-server",
+                "exe": "/usr/bin/code",
+            },
+            persistence_state={
+                "stage": "terminate",
+                "termination_ready": True,
+            },
+        )
+
+        assert result["stage"] == "observe"
+        assert result["action_taken"] is False
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
+def test_confirmed_suppressed_category_is_capped_at_throttle():
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "qterminal",
+                "cmdline": "qterminal running test harness",
+                "exe": "/usr/bin/qterminal",
+            },
+            persistence_state={
+                "stage": "quarantine",
+                "confirmed_behavior": True,
+            },
+        )
+
+        assert result["stage"] == "throttle"
+        assert psutil.Process(process.pid).status() != psutil.STATUS_STOPPED
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
 def test_shell_process_requires_forced_evidence_to_terminate():
     resp = ResponseEngine(safe_mode=False)
 
