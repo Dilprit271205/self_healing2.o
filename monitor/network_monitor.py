@@ -77,7 +77,8 @@ class NetworkMonitor:
                 lambda: {
                     "connections": 0,
                     "ports": set(),
-                    "remote_ips": set()
+                    "remote_ips": set(),
+                    "loopback_connections": 0
                 }
             )
 
@@ -99,6 +100,18 @@ class NetworkMonitor:
                     pid_stats[pid]["remote_ips"].add(
                         conn.raddr.ip
                     )
+
+                    if conn.raddr.ip in {
+                        "127.0.0.1",
+                        "::1"
+                    }:
+                        pid_stats[pid]["loopback_connections"] += 1
+
+                if conn.laddr and conn.laddr.ip in {
+                    "127.0.0.1",
+                    "::1"
+                }:
+                    pid_stats[pid]["loopback_connections"] += 1
 
             for pid, stats in pid_stats.items():
 
@@ -139,6 +152,10 @@ class NetworkMonitor:
                 remote_ips = len(
                     stats["remote_ips"]
                 )
+
+                loopback_connections = stats[
+                    "loopback_connections"
+                ]
 
                 scanning_score = 0
 
@@ -181,6 +198,9 @@ class NetworkMonitor:
 
                     "remote_ips":
                         remote_ips,
+
+                    "loopback_connections":
+                        loopback_connections,
 
                     "scanning_score":
                         round(

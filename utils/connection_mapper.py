@@ -44,6 +44,12 @@ def map_connections(
                         0
                     ),
 
+                "loopback_connections":
+                    info.get(
+                        "loopback_connections",
+                        0
+                    ),
+
                 "scanning_score":
                     info.get(
                         "scanning_score",

@@ -167,6 +167,13 @@ class ExtractorEngine:
             )
         )
 
+        loopback_connections = (
+            network_info.get(
+                "loopback_connections",
+                0
+            )
+        )
+
         scanning_score = (
             network_info.get(
                 "scanning_score",
@@ -415,6 +422,9 @@ class ExtractorEngine:
 
             "f_remote_ips":
                 remote_ips,
+
+            "f_loopback_connections":
+                loopback_connections,
 
             "f_scanning_score":
                 scanning_score,

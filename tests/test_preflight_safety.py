@@ -44,6 +44,23 @@ def test_file_preflight_does_not_attribute_home_burst_to_new_process(monkeypatch
     assert handled == set()
 
 
+def test_file_preflight_ignores_self_generated_log_bursts():
+    main_mod.file_burst_window.clear()
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [],
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/logs/system_log.json": 500,
+                "/home/kali/Downloads/self_healing2.o-main/__pycache__/main.pyc": 300,
+            }
+        },
+    )
+
+    assert handled == set()
+    assert main_mod.file_burst_window == {}
+
+
 def test_file_preflight_observes_specific_subdirectory_by_default(monkeypatch):
     calls = []
 
@@ -62,6 +79,10 @@ def test_file_preflight_observes_specific_subdirectory_by_default(monkeypatch):
         main_mod,
         "execute_healing",
         fake_healing,
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "false",
     )
 
     main_mod.file_burst_window.clear()
@@ -104,6 +125,10 @@ def test_file_preflight_does_not_let_learning_upgrade_default_observe(monkeypatc
         "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
         raising=False,
     )
+    monkeypatch.setenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "false",
+    )
 
     main_mod.file_burst_window.clear()
 
@@ -131,6 +156,59 @@ def test_file_preflight_does_not_let_learning_upgrade_default_observe(monkeypatc
     assert handled == {50003}
 
 
+def test_file_preflight_terminates_explicit_lab_burst(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.delenv(
+        "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
+        raising=False,
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "true",
+    )
+
+    main_mod.file_burst_window.clear()
+
+    processes = [
+        {
+            "pid": 50006,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python file lab",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "age_seconds": 3,
+        }
+    ]
+
+    handled = main_mod.emergency_file_activity_preflight(
+        processes,
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/edr_file_modification_test/file_1.txt": 180,
+            }
+        },
+    )
+
+    assert handled == {50006}
+    assert calls
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["persistence_state"]["force_terminate"] is True
+
+
 def test_file_preflight_uses_recent_exited_process_for_attribution(monkeypatch):
     calls = []
 
@@ -149,6 +227,10 @@ def test_file_preflight_uses_recent_exited_process_for_attribution(monkeypatch):
     monkeypatch.delenv(
         "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
         raising=False,
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "false",
     )
 
     main_mod.file_burst_window.clear()
@@ -202,6 +284,10 @@ def test_file_preflight_can_contain_in_explicit_lab_mode(monkeypatch):
     monkeypatch.setenv(
         "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
         "true",
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "false",
     )
 
     main_mod.file_burst_window.clear()
@@ -346,3 +432,315 @@ def test_deep_recursive_process_tree_triggers_emergency(monkeypatch):
     assert calls[0]["persistence_state"]["stage"] == "terminate"
     assert calls[0]["features"]["f_proc_tree"] >= 30
     assert calls[0]["features"]["f_recursive_depth"] >= 4
+
+
+def test_lab_localhost_beaconing_terminates(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "true",
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    processes = [
+        {
+            "pid": 62000,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python Test8.py",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "age_seconds": 2,
+        }
+    ]
+
+    handled = main_mod.emergency_lab_behavior_preflight(
+        processes,
+        {
+            62000: {
+                "connections": 4,
+                "connection_velocity": 3,
+                "loopback_connections": 4,
+            }
+        },
+    )
+
+    assert handled == {62000}
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["features"]["f_localhost_beaconing"] == 1
+
+
+def test_lab_persistence_artifact_terminates(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "true",
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    processes = [
+        {
+            "pid": 62001,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python Test9.py persistence startup autorun",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "age_seconds": 2,
+        }
+    ]
+
+    handled = main_mod.emergency_lab_behavior_preflight(
+        processes,
+        {},
+    )
+
+    assert handled == {62001}
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["features"]["f_persistence_artifact"] == 1
+
+
+def test_lab_behavior_preflight_respects_production_safe_mode(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "false",
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    handled = main_mod.emergency_lab_behavior_preflight(
+        [
+            {
+                "pid": 62002,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python Test8.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 2,
+            }
+        ],
+        {
+            62002: {
+                "connections": 4,
+                "connection_velocity": 3,
+                "loopback_connections": 4,
+            }
+        },
+    )
+
+    assert handled == set()
+    assert calls == []
+
+
+def test_lab_thread_storm_terminates(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv("SELF_HEALING_LAB_CONTAINMENT", "true")
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    handled = main_mod.emergency_lab_behavior_preflight(
+        [
+            {
+                "pid": 62003,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python Test2.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "threads": 95,
+                "age_seconds": 2,
+            }
+        ],
+        {},
+    )
+
+    assert handled == {62003}
+    assert calls[0]["features"]["f_thread_storm"] == 1
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+
+
+def test_lab_cpu_exhaustion_terminates(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv("SELF_HEALING_LAB_CONTAINMENT", "true")
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    handled = main_mod.emergency_lab_behavior_preflight(
+        [
+            {
+                "pid": 62004,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python Test3.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "cpu": 91,
+                "threads": 4,
+                "age_seconds": 2,
+            }
+        ],
+        {},
+    )
+
+    assert handled == {62004}
+    assert calls[0]["features"]["f_cpu_exhaustion"] == 1
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+
+
+def test_lab_memory_spike_terminates(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv("SELF_HEALING_LAB_CONTAINMENT", "true")
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    handled = main_mod.emergency_lab_behavior_preflight(
+        [
+            {
+                "pid": 62005,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python Test4.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "memory": 42,
+                "threads": 4,
+                "age_seconds": 2,
+            }
+        ],
+        {},
+    )
+
+    assert handled == {62005}
+    assert calls[0]["features"]["f_memory_spike"] == 1
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+
+
+def test_lab_sensitive_file_access_terminates(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv("SELF_HEALING_LAB_CONTAINMENT", "true")
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    handled = main_mod.emergency_lab_behavior_preflight(
+        [
+            {
+                "pid": 62006,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python Test10.py reads .env passwords credentials.txt",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 2,
+            }
+        ],
+        {},
+    )
+
+    assert handled == {62006}
+    assert calls[0]["features"]["f_sensitive_file_access"] == 1
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+
+
+def test_non_lab_cpu_heavy_process_is_not_terminated(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv("SELF_HEALING_LAB_CONTAINMENT", "true")
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    handled = main_mod.emergency_lab_behavior_preflight(
+        [
+            {
+                "pid": 62007,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python render_job.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/projects/normal_render",
+                "cpu": 98,
+                "threads": 12,
+                "age_seconds": 2,
+            }
+        ],
+        {},
+    )
+
+    assert handled == set()
+    assert calls == []

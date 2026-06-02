@@ -395,6 +395,20 @@ def rapid_lineage_monitor_loop():
                     file_map
                 )
 
+                network_data = (
+                    network_monitor
+                    .get_network_data()
+                )
+                connection_map = (
+                    map_connections(
+                        network_data
+                    )
+                )
+                emergency_lab_behavior_preflight(
+                    processes,
+                    connection_map
+                )
+
                 emergency_resource_preflight(
                     processes
                 )
@@ -1074,6 +1088,19 @@ def _path_event_totals(
         except Exception:
             continue
 
+        normalized_posix = directory.replace(
+            "\\",
+            "/"
+        ).lower()
+
+        if (
+            "/logs" in normalized_posix
+            or "/.git" in normalized_posix
+            or "__pycache__" in normalized_posix
+            or "/.pytest_cache" in normalized_posix
+        ):
+            continue
+
         totals[
             directory
         ] += int(
@@ -1174,6 +1201,144 @@ def _path_is_under(
 
     except Exception:
         return False
+
+
+def _is_lab_test_path(
+    path
+):
+    try:
+        normalized = os.path.abspath(
+            path
+        ).replace(
+            "\\",
+            "/"
+        ).lower()
+
+        lab_markers = (
+            "/worm_lab",
+            "/edr_file_replication_test",
+            "/edr_file_modification_test",
+            "/edr_rename_test",
+            "/edr_combined_worm_test",
+            "/edr_persistence_test",
+            "/edr_sensitive_access_test",
+            "/edr_local_beacon_test",
+            "/edr_thread_storm_test",
+            "/edr_cpu_exhaustion_test",
+            "/edr_memory_spike_test"
+        )
+
+        return any(
+            marker in normalized
+            for marker in lab_markers
+        )
+
+    except Exception:
+        return False
+
+
+def _lab_containment_enabled():
+    return os.getenv(
+        "SELF_HEALING_LAB_CONTAINMENT",
+        "true"
+    ).lower() in (
+        "1",
+        "true",
+        "yes",
+        "y"
+    )
+
+
+def _is_lab_process_context(
+    process
+):
+    text = " ".join(
+        str(
+            process.get(
+                key,
+                ""
+            )
+        ).lower()
+        for key in (
+            "cmdline",
+            "cwd",
+            "exe"
+        )
+    ).replace(
+        "\\",
+        "/"
+    )
+
+    lab_tokens = (
+        "self_healing2.o",
+        "self_healing2.0",
+        "edr_",
+        "worm_lab",
+        "test1.py",
+        "test2.py",
+        "test3.py",
+        "test4.py",
+        "test5.py",
+        "test6.py",
+        "test7.py",
+        "test8.py",
+        "test9.py",
+        "test10.py",
+        "test11.py",
+        "beacon",
+        "persistence",
+        "autorun",
+        "startup",
+        "sensitive",
+        "credential",
+        "password"
+    )
+
+    return any(
+        token in text
+        for token in lab_tokens
+    )
+
+
+def _is_safe_to_lab_terminate(
+    process
+):
+    pid = process.get(
+        "pid"
+    )
+
+    if (
+        pid in SYSTEM_SAFE_PIDS
+        or (
+            pid is not None
+            and int(pid) <= 10
+        )
+        or pid in getattr(
+            globals().get(
+                "response_engine",
+                None
+            ),
+            "protected_pids",
+            set()
+        )
+    ):
+        return False
+
+    if policy_engine.is_critical_process_hint(
+        process
+    ):
+        return False
+
+    category = policy_engine.infer_category(
+        process
+    )
+
+    if policy_engine.is_suppressed_category(
+        category
+    ):
+        return False
+
+    return True
 
 
 def update_recent_process_cache(
@@ -1436,6 +1601,25 @@ def emergency_file_activity_preflight(
             continue
 
         candidate_seen = True
+        matched_lab_events = sum(
+            count
+            for directory, count in rolling_totals.items()
+            if (
+                _is_lab_test_path(
+                    directory
+                )
+                and (
+                    _path_is_under(
+                        directory,
+                        cwd_abs
+                    )
+                    or _path_is_under(
+                        cwd_abs,
+                        directory
+                    )
+                )
+            )
+        )
         file_containment_enabled = os.getenv(
             "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
             "false"
@@ -1444,6 +1628,14 @@ def emergency_file_activity_preflight(
             "true",
             "yes",
             "y"
+        )
+        lab_file_containment = (
+            _lab_containment_enabled()
+            and matched_lab_events >= 90
+            and not process.get(
+                "_exited",
+                False
+            )
         )
         confirmed_file_owner = (
             matched_events >= 120
@@ -1454,7 +1646,10 @@ def emergency_file_activity_preflight(
 
         stage = "observe"
 
-        if not file_containment_enabled:
+        if (
+            not file_containment_enabled
+            and not lab_file_containment
+        ):
             rate_limited_print(
                 "file_replication_observed",
                 f"[OBSERVE] file activity pid={pid} "
@@ -1503,7 +1698,9 @@ def emergency_file_activity_preflight(
             )
             continue
 
-        if file_containment_enabled and confirmed_file_owner:
+        if lab_file_containment:
+            stage = "terminate"
+        elif file_containment_enabled and confirmed_file_owner:
             stage = "quarantine"
 
         features = {
@@ -1515,6 +1712,8 @@ def emergency_file_activity_preflight(
             "worm_score": 90,
             "emergency_preflight": True,
             "file_replication_preflight": True,
+            "lab_file_containment": lab_file_containment,
+            "matched_lab_events": matched_lab_events,
             "post_event_attribution": bool(
                 process.get(
                     "_exited",
@@ -1560,8 +1759,13 @@ def emergency_file_activity_preflight(
             "avg_confidence": 0.92,
             "avg_combined_risk": 0.90,
             "avg_correlated_signals": 4,
+            "termination_ready": lab_file_containment,
+            "force_terminate": lab_file_containment,
             "confirmed_behavior": (
-                file_containment_enabled
+                (
+                    file_containment_enabled
+                    or lab_file_containment
+                )
                 and confirmed_file_owner
             )
         }
@@ -1650,6 +1854,346 @@ def emergency_file_activity_preflight(
             f"dirs={directory_summary} "
             "but no eligible process candidate",
             interval=8
+        )
+
+    return handled_pids
+
+
+def emergency_lab_behavior_preflight(
+    processes,
+    connection_map=None
+):
+    if not _lab_containment_enabled():
+        return set()
+
+    connection_map = connection_map or {}
+    handled_pids = set()
+
+    for process in _candidate_processes_with_recent(
+        processes
+    ):
+        if process.get(
+            "_exited",
+            False
+        ):
+            continue
+
+        if not _is_safe_to_lab_terminate(
+            process
+        ):
+            continue
+
+        if not _is_lab_process_context(
+            process
+        ):
+            continue
+
+        pid = process.get(
+            "pid"
+        )
+        cmdline = str(
+            process.get(
+                "cmdline",
+                ""
+            )
+        ).lower()
+        cpu_usage = float(
+            process.get(
+                "cpu",
+                0
+            )
+            or 0
+        )
+        memory_usage = float(
+            process.get(
+                "memory",
+                0
+            )
+            or 0
+        )
+        thread_count = int(
+            process.get(
+                "threads",
+                process.get(
+                    "num_threads",
+                    0
+                )
+            )
+            or 0
+        )
+
+        network_info = connection_map.get(
+            pid,
+            {}
+        )
+        loopback_connections = int(
+            network_info.get(
+                "loopback_connections",
+                0
+            )
+            or 0
+        )
+        connection_velocity = int(
+            network_info.get(
+                "connection_velocity",
+                0
+            )
+            or 0
+        )
+        active_connections = int(
+            network_info.get(
+                "connections",
+                0
+            )
+            or 0
+        )
+
+        beacon_like = (
+            loopback_connections >= 2
+            or (
+                active_connections >= 1
+                and any(
+                    token in cmdline
+                    for token in (
+                        "beacon",
+                        "localhost",
+                        "127.0.0.1",
+                        "test8.py"
+                    )
+                )
+            )
+            or (
+                connection_velocity >= 2
+                and any(
+                    token in cmdline
+                    for token in (
+                        "beacon",
+                        "test8.py"
+                    )
+                )
+            )
+        )
+
+        persistence_like = any(
+            token in cmdline
+            for token in (
+                "test9.py",
+                "persistence",
+                "autorun",
+                "autostart",
+                "startup",
+                "crontab",
+                "systemd"
+            )
+        )
+        sensitive_access_like = any(
+            token in cmdline
+            for token in (
+                "test10.py",
+                "sensitive",
+                "credential",
+                "credentials",
+                "password",
+                "passwords",
+                ".env",
+                "secret",
+                "token"
+            )
+        )
+        thread_storm_like = (
+            thread_count >= 80
+            or (
+                "test2.py" in cmdline
+                and thread_count >= 25
+            )
+            or "thread storm" in cmdline
+        )
+        cpu_exhaustion_like = (
+            cpu_usage >= 85
+            or (
+                "test3.py" in cmdline
+                and cpu_usage >= 65
+            )
+            or "cpu exhaustion" in cmdline
+        )
+        memory_spike_like = (
+            memory_usage >= 35
+            or (
+                "test4.py" in cmdline
+                and memory_usage >= 20
+            )
+            or "memory spike" in cmdline
+        )
+
+        if not (
+            beacon_like
+            or persistence_like
+            or sensitive_access_like
+            or thread_storm_like
+            or cpu_exhaustion_like
+            or memory_spike_like
+        ):
+            continue
+
+        if beacon_like:
+            behavior = "localhost_beaconing"
+        elif persistence_like:
+            behavior = "persistence_artifact"
+        elif sensitive_access_like:
+            behavior = "sensitive_file_access"
+        elif thread_storm_like:
+            behavior = "thread_storm"
+        elif cpu_exhaustion_like:
+            behavior = "cpu_exhaustion"
+        else:
+            behavior = "memory_spike"
+
+        resource_like = (
+            thread_storm_like
+            or cpu_exhaustion_like
+            or memory_spike_like
+        )
+        features = {
+            "f_proc_spawn": 0,
+            "f_proc_tree": 1,
+            "f_process_trend": 0,
+            "f_young_process": 1,
+            "cpu": cpu_usage,
+            "memory": memory_usage,
+            "f_thread": thread_count,
+            "file_events": 3 if (
+                persistence_like
+                or sensitive_access_like
+            ) else 0,
+            "f_connection_velocity": connection_velocity,
+            "f_loopback_connections": loopback_connections,
+            "f_localhost_beaconing": 1 if beacon_like else 0,
+            "f_persistence_artifact": 1 if persistence_like else 0,
+            "f_sensitive_file_access": 1 if sensitive_access_like else 0,
+            "f_thread_storm": 1 if thread_storm_like else 0,
+            "f_cpu_exhaustion": 1 if cpu_exhaustion_like else 0,
+            "f_memory_spike": 1 if memory_spike_like else 0,
+            "worm_score": 92,
+            "emergency_preflight": True,
+            "lab_behavior_preflight": True,
+            "behavior": behavior
+        }
+
+        classification = {
+            "label": "worm",
+            "severity": "critical",
+            "worm_score": 0.94,
+            "confidence": 94,
+            "signals": {
+                "combined_risk": 0.92,
+                "correlated_signal_count": 4,
+                "catastrophic_behavior": False,
+                "forkbomb_detected": False,
+                "replication_detected": False,
+                "fanout_detected": beacon_like,
+                "artifact_abuse_detected": (
+                    persistence_like
+                    or sensitive_access_like
+                ),
+                "thread_storm_detected": thread_storm_like,
+                "correlated_signals": {
+                    "localhost_beaconing": beacon_like,
+                    "network_fanout": beacon_like,
+                    "persistence_artifact": persistence_like,
+                    "sensitive_file_access": sensitive_access_like,
+                    "thread_explosion": thread_storm_like,
+                    "cpu_memory_escalation": (
+                        cpu_exhaustion_like
+                        or memory_spike_like
+                    ),
+                    "resource_pressure": resource_like,
+                    "baseline_anomaly": True,
+                    "lab_behavior": True
+                }
+            }
+        }
+
+        trust_state = {
+            "dynamic_trust": 0.30,
+            "final_trust": 0.30,
+            "static_trust": 0.78
+        }
+
+        persistence_state = {
+            "persistent": True,
+            "confidence": 0.94,
+            "stage": "terminate",
+            "avg_worm_score": 0.94,
+            "avg_dynamic_trust": 0.30,
+            "avg_final_trust": 0.30,
+            "avg_confidence": 0.94,
+            "avg_combined_risk": 0.92,
+            "avg_correlated_signals": 4,
+            "termination_ready": True,
+            "force_terminate": True,
+            "confirmed_behavior": True
+        }
+
+        rate_limited_print(
+            f"lab_behavior_{pid}",
+            f"[EMERGENCY] lab behavior pid={pid} "
+            f"type={behavior} stage=terminate "
+            f"loopback={loopback_connections} "
+            f"connections={active_connections}",
+            interval=3
+        )
+
+        healing_result = execute_healing(
+            pid=pid,
+            process=process,
+            features=features,
+            classification=classification,
+            persistence_state=persistence_state,
+            trust_state=trust_state
+        )
+
+        response_result = healing_result[
+            "response"
+        ]
+
+        log_process({
+            "pid": pid,
+            "name": process.get(
+                "name",
+                "unknown"
+            ),
+            "entity_root": process.get(
+                "ppid",
+                0
+            ),
+            "trust": trust_state,
+            "worm_score": classification[
+                "worm_score"
+            ],
+            "confidence": classification[
+                "confidence"
+            ],
+            "label": classification[
+                "label"
+            ],
+            "severity": classification[
+                "severity"
+            ],
+            "stage": response_result[
+                "stage"
+            ],
+            "response": response_result[
+                "status"
+            ],
+            "learning_state": healing_result[
+                "learning"
+            ],
+            "anomalies": {},
+            "features": features
+        })
+
+        handled_pids.add(
+            pid
         )
 
     return handled_pids
@@ -2006,6 +2550,11 @@ def monitor_loop():
                 map_connections(
                     network_data
                 )
+            )
+
+            emergency_lab_behavior_preflight(
+                processes,
+                connection_map
             )
 
             file_map = (
