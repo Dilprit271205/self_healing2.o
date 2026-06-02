@@ -31,7 +31,15 @@ class NetworkMonitor:
 
         self.cached_network_data = {}
 
-        self.scan_interval = 8
+        try:
+            self.scan_interval = float(
+                __import__("os").getenv(
+                    "SELF_HEALING_NETWORK_SCAN_INTERVAL",
+                    "2"
+                )
+            )
+        except Exception:
+            self.scan_interval = 2
 
 
     # =====================================

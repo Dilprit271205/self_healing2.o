@@ -43,7 +43,10 @@ class PersistenceEngine:
         # slide 15
         # -----------------------------------------
         # default delta (entries required to evaluate persistence)
-        self.delta = 3
+        self.delta = policy_engine.get(
+            "persistence.default_loops",
+            2
+        )
 
         # allow override from environment for tuning
         try:

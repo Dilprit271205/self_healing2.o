@@ -209,8 +209,17 @@ class WormClassifier:
             features.get("false_positive_suppression", 0)
         )
 
+        process_storm_burst = (
+            tree_size >= 18
+            and repeated_child_count >= 8
+            and child_similarity >= 0.50
+            and short_lived_children >= 0.50
+        )
+
+        file_burst = file_events >= 50
+
         correlated_signals = {
-            "rapid_child_spawning": fork_rate >= 3,
+            "rapid_child_spawning": fork_rate >= 3 or process_storm_burst,
             "large_or_growing_tree": tree_size >= 12 or tree_growth >= 6,
             "repeated_similar_children": (
                 repeated_child_count >= 3 and child_similarity >= 0.60
@@ -220,10 +229,11 @@ class WormClassifier:
             ),
             "thread_explosion": thread_signal >= 0.45,
             "cpu_memory_escalation": temporal_signal >= 0.45,
-            "file_replication": file_events >= 20 and fork_rate >= 1,
+            "file_replication": file_burst or (file_events >= 20 and fork_rate >= 1),
             "network_fanout": network_signal >= 0.45,
             "baseline_anomaly": aggregate_anomaly >= 0.45,
             "trust_collapse": final_trust <= 0.55 or dynamic_trust <= 0.55,
+            "process_storm_burst": process_storm_burst,
         }
 
         correlated_signal_count = sum(
@@ -249,9 +259,11 @@ class WormClassifier:
         )
 
         forkbomb_detected = (
-            correlated_signal_count >= 4
+            correlated_signal_count >= 3
             and propagation_signal >= 0.35
             and (
+                process_storm_burst
+                or
                 correlated_signals["repeated_similar_children"]
                 or correlated_signals["short_lived_recursive_children"]
                 or catastrophic_behavior

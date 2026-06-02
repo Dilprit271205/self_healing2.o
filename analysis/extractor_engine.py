@@ -118,12 +118,13 @@ class ExtractorEngine:
             0
         )
 
-        # fallback because monitor
-        # currently logs PID 0
         if file_events == 0:
-            file_events = file_map.get(
-                0,
-                0
+            file_events = self._path_events_for_process(
+                process,
+                file_map.get(
+                    "__paths__",
+                    {}
+                )
             )
 
         # -----------------------------------------
@@ -438,6 +439,50 @@ class ExtractorEngine:
             "cmdline":
                 cmdline
         }
+
+    def _path_events_for_process(
+        self,
+        process,
+        path_events
+    ):
+        try:
+            import os
+
+            cwd = process.get(
+                "cwd",
+                ""
+            )
+
+            if not cwd:
+                return 0
+
+            cwd = os.path.abspath(
+                cwd
+            )
+
+            total = 0
+
+            for path, count in path_events.items():
+                try:
+                    event_path = os.path.abspath(
+                        path
+                    )
+
+                    if (
+                        event_path == cwd
+                        or
+                        event_path.startswith(
+                            cwd + os.sep
+                        )
+                    ):
+                        total += count
+                except Exception:
+                    continue
+
+            return total
+
+        except Exception:
+            return 0
 
     def _descendant_count(
         self,

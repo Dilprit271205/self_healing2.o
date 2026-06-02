@@ -1,7 +1,7 @@
 {
   "persistence": {
-    "default_loops": 3,
-    "termination_loops": 3,
+    "default_loops": 2,
+    "termination_loops": 2,
     "catastrophic_loops": 1,
     "cooldown_loops": 2
   },

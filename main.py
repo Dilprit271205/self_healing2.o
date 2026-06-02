@@ -100,7 +100,15 @@ from logger.logger import (
 # ===================================================
 # CONFIG
 # ===================================================
-MONITOR_INTERVAL = 10
+try:
+    MONITOR_INTERVAL = float(
+        os.getenv(
+            "SELF_HEALING_MONITOR_INTERVAL",
+            "2"
+        )
+    )
+except Exception:
+    MONITOR_INTERVAL = 2.0
 SYSTEM_SAFE_PIDS = {
     0,
     1,

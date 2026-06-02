@@ -6,6 +6,7 @@ from threading import Lock
 # THREAD-SAFE FILE EVENT STORE
 # ==========================================
 file_events = Counter()
+path_events = Counter()
 
 file_lock = Lock()
 
@@ -15,14 +16,21 @@ file_lock = Lock()
 # thread safe
 # ==========================================
 def record_file_event(
-    pid
+    pid,
+    path=None
 ):
 
     with file_lock:
 
-        file_events[
-            pid
-        ] += 1
+        if pid is not None:
+            file_events[
+                pid
+            ] += 1
+
+        if path:
+            path_events[
+                path
+            ] += 1
 
 
 # ==========================================
@@ -32,6 +40,7 @@ def record_file_event(
 def get_file_map():
 
     global file_events
+    global path_events
 
     with file_lock:
 
@@ -39,7 +48,14 @@ def get_file_map():
             file_events
         )
 
+        current[
+            "__paths__"
+        ] = dict(
+            path_events
+        )
+
         # atomic swap
         file_events = Counter()
+        path_events = Counter()
 
     return current  

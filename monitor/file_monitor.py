@@ -81,7 +81,8 @@ class FileHandler(
                 [
                     "pid",
                     "open_files",
-                    "name"
+                    "name",
+                    "cwd"
                 ]
             ):
 
@@ -146,7 +147,13 @@ class FileHandler(
         if pid:
 
             record_file_event(
-                pid
+                pid,
+                path
+            )
+        else:
+            record_file_event(
+                None,
+                path
             )
 
     def on_modified(
@@ -219,7 +226,9 @@ def start_file_monitor(
 
             "/tmp",
 
-            "/var/tmp"
+            "/var/tmp",
+
+            os.getcwd()
         ]
 
     # ---------------------------------
@@ -270,9 +279,13 @@ def start_file_monitor(
 
                 path,
 
-                # IMPORTANT
-                # prevents inotify crash
-                recursive=False
+                recursive=(
+                    os.getenv(
+                        "SELF_HEALING_FILE_RECURSIVE",
+                        "true"
+                    ).lower()
+                    in ("1", "true", "yes", "y")
+                )
             )
 
             print(
