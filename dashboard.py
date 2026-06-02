@@ -320,7 +320,15 @@ def _load_json_file(file_path):
             data = json.load(f)
 
         if isinstance(data, dict):
-            rows = list(data.values())
+            rows = []
+
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    row = {
+                        "pattern_id": key
+                    }
+                    row.update(value)
+                    rows.append(row)
         elif isinstance(data, list):
             rows = data
         else:
@@ -332,26 +340,41 @@ def _load_json_file(file_path):
         return pd.DataFrame()
 
 
-@st.cache_data(ttl=3)
-def load_process_logs():
+def _file_signature(file_path):
+
+    try:
+        stat = os.stat(file_path)
+        return (
+            stat.st_mtime,
+            stat.st_size
+        )
+    except Exception:
+        return (
+            0,
+            0
+        )
+
+
+@st.cache_data(ttl=1)
+def load_process_logs(_signature):
 
     return _load_json_lines(PROCESS_LOG)
 
 
-@st.cache_data(ttl=3)
-def load_entity_logs():
+@st.cache_data(ttl=1)
+def load_entity_logs(_signature):
 
     return _load_json_lines(ENTITY_LOG)
 
 
-@st.cache_data(ttl=3)
-def load_healing_logs():
+@st.cache_data(ttl=1)
+def load_healing_logs(_signature):
 
     return _load_json_lines(HEALING_LOG)
 
 
-@st.cache_data(ttl=3)
-def load_learning_kb():
+@st.cache_data(ttl=1)
+def load_learning_kb(_signature):
 
     return _load_json_file(LEARNING_KB_LOG)
 
@@ -359,10 +382,15 @@ def load_learning_kb():
 # ===================================================
 # LOAD DATA
 # ===================================================
-df = load_process_logs()
-entity_df = load_entity_logs()
-healing_df = load_healing_logs()
-learning_kb_df = load_learning_kb()
+process_signature = _file_signature(PROCESS_LOG)
+entity_signature = _file_signature(ENTITY_LOG)
+healing_signature = _file_signature(HEALING_LOG)
+learning_signature = _file_signature(LEARNING_KB_LOG)
+
+df = load_process_logs(process_signature)
+entity_df = load_entity_logs(entity_signature)
+healing_df = load_healing_logs(healing_signature)
+learning_kb_df = load_learning_kb(learning_signature)
 
 if df.empty and learning_kb_df.empty:
 
@@ -652,6 +680,224 @@ if len(latest) < 5 and critical_ratio >= 0.5:
         65
     )
 
+
+def _format_file_age(signature):
+
+    try:
+        modified = signature[0]
+        if not modified:
+            return "no file"
+
+        age = max(
+            0,
+            int(
+                pd.Timestamp.now().timestamp()
+                -
+                modified
+            )
+        )
+
+        if age < 60:
+            return f"{age}s ago"
+
+        return f"{round(age / 60, 1)}m ago"
+
+    except Exception:
+        return "unknown"
+
+
+def _recent_alert_rows(process_rows, healing_rows):
+
+    rows = []
+
+    try:
+        if not process_rows.empty:
+            proc = process_rows.copy()
+
+            for col, default in {
+                "severity": "low",
+                "stage": "observe",
+                "label": "normal",
+                "response": "",
+                "worm_score": 0,
+                "final_trust": 1.0,
+                "name": "unknown"
+            }.items():
+                if col not in proc.columns:
+                    proc[col] = default
+
+            proc_alerts = proc[
+                (
+                    proc["severity"].astype(str).str.lower().isin(
+                        ["medium", "high", "critical"]
+                    )
+                )
+                |
+                (
+                    proc["stage"].astype(str).str.lower()
+                    !=
+                    "observe"
+                )
+                |
+                (
+                    proc["label"].astype(str).str.lower()
+                    !=
+                    "normal"
+                )
+            ].tail(20)
+
+            for _, item in proc_alerts.iterrows():
+                rows.append({
+                    "timestamp": item.get("timestamp"),
+                    "source": "process",
+                    "pid": item.get("pid"),
+                    "name": item.get("name"),
+                    "alert": item.get("label"),
+                    "severity": item.get("severity"),
+                    "stage": item.get("stage"),
+                    "status": item.get("response"),
+                    "worm_score": item.get("worm_score"),
+                    "final_trust": item.get("final_trust")
+                })
+
+        if not healing_rows.empty:
+            heal = healing_rows.copy()
+
+            for col, default in {
+                "stage": "observe",
+                "status": "",
+                "action_taken": False
+            }.items():
+                if col not in heal.columns:
+                    heal[col] = default
+
+            heal_alerts = heal[
+                heal["action_taken"].astype(bool)
+                |
+                (
+                    heal["stage"].astype(str).str.lower()
+                    !=
+                    "observe"
+                )
+            ].tail(20)
+
+            for _, item in heal_alerts.iterrows():
+                rows.append({
+                    "timestamp": item.get("timestamp"),
+                    "source": "healing",
+                    "pid": item.get("pid"),
+                    "name": "",
+                    "alert": "response",
+                    "severity": "",
+                    "stage": item.get("stage"),
+                    "status": item.get("status"),
+                    "worm_score": "",
+                    "final_trust": ""
+                })
+
+        if not rows:
+            return pd.DataFrame()
+
+        alert_df = pd.DataFrame(rows)
+        alert_df["timestamp"] = pd.to_datetime(
+            alert_df["timestamp"],
+            errors="coerce"
+        )
+
+        return (
+            alert_df
+            .sort_values("timestamp", ascending=False)
+            .head(20)
+        )
+
+    except Exception:
+        return pd.DataFrame()
+
+
+def _learning_summary(kb_rows, process_rows):
+
+    summary = {
+        "patterns": 0,
+        "malicious": 0,
+        "families": 0,
+        "avg_confidence": 0,
+        "recent": pd.DataFrame()
+    }
+
+    try:
+        if not kb_rows.empty:
+            kb = kb_rows.copy()
+
+            for col, default in {
+                "confidence": 0,
+                "disposition": "",
+                "attack_family": "",
+                "last_seen": 0
+            }.items():
+                if col not in kb.columns:
+                    kb[col] = default
+
+            summary["patterns"] = len(kb)
+            summary["malicious"] = int(
+                kb["disposition"].astype(str).eq("malicious").sum()
+            )
+            summary["families"] = int(
+                kb["attack_family"].astype(str).replace("", pd.NA).nunique()
+            )
+            summary["avg_confidence"] = round(
+                float(
+                    pd.to_numeric(
+                        kb["confidence"],
+                        errors="coerce"
+                    )
+                    .fillna(0)
+                    .mean()
+                ),
+                3
+            )
+
+            if "last_seen" in kb.columns:
+                kb["last_seen_time"] = pd.to_datetime(
+                    kb["last_seen"],
+                    unit="s",
+                    errors="coerce"
+                )
+
+            cols = [
+                "attack_family",
+                "disposition",
+                "confidence",
+                "recommended_stage",
+                "observations",
+                "summary",
+                "last_seen_time"
+            ]
+            cols = [
+                col for col in cols
+                if col in kb.columns
+            ]
+
+            summary["recent"] = (
+                kb.sort_values(
+                    "last_seen",
+                    ascending=False
+                )
+                .head(5)[cols]
+            )
+
+        if not process_rows.empty and "learning_state" in process_rows.columns:
+            learned = process_rows[
+                "learning_state"
+            ].dropna()
+
+            if len(learned) and summary["patterns"] == 0:
+                summary["patterns"] = len(learned)
+
+    except Exception:
+        pass
+
+    return summary
+
 # ===================================================
 # EXECUTIVE KPIs
 # ===================================================
@@ -703,12 +949,22 @@ trust_stability = round(
     2
 )
 
+recent_alerts_df = _recent_alert_rows(
+    df,
+    healing_df
+)
+
+learning_snapshot = _learning_summary(
+    learning_kb_df,
+    df
+)
+
 k1, k2, k3, k4, k5 = (
     st.columns(5)
 )
 
 k1.metric(
-    "⚙️ Active Processes",
+    "⚙️ Alerted Entities",
     active_processes
 )
 
@@ -731,6 +987,98 @@ k5.metric(
     "🚨 Critical",
     critical_processes
 )
+
+st.markdown("---")
+
+fresh1, fresh2, fresh3, fresh4 = st.columns(4)
+
+fresh1.metric(
+    "Process Log Updated",
+    _format_file_age(process_signature)
+)
+
+fresh2.metric(
+    "Healing Log Updated",
+    _format_file_age(healing_signature)
+)
+
+fresh3.metric(
+    "Knowledge Base Updated",
+    _format_file_age(learning_signature)
+)
+
+fresh4.metric(
+    "Dashboard Rows",
+    len(df)
+)
+
+st.subheader(
+    "Live Alerts"
+)
+
+if recent_alerts_df.empty:
+    st.info(
+        "No active alerts in the current log window."
+    )
+else:
+    alert_cols = [
+        "timestamp",
+        "source",
+        "pid",
+        "name",
+        "alert",
+        "severity",
+        "stage",
+        "status",
+        "worm_score",
+        "final_trust"
+    ]
+    alert_cols = [
+        col for col in alert_cols
+        if col in recent_alerts_df.columns
+    ]
+    st.dataframe(
+        recent_alerts_df[alert_cols],
+        width="stretch",
+        height=280
+    )
+
+st.subheader(
+    "Learning Snapshot"
+)
+
+l1, l2, l3, l4 = st.columns(4)
+
+l1.metric(
+    "Learned Patterns",
+    learning_snapshot["patterns"]
+)
+
+l2.metric(
+    "Malicious Patterns",
+    learning_snapshot["malicious"]
+)
+
+l3.metric(
+    "Attack Families",
+    learning_snapshot["families"]
+)
+
+l4.metric(
+    "Avg KB Confidence",
+    learning_snapshot["avg_confidence"]
+)
+
+if not learning_snapshot["recent"].empty:
+    st.dataframe(
+        learning_snapshot["recent"],
+        width="stretch",
+        height=180
+    )
+else:
+    st.info(
+        "The knowledge base has not learned a reusable behavior pattern yet."
+    )
 
 st.markdown("---")
 
