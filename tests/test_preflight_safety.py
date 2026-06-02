@@ -131,6 +131,55 @@ def test_file_preflight_does_not_let_learning_upgrade_default_observe(monkeypatc
     assert handled == {50003}
 
 
+def test_file_preflight_uses_recent_exited_process_for_attribution(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "observe",
+                "status": "monitoring",
+                "action_taken": False,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.delenv(
+        "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
+        raising=False,
+    )
+
+    main_mod.file_burst_window.clear()
+    main_mod.recent_process_cache.clear()
+    main_mod.dead_process_first_seen.clear()
+
+    main_mod.update_recent_process_cache([
+        {
+            "pid": 50005,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python Test5.py",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "age_seconds": 2,
+        }
+    ])
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [],
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/edr_file_replication_test/copy_1.txt": 150,
+            }
+        },
+    )
+
+    assert handled == {50005}
+    assert calls == []
+
+
 def test_file_preflight_can_contain_in_explicit_lab_mode(monkeypatch):
     calls = []
 

@@ -168,6 +168,9 @@ rapid_lineage_stop = threading.Event()
 file_burst_window = defaultdict(list)
 resource_burst_window = defaultdict(list)
 last_console_events = {}
+recent_process_cache = {}
+dead_process_first_seen = {}
+DEAD_PROCESS_GRACE_SECONDS = 12
 
 
 def rate_limited_print(
@@ -366,15 +369,18 @@ def rapid_lineage_monitor_loop():
         interval = float(
             os.getenv(
                 "SELF_HEALING_RAPID_LINEAGE_INTERVAL",
-                "1.5"
+                "1.0"
             )
         )
     except Exception:
-        interval = 1.5
+        interval = 1.0
 
     while not rapid_lineage_stop.is_set():
         try:
             processes = _lightweight_process_snapshot()
+            update_recent_process_cache(
+                processes
+            )
 
             if processes:
                 emergency_process_storm_preflight(
@@ -1170,6 +1176,91 @@ def _path_is_under(
         return False
 
 
+def update_recent_process_cache(
+    processes
+):
+    now = time.time()
+
+    for process in processes:
+        pid = process.get(
+            "pid"
+        )
+
+        if pid is None:
+            continue
+
+        cached = dict(
+            process
+        )
+        cached[
+            "_last_seen"
+        ] = now
+        cached[
+            "_exited"
+        ] = False
+
+        recent_process_cache[
+            pid
+        ] = cached
+        dead_process_first_seen.pop(
+            pid,
+            None
+        )
+
+
+def _candidate_processes_with_recent(
+    processes
+):
+    now = time.time()
+    live_pids = {
+        process.get(
+            "pid"
+        )
+        for process in processes
+    }
+    candidates = [
+        dict(
+            process
+        )
+        for process in processes
+    ]
+
+    for pid, process in list(
+        recent_process_cache.items()
+    ):
+        if pid in live_pids:
+            continue
+
+        last_seen = process.get(
+            "_last_seen",
+            0
+        )
+
+        if now - last_seen > DEAD_PROCESS_GRACE_SECONDS:
+            continue
+
+        candidate = dict(
+            process
+        )
+        candidate[
+            "_exited"
+        ] = True
+        candidate[
+            "age_seconds"
+        ] = min(
+            candidate.get(
+                "age_seconds",
+                9999
+            ),
+            240
+        )
+        candidates.append(
+            candidate
+        )
+
+    return candidates
+
+
 def emergency_file_activity_preflight(
     processes,
     file_map
@@ -1256,7 +1347,9 @@ def emergency_file_activity_preflight(
     candidate_seen = False
 
     for process in sorted(
-        processes,
+        _candidate_processes_with_recent(
+            processes
+        ),
         key=lambda p: p.get(
             "age_seconds",
             9999
@@ -1395,7 +1488,13 @@ def emergency_file_activity_preflight(
                 "features": {
                     "file_events": matched_events,
                     "file_replication_preflight": True,
-                    "containment_enabled": False
+                    "containment_enabled": False,
+                    "post_event_attribution": bool(
+                        process.get(
+                            "_exited",
+                            False
+                        )
+                    )
                 }
             })
 
@@ -1415,7 +1514,13 @@ def emergency_file_activity_preflight(
             "file_events": matched_events,
             "worm_score": 90,
             "emergency_preflight": True,
-            "file_replication_preflight": True
+            "file_replication_preflight": True,
+            "post_event_attribution": bool(
+                process.get(
+                    "_exited",
+                    False
+                )
+            )
         }
 
         classification = {
@@ -1883,6 +1988,9 @@ def monitor_loop():
             processes = (
                 get_process_data()
             )
+            update_recent_process_cache(
+                processes
+            )
             emergency_handled = emergency_process_storm_preflight(
                 processes,
                 {},
@@ -2109,17 +2217,44 @@ def monitor_loop():
                         0.9
                     )
 
-                    if (
-                        classification.get(
-                            "label"
+                    protected_or_suppressed = (
+                        response_engine.is_protected_process(
+                            pid,
+                            process.get(
+                                "name",
+                                ""
+                            ),
+                            process.get(
+                                "cmdline",
+                                ""
+                            ),
+                            process.get(
+                                "exe",
+                                ""
+                            )
                         )
-                        !=
-                        "normal"
-                        or
-                        low_trust
+                        or policy_engine.is_suppressed_category(
+                            policy_engine.infer_category(
+                                process
+                            )
+                        )
+                    )
+
+                    if (
+                        not protected_or_suppressed
+                        and (
+                            classification.get(
+                                "label"
+                            )
+                            !=
+                            "normal"
+                            or
+                            low_trust
+                        )
                     ):
 
-                        print(
+                        rate_limited_print(
+                            f"flagged_{pid}",
                             f"[FLAGGED] pid={pid} "
                             f"name={process_name} "
                             f"label={classification.get('label')} "
@@ -2127,7 +2262,8 @@ def monitor_loop():
                             f"worm_score={classification.get('worm_score')} "
                             f"final_trust={trust_state.get('final_trust')} "
                             f"dynamic_trust={trust_state.get('dynamic_trust')} "
-                            f"static_trust={trust_state.get('static_trust')}"
+                            f"static_trust={trust_state.get('static_trust')}",
+                            interval=10
                         )
 
                     # -------------------------
@@ -2378,6 +2514,7 @@ def cleanup_dead_pids(
 ):
 
     global active_pids
+    now = time.time()
 
     try:
 
@@ -2396,14 +2533,46 @@ def cleanup_dead_pids(
 
         if len(dead):
 
-            print(
+            rate_limited_print(
+                "cleanup_dead_pids",
 
                 f"[CLEANUP] Cleaned "
                 f"{len(dead)} "
-                f"dead processes"
+                f"dead processes",
+                interval=8
             )
 
             for pid in dead:
+                dead_process_first_seen.setdefault(
+                    pid,
+                    now
+                )
+
+                cached = recent_process_cache.get(
+                    pid
+                )
+
+                if cached is not None:
+                    cached[
+                        "_exited"
+                    ] = True
+                    cached.setdefault(
+                        "_last_seen",
+                        now
+                    )
+
+                if (
+                    now
+                    -
+                    dead_process_first_seen.get(
+                        pid,
+                        now
+                    )
+                    <
+                    DEAD_PROCESS_GRACE_SECONDS
+                ):
+                    continue
+
                 remove_trust(pid)
                 process_history.pop(pid, None)
                 thread_history.pop(pid, None)
@@ -2413,6 +2582,29 @@ def cleanup_dead_pids(
                 persistence_engine.history.pop(pid, None)
                 response_engine.response_history.pop(pid, None)
                 entity_history.pop(pid, None)
+                recent_process_cache.pop(pid, None)
+                dead_process_first_seen.pop(pid, None)
+
+        for pid, process in list(
+            recent_process_cache.items()
+        ):
+            last_seen = process.get(
+                "_last_seen",
+                now
+            )
+
+            if (
+                pid not in current_pids
+                and now - last_seen > DEAD_PROCESS_GRACE_SECONDS
+            ):
+                recent_process_cache.pop(
+                    pid,
+                    None
+                )
+                dead_process_first_seen.pop(
+                    pid,
+                    None
+                )
 
         active_pids = (
             current_pids

@@ -110,3 +110,7 @@
 {"timestamp":"2026-06-02T18:04:59","type":"healing","pid":8036,"stage":"terminate","action_taken":true,"status":"terminated"}
 {"timestamp":"2026-06-02T18:15:59","type":"healing","pid":13936,"stage":"terminate","action_taken":true,"status":"terminated"}
 {"timestamp":"2026-06-02T18:15:59","type":"healing","pid":2868,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T18:32:46","type":"healing","pid":19356,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T18:32:46","type":"healing","pid":3964,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T18:34:26","type":"healing","pid":1320,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T18:34:26","type":"healing","pid":6932,"stage":"terminate","action_taken":true,"status":"terminated"}

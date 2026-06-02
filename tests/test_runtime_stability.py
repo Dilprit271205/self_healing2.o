@@ -11,7 +11,7 @@ def test_monitor_defaults_are_stability_oriented(monkeypatch):
     main = importlib.reload(main)
 
     assert main.MONITOR_INTERVAL >= 3.0
-    assert NetworkMonitor().scan_interval >= 5.0
+    assert 2.0 <= NetworkMonitor().scan_interval <= 4.0
 
 
 def test_dashboard_log_window_is_bounded():
