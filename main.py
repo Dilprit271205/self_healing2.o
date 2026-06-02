@@ -327,192 +327,6 @@ def monitor_loop():
 
                         continue
 
-                    # -------------------------
-                    # SUSPECT FILTER
-                    # lightweight early exclusion
-                    # -------------------------
-                    process_name = (
-                        str(process.get(
-                            "name",
-                            ""
-                        ) or "").lower()
-                    )
-
-                    cmdline = (
-                        str(process.get(
-                            "cmdline",
-                            ""
-                        ) or "").lower()
-                    )
-
-                    process_tree_size = len(
-                        entity_map.get(
-                            pid,
-                            []
-                        )
-                    )
-
-                    dashboard_safe_keywords = [
-                        "streamlit",
-                        "dashboard.py",
-                        "dashboard_v1",
-                        "dashboard_v1_backup.py"
-                    ]
-
-                    browser_safe_keywords = [
-                        "chrome",
-                        "chromium",
-                        "firefox",
-                        "brave",
-                        "msedge",
-                        "opera",
-                        "vivaldi",
-                        "code"
-                    ]
-
-                    safe_dashboard_process = (
-                        any(
-                            keyword in cmdline
-                            for keyword
-                            in dashboard_safe_keywords
-                        )
-                        or
-                        any(
-                            keyword in process_name
-                            for keyword
-                            in dashboard_safe_keywords
-                        )
-                    )
-
-                    safe_browser_process = (
-                        any(
-                            keyword in cmdline
-                            for keyword
-                            in browser_safe_keywords
-                        )
-                        or
-                        any(
-                            keyword in process_name
-                            for keyword
-                            in browser_safe_keywords
-                        )
-                    )
-
-                    if safe_dashboard_process or safe_browser_process:
-
-                        static_score = 0.95
-
-                        trust_state = (
-                            trust_engine
-                            .update(
-
-                                pid=
-                                pid,
-
-                                anomaly_vector={
-                                    "cpu": 0,
-                                    "memory": 0,
-                                    "threads": 0,
-                                    "connections": 0,
-                                    "file_events": 0
-                                },
-
-                                static_score=
-                                static_score
-                            )
-                        )
-
-                        classification = {
-                            "label": "normal",
-                            "severity": "low",
-                            "worm_score": 0.0,
-                            "confidence": 0.0,
-                            "dynamic_trust": trust_state["dynamic_trust"],
-                            "final_trust": trust_state["final_trust"]
-                        }
-
-                        persistence_engine.update(
-
-                            pid=
-                            pid,
-
-                            classification=
-                            classification,
-
-                            trust_state=
-                            trust_state
-                        )
-
-                        log_process({
-
-                            "pid":
-                                pid,
-
-                            "name":
-                                process.get(
-                                    "name",
-                                    "unknown"
-                                ),
-
-                            "entity_root":
-                                root_map.get(
-                                    pid,
-                                    process.get(
-                                        "ppid",
-                                        0
-                                    )
-                                ),
-
-                            "trust":
-                                trust_state,
-
-                            "worm_score":
-                                classification[
-                                    "worm_score"
-                                ],
-
-                            "confidence":
-                                classification[
-                                    "confidence"
-                                ],
-
-                            "label":
-                                classification[
-                                    "label"
-                                ],
-
-                            "severity":
-                                classification[
-                                    "severity"
-                                ],
-
-                            "stage":
-                                "observe",
-
-                            "response":
-                                "skipped",
-
-                            "learning_state":
-                                {
-                                    "reputation": 1.0,
-                                    "trust_level": "trusted"
-                                },
-
-                            "anomalies":
-                                {},
-
-                            "features":
-                                {
-                                    "cpu": process["cpu"],
-                                    "memory": process["memory"],
-                                    "connections": process["connections"],
-                                    "threads": process["threads"],
-                                    "open_files": process["open_files"]
-                                }
-                        })
-
-                        continue
-
                     if is_idle_process(process):
 
                         static_score = 0.92
@@ -669,115 +483,29 @@ def monitor_loop():
                     )
 
                     # -------------------------
-                    # STATIC TRUST
-                    # safer fallback
-                    # until static analyzer
-                    # fully integrated
+                    # BASE TRUST
+                    # deliberately behavior-neutral:
+                    # no process name can make a
+                    # process trusted or suspicious.
                     # -------------------------
-                    try:
+                    static_score = 0.85
 
-                        process_name = (
-                            str(process.get(
-                                "name",
-                                ""
-                            ) or "").lower()
+                    if features.get(
+                        "f_young_process",
+                        0
+                    ):
+
+                        static_score = 0.78
+
+                    if features.get(
+                        "false_positive_suppression",
+                        0
+                    ):
+
+                        static_score = max(
+                            static_score,
+                            0.88
                         )
-
-                        trusted_processes = [
-                            "systemd",
-                            "init",
-                            "dbus-daemon",
-                            "networkmanager",
-                            "chrome",
-                            "google-chrome",
-                            "chromium",
-                            "chrome-wrapper",
-                            "chrome_sandbox",
-                            "firefox",
-                            "brave",
-                            "msedge",
-                            "opera",
-                            "vivaldi",
-                            "code",
-                            "sudo",
-                            "bash",
-                            "zsh",
-                            "gnome-shell",
-                            "streamlit",
-                            "nm-applet",
-                            "vmtoolsd",
-                            "xdg-desktop-portal",
-                            "xdg-desktop-portal-gtk",
-                            "glycin-image-rs",
-                            "glycin-heif",
-                            "bwrap",
-                            "qterminal",
-                            "blueman"
-                        ]
-
-                        cmdline = (
-                            str(process.get(
-                                "cmdline",
-                                ""
-                            ) or "").lower()
-                        )
-
-                        # dashboard or safe UI processes
-                        if (
-                            "streamlit" in cmdline
-                            or
-                            "dashboard.py" in cmdline
-                            or
-                            "dashboard_v1" in cmdline
-                            or
-                            process_name == "streamlit"
-                        ):
-
-                            static_score = 0.95
-
-                        # trusted binaries or browsers
-                        elif any(
-                            keyword in process_name
-                            for keyword
-                            in trusted_processes
-                        ):
-
-                            static_score = 0.95
-
-                        elif (
-                            "vscode" in cmdline
-                            or
-                            ".vscode-remote" in cmdline
-                            or
-                            "code-server" in cmdline
-                            or
-                            "shellintegration-bash.sh" in cmdline
-                            or
-                            "cpuusage.sh" in cmdline
-                        ):
-
-                            static_score = 0.95
-
-                        elif process_name in {"python", "python3"}:
-
-                            static_score = 0.75
-
-                        # young / unknown process
-                        elif features.get(
-                            "f_young_process",
-                            0
-                        ):
-
-                            static_score = 0.65
-
-                        # normal fallback
-                        else:
-
-                            static_score = 0.85
-
-                    except:
-
-                        static_score = 0.70
 
                     # -------------------------
                     # TRUST ENGINE
@@ -1209,36 +937,8 @@ def execute_healing(
             recommended_stage
         )
 
-        # Force termination from behavioral classification only.
-        if classification.get("label") in ("worm", "forkbomb"):
-            persistence_state["stage"] = "terminate"
-
-        if classification.get("signals", {}).get("forkbomb_detected"):
-            persistence_state["stage"] = "terminate"
+        if persistence_state.get("catastrophic_ready"):
             persistence_state["force_terminate"] = True
-
-        # Immediate fork-bomb mitigation based on features (env-configurable)
-        try:
-            FORK_IMMEDIATE_RATE = int(os.getenv("SELF_HEALING_FORK_IMMEDIATE_RATE", "12"))
-            FORK_IMMEDIATE_TREE = int(os.getenv("SELF_HEALING_FORK_IMMEDIATE_TREE", "25"))
-        except:
-            FORK_IMMEDIATE_RATE = 12
-            FORK_IMMEDIATE_TREE = 25
-
-        try:
-            if not features.get("safe_process", False):
-                if (
-                    features.get("f_young_process", 0) == 1
-                    and (
-                        features.get("f_proc_spawn", 0) >= FORK_IMMEDIATE_RATE
-                        or
-                        features.get("f_proc_tree", 0) >= FORK_IMMEDIATE_TREE
-                    )
-                ):
-                    persistence_state["stage"] = "terminate"
-                    persistence_state["force_terminate"] = True
-        except Exception:
-            pass
 
         # --------------------------------
         # RESPONSE ENGINE

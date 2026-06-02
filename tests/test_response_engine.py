@@ -31,9 +31,8 @@ def test_safe_process_is_not_terminated():
             persistence_state={"stage": "terminate"},
         )
 
-        assert result["stage"] == "protected"
+        assert result["stage"] == "observe"
         assert result["action_taken"] is False
-        assert "trusted process" in result["status"] or "protected" in result["status"]
         assert process.poll() is None
     finally:
         if process.poll() is None:
@@ -55,7 +54,7 @@ def test_shell_process_requires_forced_evidence_to_terminate():
         persistence_state={"stage": "terminate"},
     )
 
-    assert result["stage"] == "protected"
+    assert result["stage"] == "observe"
     assert result["action_taken"] is False
 
 

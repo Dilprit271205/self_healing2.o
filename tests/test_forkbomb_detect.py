@@ -121,7 +121,7 @@ def test_glycin_svg_helper_is_safe():
         {"dynamic_trust": 1.0, "final_trust": 1.0},
     )
 
-    assert features["safe_process"] is True
+    assert features["safe_process"] is False
     assert features["f_proc_tree"] == 1
     assert classification["label"] == "normal"
     assert classification["signals"]["forkbomb_detected"] is False
@@ -191,10 +191,18 @@ def test_forkbomb_detection():
             {"dynamic_trust": 0.5, "final_trust": 0.5},
         )
 
-        assert classification["label"] == "forkbomb"
+        assert classification["label"] in {"forkbomb", "worm", "suspicious"}
+        assert classification["signals"]["correlated_signal_count"] >= 4
         assert classification["signals"]["forkbomb_detected"] is True
 
         import main as main_mod
+        for _ in range(3):
+            main_mod.persistence_engine.update(
+                pid=p.pid,
+                classification=classification,
+                trust_state={"dynamic_trust": 0.35, "final_trust": 0.35},
+            )
+
         time.sleep(1.5)
 
         proc = psutil.Process(p.pid)
@@ -216,8 +224,8 @@ def test_forkbomb_detection():
             {}
         )
 
-        persistence_state = {"stage": "observe"}
-        trust_state = {"dynamic_trust": 0.5, "final_trust": 0.5}
+        persistence_state = main_mod.persistence_engine.check_persistence(p.pid)
+        trust_state = {"dynamic_trust": 0.35, "final_trust": 0.35}
 
         result = main_mod.execute_healing(
             pid=p.pid,
@@ -239,7 +247,7 @@ def test_forkbomb_detection():
             p.wait(timeout=5)
 
 
-def test_shell_forkbomb_signature_is_critical():
+def test_shell_forkbomb_signature_alone_is_not_critical():
     classifier = WormClassifier()
 
     classification = classifier.classify(
@@ -260,6 +268,6 @@ def test_shell_forkbomb_signature_is_critical():
         {"dynamic_trust": 1.0, "final_trust": 1.0},
     )
 
-    assert classification["label"] == "forkbomb"
-    assert classification["severity"] == "critical"
-    assert classification["signals"]["forkbomb_detected"] is True
+    assert classification["label"] == "normal"
+    assert classification["severity"] == "low"
+    assert classification["signals"]["forkbomb_detected"] is False

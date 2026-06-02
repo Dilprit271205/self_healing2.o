@@ -7,6 +7,7 @@ from collections import (
     deque
 )
 import os
+from analysis.policy_engine import policy_engine
 
 
 class PersistenceEngine:
@@ -46,7 +47,10 @@ class PersistenceEngine:
 
         # allow override from environment for tuning
         try:
-            env_delta = int(os.getenv("SELF_HEALING_PERSISTENCE_DELTA", "3"))
+            env_delta = int(os.getenv(
+                "SELF_HEALING_PERSISTENCE_DELTA",
+                str(policy_engine.get("persistence.default_loops", 3))
+            ))
             if env_delta >= 1:
                 self.delta = env_delta
         except:
@@ -77,6 +81,16 @@ class PersistenceEngine:
         worm_score = classification.get(
             "worm_score",
             0
+        )
+
+        confidence = classification.get(
+            "confidence",
+            0
+        ) / 100
+
+        signals = classification.get(
+            "signals",
+            {}
         )
 
         dynamic_trust = (
@@ -111,7 +125,22 @@ class PersistenceEngine:
                 dynamic_trust,
 
             "final_trust":
-                final_trust
+                final_trust,
+
+            "confidence":
+                confidence,
+
+            "combined_risk":
+                signals.get("combined_risk", 0),
+
+            "correlated_signal_count":
+                signals.get("correlated_signal_count", 0),
+
+            "catastrophic_behavior":
+                signals.get("catastrophic_behavior", False),
+
+            "category_suppressed":
+                signals.get("category_suppressed", False)
         })
 
     # -----------------------------------------
@@ -161,6 +190,7 @@ class PersistenceEngine:
             if x["label"]
             in [
                 "worm",
+                "forkbomb",
                 "suspicious",
                 "anomalous"
             ]
@@ -259,7 +289,32 @@ class PersistenceEngine:
         worm_count = sum(
             1
             for x in recent
-            if x["label"] == "worm"
+            if x["label"] in {"worm", "forkbomb"}
+        )
+
+        avg_confidence = round(
+            sum(x.get("confidence", 0) for x in recent) / self.delta,
+            3
+        )
+
+        avg_combined_risk = round(
+            sum(x.get("combined_risk", 0) for x in recent) / self.delta,
+            3
+        )
+
+        avg_correlated_signals = round(
+            sum(x.get("correlated_signal_count", 0) for x in recent)
+            / self.delta,
+            3
+        )
+
+        catastrophic_count = sum(
+            1 for x in recent if x.get("catastrophic_behavior", False)
+        )
+
+        category_suppressed = any(
+            x.get("category_suppressed", False)
+            for x in recent
         )
 
         # -----------------------------------------
@@ -323,71 +378,64 @@ class PersistenceEngine:
         # slide 24 + slide 16
         # -----------------------------------------
 
-        if avg_dynamic_trust > 0.7:
+        thresholds = policy_engine.response_thresholds()
+        throttle = thresholds.get("throttle", {})
+        quarantine = thresholds.get("quarantine", {})
+        terminate = thresholds.get("terminate", {})
+        catastrophic = thresholds.get("catastrophic_terminate", {})
 
-            if (
-                avg_worm_score >= 0.55
-                and
-                avg_severity >= 0.5
-            ):
-                stage = "restrict"
-            else:
-                stage = "observe"
+        stage = "observe"
 
-        elif 0.55 < avg_dynamic_trust <= 0.7:
-
-            if avg_worm_score < 0.45:
-                stage = "restrict"
-            else:
-                stage = "isolate"
-
-        elif 0.35 < avg_dynamic_trust <= 0.55:
-
-            if avg_worm_score < 0.60:
-                stage = "isolate"
-            else:
-                stage = "block_resources"
-
-        else:
-
-            # severe trust collapse needs strong evidence
-            if (
-                avg_worm_score >= 0.75
-                and
-                avg_severity >= 0.8
-                and
-                avg_final_trust <= 0.5
-                and
-                persistent
-            ):
-                stage = "terminate"
-            else:
-                stage = "block_resources"
-
-        # Strong worm signal may accelerate response, but only on high confidence.
         if (
-            worm_count >= 2
-            and
-            avg_severity >= 0.80
-            and
             persistent
-            and
-            avg_final_trust <= 0.85
+            and avg_combined_risk >= throttle.get("risk", 0.45)
+            and avg_confidence >= throttle.get("confidence", 0.40)
         ):
+            stage = "throttle"
+
+        if (
+            persistent
+            and avg_combined_risk >= quarantine.get("risk", 0.68)
+            and avg_confidence >= quarantine.get("confidence", 0.62)
+            and avg_correlated_signals >= 3
+        ):
+            stage = "quarantine"
+
+        terminate_ready = (
+            persistent
+            and worm_count >= max(2, self.delta - 1)
+            and avg_combined_risk >= terminate.get("risk", 0.86)
+            and avg_confidence >= terminate.get("confidence", 0.82)
+            and avg_correlated_signals >= terminate.get("min_correlated_signals", 4)
+            and avg_final_trust <= 0.65
+        )
+
+        catastrophic_ready = (
+            catastrophic_count >= policy_engine.get(
+                "persistence.catastrophic_loops",
+                1
+            )
+            and avg_combined_risk >= catastrophic.get("risk", 0.94)
+            and avg_confidence >= catastrophic.get("confidence", 0.90)
+            and avg_correlated_signals >= catastrophic.get(
+                "min_correlated_signals",
+                5
+            )
+        )
+
+        if terminate_ready or catastrophic_ready:
             stage = "terminate"
 
-        elif (
-            worm_count >= 1
-            and
-            avg_severity >= 0.8
-            and
-            persistent
-            and
-            avg_worm_score >= 0.45
-            and
-            stage in ["observe", "restrict", "isolate"]
+        if (
+            category_suppressed
+            and not terminate_ready
+            and not catastrophic_ready
+            and stage == "quarantine"
         ):
-            stage = "terminate"
+            stage = policy_engine.get(
+                "false_positive_suppression.max_stage_without_confirmed_behavior",
+                "throttle"
+            )
 
         return {
 
@@ -407,5 +455,20 @@ class PersistenceEngine:
                 avg_dynamic_trust,
 
             "avg_final_trust":
-                avg_final_trust
+                avg_final_trust,
+
+            "avg_confidence":
+                avg_confidence,
+
+            "avg_combined_risk":
+                avg_combined_risk,
+
+            "avg_correlated_signals":
+                avg_correlated_signals,
+
+            "termination_ready":
+                terminate_ready,
+
+            "catastrophic_ready":
+                catastrophic_ready
         }

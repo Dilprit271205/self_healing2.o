@@ -1,6 +1,6 @@
-import os
-
 # analysis/worm_classifier.py
+
+from analysis.policy_engine import policy_engine
 
 class WormClassifier:
     """
@@ -82,11 +82,11 @@ class WormClassifier:
         # Avoid flagging stable services that have a large static
         # process tree but are not actively forking.
         tree_pressure = 0
-        if process_growth > 0:
+        if process_growth > 0 or features.get("f_young_process", 0):
             tree_pressure = max(
-                process_tree - 10,
+                process_tree - 8,
                 0
-            ) * 0.20
+            ) * 0.35
 
         propagation_signal = min(
             (
@@ -101,6 +101,16 @@ class WormClassifier:
                 +
                 features.get(
                     "f_young_process",
+                    0
+                ) * 4
+                +
+                features.get(
+                    "f_child_similarity",
+                    0
+                ) * 5
+                +
+                features.get(
+                    "f_short_lived_child_ratio",
                     0
                 ) * 4
             )
@@ -177,22 +187,6 @@ class WormClassifier:
             1
         )
 
-        # =====================================
-        # HEURISTIC WORM SIGNAL
-        # captures model-specific worm stealth
-        # =====================================
-        shell_forkbomb_signature = any(
-            token in str(features.get("cmdline", "")).lower()
-            for token in [
-                ":(){",
-                ":|:",
-                "while true",
-                "done &",
-                "fork bomb",
-                "fork-bomb"
-            ]
-        )
-
         worm_heuristic = min(
             features.get(
                 "worm_score",
@@ -202,69 +196,67 @@ class WormClassifier:
             1
         )
 
-        # Fork-bomb / rapid fork detection
+        # Fork-bomb / rapid propagation behavior.
         fork_rate = abs(features.get("f_proc_spawn", 0))
         tree_size = abs(features.get("f_proc_tree", 0))
+        tree_growth = max(0, fork_rate)
         young = features.get("f_young_process", 0)
-        safe_process = features.get("safe_process", False)
-        
-        # PID table saturation detection (research-based)
-        # Linux default max PIDs: 32768 (can be tuned)
-        try:
-            import resource
-            pid_limit = 32768  # typical Linux
-            # Rough estimate: if process tree > 5% of available PIDs, flag as saturation risk
-            pid_saturation_risk = tree_size > (pid_limit * 0.05)  # >1638 PIDs
-        except:
-            pid_saturation_risk = tree_size > 1500
-        
-        # File propagation heuristic: detect dropped payloads
-        # Worms typically write to /tmp, /var/tmp, /var/spool
         file_events = features.get("file_events", 0)
-        file_propagation_risk = file_events > 20 and fork_rate > 0  # creating files + forking
+        repeated_child_count = features.get("f_repeated_child_count", 0)
+        child_similarity = features.get("f_child_similarity", 0)
+        short_lived_children = features.get("f_short_lived_child_ratio", 0)
+        category_suppressed = bool(
+            features.get("false_positive_suppression", 0)
+        )
 
-        # configurable thresholds via env
-        try:
-            FORK_RATE_YOUNG = int(os.getenv("SELF_HEALING_FORK_RATE_YOUNG", "3"))  # tightened from 4
-            FORK_RATE_ABSOLUTE = int(os.getenv("SELF_HEALING_FORK_RATE_ABSOLUTE", "8"))  # tightened from 10
-            FORK_TREE_THRESHOLD = int(os.getenv("SELF_HEALING_FORK_TREE_THRESHOLD", "15"))  # tightened from 20
-        except:
-            FORK_RATE_YOUNG = 3
-            FORK_RATE_ABSOLUTE = 8
-            FORK_TREE_THRESHOLD = 15
+        correlated_signals = {
+            "rapid_child_spawning": fork_rate >= 3,
+            "large_or_growing_tree": tree_size >= 12 or tree_growth >= 6,
+            "repeated_similar_children": (
+                repeated_child_count >= 3 and child_similarity >= 0.60
+            ),
+            "short_lived_recursive_children": (
+                short_lived_children >= 0.60 and tree_size >= 5
+            ),
+            "thread_explosion": thread_signal >= 0.45,
+            "cpu_memory_escalation": temporal_signal >= 0.45,
+            "file_replication": file_events >= 20 and fork_rate >= 1,
+            "network_fanout": network_signal >= 0.45,
+            "baseline_anomaly": aggregate_anomaly >= 0.45,
+            "trust_collapse": final_trust <= 0.55 or dynamic_trust <= 0.55,
+        }
 
-        forkbomb_detected = False
+        correlated_signal_count = sum(
+            1 for active in correlated_signals.values() if active
+        )
 
-        # Avoid false positives for known safe processes
-        if not safe_process:
-            if shell_forkbomb_signature:
-                forkbomb_detected = True
+        thresholds = policy_engine.catastrophic_thresholds()
+        catastrophic_behavior = (
+            (
+                fork_rate >= thresholds.get("spawn_rate", 40)
+                and tree_size >= thresholds.get("process_tree", 120)
+            )
+            or tree_growth >= thresholds.get("tree_growth", 60)
+            or (
+                file_events >= thresholds.get("file_events", 300)
+                and fork_rate >= 5
+            )
+            or (
+                features.get("cpu", 0) >= thresholds.get("cpu_percent", 95)
+                and features.get("memory", 0) >= thresholds.get("memory_percent", 85)
+                and correlated_signal_count >= 4
+            )
+        )
 
-            # require youth for most rapid-fork detections
-            if young == 1 and fork_rate >= FORK_RATE_YOUNG:
-                forkbomb_detected = True
-
-            # large owned tree in a young process is suspicious
-            if (
-                young == 1
-                and
-                tree_size >= FORK_TREE_THRESHOLD
-                and
-                tree_size > 1
-            ):
-                forkbomb_detected = True
-
-            # absolute extreme fork rate (very aggressive) with youth
-            if young == 1 and fork_rate >= FORK_RATE_ABSOLUTE:
-                forkbomb_detected = True
-                
-            # PID saturation is critical - immediate escalation
-            if pid_saturation_risk:
-                forkbomb_detected = True
-                
-            # File propagation + forking is worm-like
-            if file_propagation_risk:
-                forkbomb_detected = True
+        forkbomb_detected = (
+            correlated_signal_count >= 4
+            and propagation_signal >= 0.35
+            and (
+                correlated_signals["repeated_similar_children"]
+                or correlated_signals["short_lived_recursive_children"]
+                or catastrophic_behavior
+            )
+        )
 
         # =====================================
         # WORM LIKELIHOOD
@@ -320,7 +312,12 @@ class WormClassifier:
                 +
 
                 worm_heuristic
-                * 0.22
+                * 0.16
+
+                +
+
+                min(correlated_signal_count / 6, 1)
+                * 0.18
             ),
 
             3
@@ -354,7 +351,14 @@ class WormClassifier:
             )
 
         if forkbomb_detected:
-            worm_likelihood = round(max(worm_likelihood, 0.99), 3)
+            worm_likelihood = round(max(worm_likelihood, 0.82), 3)
+
+        if catastrophic_behavior and correlated_signal_count >= 5:
+            worm_likelihood = round(max(worm_likelihood, 0.94), 3)
+
+        if category_suppressed and not catastrophic_behavior:
+            if correlated_signal_count < 4:
+                worm_likelihood = round(min(worm_likelihood, 0.58), 3)
 
 
         confidence = round(
@@ -396,11 +400,28 @@ class WormClassifier:
                 +
 
                 worm_heuristic
+                * 0.10
+
+                +
+
+                min(correlated_signal_count / 6, 1)
                 * 0.15
             ),
 
             3
         )
+
+        if forkbomb_detected:
+            combined_risk = round(
+                max(combined_risk, 0.86),
+                3
+            )
+
+        if catastrophic_behavior and correlated_signal_count >= 5:
+            combined_risk = round(
+                max(combined_risk, 0.94),
+                3
+            )
 
         # =====================================
         # FINAL CLASSIFICATION
@@ -418,7 +439,7 @@ class WormClassifier:
             and
             propagation_signal < 0.45
             and
-            worm_heuristic < 0.35
+            correlated_signal_count < 2
         ):
 
             label = "normal"
@@ -428,21 +449,22 @@ class WormClassifier:
         # WORM
         # -----------------------------
         elif (
-            (worm_likelihood >= 0.50 and combined_risk >= 0.40)
+            (
+                worm_likelihood >= 0.74
+                and combined_risk >= 0.62
+                and correlated_signal_count >= 4
+            )
             or
             (
                 propagation_signal >= 0.70
-                and
-                worm_heuristic >= 0.40
-                and
-                aggregate_anomaly >= 0.30
+                and aggregate_anomaly >= 0.45
+                and correlated_signal_count >= 4
             )
         ):
 
             label = "worm"
             severity = "critical"
 
-        # immediate worm classification for fork-bomb behaviour
         elif forkbomb_detected:
             label = "forkbomb"
             severity = "critical"
@@ -459,7 +481,7 @@ class WormClassifier:
                 or
                 aggregate_anomaly >= 0.35
                 or
-                worm_heuristic >= 0.30
+                correlated_signal_count >= 2
             ):
 
                 label = "suspicious"
@@ -499,9 +521,6 @@ class WormClassifier:
                     3
                 ),
 
-            "shell_forkbomb_signature":
-                shell_forkbomb_signature,
-
             "signals": {
 
                 "propagation":
@@ -532,6 +551,18 @@ class WormClassifier:
                     forkbomb_detected,
 
                 "combined_risk":
-                    combined_risk
+                    combined_risk,
+
+                "correlated_signal_count":
+                    correlated_signal_count,
+
+                "correlated_signals":
+                    correlated_signals,
+
+                "catastrophic_behavior":
+                    catastrophic_behavior,
+
+                "category_suppressed":
+                    category_suppressed
             }
         }

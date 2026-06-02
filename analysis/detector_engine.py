@@ -85,6 +85,38 @@ class DetectorEngine:
                         "file_events",
                         0
                     )
+                ),
+
+            "spawn":
+                float(
+                    features.get(
+                        "f_proc_spawn",
+                        0
+                    )
+                ),
+
+            "tree":
+                float(
+                    features.get(
+                        "f_proc_tree",
+                        0
+                    )
+                ),
+
+            "remote_ips":
+                float(
+                    features.get(
+                        "f_remote_ips",
+                        0
+                    )
+                ),
+
+            "child_similarity":
+                float(
+                    features.get(
+                        "f_child_similarity",
+                        0
+                    )
                 )
         }
 

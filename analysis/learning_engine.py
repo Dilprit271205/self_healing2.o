@@ -288,15 +288,21 @@ class LearningEngine:
             downgrade_map = {
 
                 "terminate":
-                    "block_resources",
+                    "quarantine",
+
+                "quarantine":
+                    "throttle",
 
                 "block_resources":
-                    "isolate",
+                    "quarantine",
 
                 "isolate":
-                    "restrict",
+                    "throttle",
 
                 "restrict":
+                    "observe",
+
+                "throttle":
                     "observe"
             }
 
@@ -320,17 +326,23 @@ class LearningEngine:
             upgrade_map = {
 
                 "observe":
-                    "restrict",
+                    "throttle",
 
                 "restrict":
-                    "isolate",
+                    "quarantine",
+
+                "throttle":
+                    "quarantine",
 
                 "isolate":
                     (
-                        "block_resources"
+                        "quarantine"
                     ),
 
                 "block_resources":
+                    "terminate",
+
+                "quarantine":
                     "terminate"
             }
 

@@ -1,11 +1,12 @@
 # analysis/extractor_engine.py
 
 import time
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 
 from utils.file_event_mapper import (
     get_file_map
 )
+from analysis.policy_engine import policy_engine
 
 # ---------------------------------------------------
 # HISTORY STORE
@@ -97,6 +98,11 @@ class ExtractorEngine:
         )
 
         process_tree_size = self._descendant_count(
+            pid,
+            entity
+        )
+
+        child_profile = self._child_profile(
             pid,
             entity
         )
@@ -297,65 +303,20 @@ class ExtractorEngine:
             )
 
         # -----------------------------------------
-        # HEURISTIC WORM SIGNALS
+        # POLICY CONTEXT
         # -----------------------------------------
-        suspicious_name = 0
+        category = policy_engine.infer_category(
+            process
+        )
 
-        safe_names = [
-            "systemd",
-            "systemd-journald",
-            "kthreadd",
-            "kworker",
-            "packagekitd",
-            "gdm",
-            "xorg",
-            "xfce4-session",
-            "xfwm4",
-            "pipewire",
-            "dnsmasq",
-            "mariadbd",
-            "prometheus",
-            "networkmanager",
-            "chrome",
-            "chromium",
-            "firefox",
-            "code",
-            "streamlit",
-            "nm-applet",
-            "nm-dispatcher",
-            "vmtoolsd",
-            "xdg-desktop-portal",
-            "xdg-desktop-portal-gtk",
-            "glycin",
-            "glycin-image-rs",
-            "glycin-heif",
-            "glycin-svg",
-            "bwrap",
-            "qterminal",
-            "blueman",
-            "tumblerd",
-            "obexd",
-            "colord",
-            "udisksd",
-            "gvfsd"
-        ]
+        false_positive_suppression = (
+            1
+            if policy_engine.is_suppressed_category(category)
+            else 0
+        )
 
-        safe_process = (
-            any(
-                keyword in process_name
-                for keyword in safe_names
-            )
-            or
-            any(
-                token in cmdline
-                for token in [
-                    "vscode",
-                    ".vscode-remote",
-                    "code-server",
-                    "shellintegration-bash.sh",
-                    "cpuusage.sh"
-                ]
-            )
+        safe_process = bool(
+            false_positive_suppression
         )
 
         tree_weight = (
@@ -365,17 +326,19 @@ class ExtractorEngine:
             else 1.2
         )
 
-        # strengthen signals: give more weight to scanning, connection velocity and remote IP spread
+        # Runtime-only behavioral worm pressure. Category context can suppress
+        # low-confidence disruption later, but it cannot erase behavior.
         worm_score = (
             (process_growth * 24)
             + (process_trend * 28)
             + (young_process * 20)
-            + (suspicious_name * 26)
             + (syscall_proxy * 0.35)
             + (connection_velocity * 3.5)
             + (remote_ips * 2.5)
             + (scanning_score * 8.0)
             + (min(process_tree_size, 40) * tree_weight)
+            + (child_profile["similarity_ratio"] * 22)
+            + (child_profile["short_lived_ratio"] * 14)
         )
 
         # If scanning was explicitly detected, strongly boost worm score
@@ -384,9 +347,6 @@ class ExtractorEngine:
                 worm_score += 40
         except:
             pass
-
-        if safe_process:
-            worm_score *= 0.08
 
         worm_score = round(
             max(
@@ -421,6 +381,15 @@ class ExtractorEngine:
 
             "f_proc_tree":
                 process_tree_size,
+
+            "f_child_similarity":
+                child_profile["similarity_ratio"],
+
+            "f_repeated_child_count":
+                child_profile["repeated_child_count"],
+
+            "f_short_lived_child_ratio":
+                child_profile["short_lived_ratio"],
 
             "f_process_trend":
                 process_trend,
@@ -458,6 +427,12 @@ class ExtractorEngine:
 
             "safe_process":
                 safe_process,
+
+            "process_category":
+                category,
+
+            "false_positive_suppression":
+                false_positive_suppression,
 
             # metadata
             "cmdline":
@@ -520,3 +495,53 @@ class ExtractorEngine:
             )
 
         return count
+
+    def _child_profile(
+        self,
+        pid,
+        entity
+    ):
+        now = time.time()
+        direct_children = []
+
+        for proc in entity:
+            try:
+                if proc.get("ppid") == pid:
+                    direct_children.append(proc)
+            except Exception:
+                continue
+
+        if not direct_children:
+            return {
+                "similarity_ratio": 0.0,
+                "repeated_child_count": 0,
+                "short_lived_ratio": 0.0
+            }
+
+        signatures = []
+        short_lived = 0
+
+        for child in direct_children:
+            name = str(child.get("name", "") or "").lower()
+            exe = str(child.get("exe", "") or "").lower()
+            signatures.append(
+                (name, exe)
+            )
+
+            try:
+                age = now - float(child.get("create_time", now))
+                if age < 12:
+                    short_lived += 1
+            except Exception:
+                pass
+
+        counts = Counter(signatures)
+        repeated_child_count = max(counts.values()) if counts else 0
+        similarity_ratio = repeated_child_count / max(len(direct_children), 1)
+        short_lived_ratio = short_lived / max(len(direct_children), 1)
+
+        return {
+            "similarity_ratio": round(similarity_ratio, 3),
+            "repeated_child_count": repeated_child_count,
+            "short_lived_ratio": round(short_lived_ratio, 3)
+        }

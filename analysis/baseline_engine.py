@@ -74,6 +74,16 @@ BASELINES = {
     "syscall_proxy": {
         "mu": 4,
         "sigma": 3
+    },
+
+    "remote_ips": {
+        "mu": 1,
+        "sigma": 2
+    },
+
+    "child_similarity": {
+        "mu": 0.25,
+        "sigma": 0.30
     }
 }
 
@@ -198,6 +208,22 @@ class BaselineEngine:
                 float(
                     features.get(
                         "f_syscall_freq",
+                        0
+                    )
+                ),
+
+            "remote_ips":
+                float(
+                    features.get(
+                        "f_remote_ips",
+                        0
+                    )
+                ),
+
+            "child_similarity":
+                float(
+                    features.get(
+                        "f_child_similarity",
                         0
                     )
                 )

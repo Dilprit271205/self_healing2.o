@@ -3,6 +3,7 @@
 import os
 import psutil
 from collections import defaultdict
+from analysis.policy_engine import policy_engine
 
 
 class ResponseEngine:
@@ -77,71 +78,17 @@ class ResponseEngine:
     def _can_override_name_protection(self, force=False):
         return bool(force)
 
-    def _is_desktop_session_process(
+    def _is_critical_process_hint(
         self,
         process_name="",
         cmdline="",
         exe_path=""
     ):
-        process_name = self._normalize_text(
-            process_name
-        )
-        cmdline = self._normalize_text(
-            cmdline
-        )
-        exe_path = self._normalize_text(
-            exe_path
-        )
-
-        desktop_tokens = [
-            "xorg",
-            "xwayland",
-            "wayland",
-            "xfwm4",
-            "xfce4-session",
-            "xfsettingsd",
-            "xfdesktop",
-            "gnome-shell",
-            "gnome-session",
-            "plasmashell",
-            "kwin",
-            "mutter",
-            "cinnamon",
-            "mate-session",
-            "lxsession",
-            "openbox",
-            "lightdm",
-            "gdm",
-            "sddm",
-            "display-manager",
-            "xdg-desktop-portal",
-            "xdg-desktop-portal-gtk",
-            "nm-applet",
-            "nm-dispatcher",
-            "networkmanager",
-            "tumblerd",
-            "glycin",
-            "bwrap",
-            "qterminal",
-            "vmtoolsd",
-            "obexd",
-            "colord",
-            "udisksd",
-            "gvfsd"
-        ]
-
-        joined = " ".join(
-            [
-                process_name,
-                cmdline,
-                exe_path
-            ]
-        )
-
-        return any(
-            token in joined
-            for token in desktop_tokens
-        )
+        return policy_engine.is_critical_process_hint({
+            "name": process_name,
+            "cmdline": cmdline,
+            "exe": exe_path,
+        })
 
     def is_protected_process(self, pid, process_name="", cmdline="", exe_path=""):
         process_name = self._normalize_text(process_name)
@@ -151,75 +98,11 @@ class ResponseEngine:
         if self._is_hard_protected_pid(pid):
             return True
 
-        if self._is_desktop_session_process(
+        if self._is_critical_process_hint(
             process_name,
             cmdline,
             exe_path
         ):
-            return True
-
-        safe_names = [
-            "systemd",
-            "init",
-            "kernel",
-            "gnome-shell",
-            "xorg",
-            "kde",
-            "plasmashell",
-            "bash",
-            "zsh",
-            "sh",
-            "fish",
-            "tmux",
-            "screen",
-            "xterm",
-            "gnome-terminal",
-            "konsole",
-            "terminator",
-            "tilix",
-            "kitty",
-            "alacritty",
-            "wezterm",
-            "hyper",
-            "chrome",
-            "google-chrome",
-            "chromium",
-            "chrome-wrapper",
-            "chrome_sandbox",
-            "firefox",
-            "brave",
-            "msedge",
-            "opera",
-            "vivaldi",
-            "code",
-            "streamlit",
-            "jupyter",
-            "notebook",
-            "explorer.exe",
-            "svchost.exe"
-        ]
-
-        safe_cmd_keywords = [
-            "dashboard.py",
-            "dashboard_v1",
-            "dashboard_v1_backup.py",
-            "streamlit",
-            "jupyter",
-            "notebook",
-            "main.py",
-            "code-server",
-            "vscode-server",
-            "jetbrains",
-            "pycharm"
-        ]
-
-        if any(token in process_name for token in safe_names):
-            return True
-
-        if self._matches_safe_tokens(cmdline, safe_cmd_keywords):
-            return True
-
-        if self._matches_safe_tokens(exe_path, safe_cmd_keywords):
             return True
 
         return False
@@ -335,6 +218,13 @@ class ResponseEngine:
             )
         )
 
+        if stage == "terminate" and not (
+            force_terminate
+            or persistence_state.get("termination_ready")
+            or persistence_state.get("catastrophic_ready")
+        ):
+            stage = "observe"
+
         result = {
 
             "pid": pid,
@@ -392,7 +282,7 @@ class ResponseEngine:
             )
 
             # Protect explicitly configured PIDs (monitor, parent, etc.)
-            if self._is_desktop_session_process(
+            if self._is_critical_process_hint(
                 process_name,
                 cmdline,
                 exe_path
@@ -401,7 +291,7 @@ class ResponseEngine:
                     "pid": pid,
                     "stage": "protected",
                     "action_taken": False,
-                    "status": "desktop/session process"
+                    "status": "critical process hint"
                 }
 
             if (
@@ -415,117 +305,6 @@ class ResponseEngine:
                     "action_taken": False,
                     "status": "protected pid"
                 }
-
-            system_safe = [
-
-                "systemd",
-                "init",
-                "kernel",
-                "explorer.exe",
-                "svchost.exe",
-
-                # Linux desktop safety
-                "gnome-shell",
-                "xorg",
-                "kde",
-                "plasmashell",
-
-                # terminal / shell safety
-                "bash",
-                "zsh",
-                "sh",
-                "fish",
-                "tmux",
-                "screen",
-                "xterm",
-                "gnome-terminal",
-                "konsole",
-                "terminator",
-                "tilix",
-                "kitty",
-                "alacritty",
-                "wezterm",
-                "hyper",
-                "lxterminal",
-
-                # browser safety
-                "chrome",
-                "google-chrome",
-                "chromium",
-                "chrome-wrapper",
-                "chrome_sandbox",
-                "firefox",
-                "brave",
-                "msedge",
-                "opera",
-                "vivaldi",
-
-                # dev tools
-                "code",
-                "streamlit",
-                "jupyter",
-                "notebook"
-            ]
-
-            safe_cmd_keywords = [
-                "dashboard.py",
-                "dashboard_v1",
-                "dashboard_v1_backup.py",
-                "streamlit",
-                "jupyter",
-                "notebook",
-                "main.py"
-            ]
-
-            terminal_safe_cmd_keywords = [
-                "vscode-server",
-                "code-server",
-                "jetbrains",
-                "pycharm",
-                "terminal",
-                "gnome-terminal",
-                "konsole",
-                "alacritty",
-                "wezterm",
-                "kitty"
-            ]
-
-            safe_shell_names = [
-                "bash",
-                "zsh",
-                "sh",
-                "fish",
-                "tmux",
-                "screen"
-            ]
-
-            if (
-                any(keyword in process_name for keyword in system_safe)
-                or
-                any(keyword in process_name for keyword in safe_shell_names)
-                or
-                any(keyword in cmdline for keyword in safe_cmd_keywords)
-                or
-                any(keyword in exe_path for keyword in safe_cmd_keywords)
-                or
-                any(keyword in cmdline for keyword in terminal_safe_cmd_keywords)
-            ):
-
-                if not self._can_override_name_protection(force_terminate):
-                    return {
-
-                        "pid":
-                            pid,
-
-                        "stage":
-                            "protected",
-
-                        "action_taken":
-                            False,
-
-                        "status":
-                            "trusted process"
-                    }
 
             # ---------------------------------
             # OBSERVE
@@ -544,12 +323,13 @@ class ResponseEngine:
             # ---------------------------------
             elif (
                 stage
-                == "restrict"
+                in {"restrict", "throttle"}
             ):
 
                 result = (
                     self.restrict_process(
-                        pid
+                        pid,
+                        stage="throttle"
                     )
                 )
 
@@ -559,12 +339,13 @@ class ResponseEngine:
             # ---------------------------------
             elif (
                 stage
-                == "isolate"
+                in {"isolate", "quarantine"}
             ):
 
                 result = (
                     self.isolate_process(
-                        pid
+                        pid,
+                        stage="quarantine"
                     )
                 )
 
@@ -671,7 +452,8 @@ class ResponseEngine:
     # -----------------------------------------
     def restrict_process(
         self,
-        pid
+        pid,
+        stage="restrict"
     ):
 
         try:
@@ -709,7 +491,7 @@ class ResponseEngine:
                     pid,
 
                 "stage":
-                    "restrict",
+                    stage,
 
                 "action_taken":
                     True,
@@ -728,7 +510,7 @@ class ResponseEngine:
                     pid,
 
                 "stage":
-                    "restrict",
+                    stage,
 
                 "action_taken":
                     False,
@@ -743,7 +525,8 @@ class ResponseEngine:
     # -----------------------------------------
     def isolate_process(
         self,
-        pid
+        pid,
+        stage="isolate"
     ):
 
         try:
@@ -764,7 +547,7 @@ class ResponseEngine:
                     pid,
 
                 "stage":
-                    "isolate",
+                    stage,
 
                 "action_taken":
                     True,
@@ -781,7 +564,7 @@ class ResponseEngine:
                     pid,
 
                 "stage":
-                    "isolate",
+                    stage,
 
                 "action_taken":
                     False,
@@ -920,7 +703,7 @@ class ResponseEngine:
                     "status": "hard protected pid - not terminated"
                 }
 
-            if self._is_desktop_session_process(
+            if self._is_critical_process_hint(
                 proc_name,
                 proc_cmdline,
                 proc_exe
@@ -929,7 +712,7 @@ class ResponseEngine:
                     "pid": pid,
                     "stage": "terminate",
                     "action_taken": False,
-                    "status": "desktop/session process - not terminated"
+                    "status": "critical process hint - not terminated"
                 }
 
             if (
@@ -997,7 +780,7 @@ class ResponseEngine:
                     if self._is_hard_protected_pid(child.pid):
                         continue
 
-                    if self._is_desktop_session_process(
+                    if self._is_critical_process_hint(
                         child_name,
                         child_cmd,
                         child_exe

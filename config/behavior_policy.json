@@ -1,0 +1,89 @@
+{
+  "persistence": {
+    "default_loops": 3,
+    "termination_loops": 3,
+    "catastrophic_loops": 1,
+    "cooldown_loops": 2
+  },
+  "response_thresholds": {
+    "observe": {
+      "risk": 0.25,
+      "confidence": 0.25
+    },
+    "throttle": {
+      "risk": 0.45,
+      "confidence": 0.40
+    },
+    "quarantine": {
+      "risk": 0.68,
+      "confidence": 0.62
+    },
+    "terminate": {
+      "risk": 0.86,
+      "confidence": 0.82,
+      "min_correlated_signals": 4
+    },
+    "catastrophic_terminate": {
+      "risk": 0.94,
+      "confidence": 0.90,
+      "min_correlated_signals": 5
+    }
+  },
+  "catastrophic_behavior": {
+    "spawn_rate": 40,
+    "process_tree": 120,
+    "tree_growth": 60,
+    "file_events": 300,
+    "memory_percent": 85,
+    "cpu_percent": 95
+  },
+  "false_positive_suppression": {
+    "suppressed_categories": [
+      "browser",
+      "ide",
+      "compiler",
+      "container",
+      "virtualization",
+      "dashboard",
+      "remote_dev",
+      "package_manager",
+      "system_update",
+      "multiprocessing",
+      "build_system",
+      "developer_tool"
+    ],
+    "max_stage_without_confirmed_behavior": "throttle"
+  },
+  "category_hints": {
+    "browser": ["chrome", "chromium", "firefox", "brave", "msedge", "opera", "vivaldi"],
+    "ide": ["code", "vscode", "jetbrains", "pycharm", "idea", "clion", "webstorm"],
+    "compiler": ["gcc", "g++", "clang", "clang++", "javac", "rustc", "go build", "cargo"],
+    "container": ["docker", "containerd", "dockerd", "podman", "kubectl", "nerdctl"],
+    "virtualization": ["vmware", "virtualbox", "qemu", "hyper-v", "vbox", "vmtoolsd"],
+    "dashboard": ["streamlit", "dashboard.py", "jupyter", "notebook"],
+    "remote_dev": ["vscode-server", "code-server", ".vscode-remote", "remote-containers"],
+    "package_manager": ["pip", "npm", "yarn", "pnpm", "apt", "dnf", "yum", "pacman", "winget", "choco"],
+    "system_update": ["packagekit", "update", "updater", "windows update"],
+    "multiprocessing": ["multiprocessing", "joblib", "loky", "ray", "dask"],
+    "build_system": ["make", "ninja", "cmake", "msbuild", "gradle", "maven", "webpack", "vite"],
+    "developer_tool": ["git", "ssh", "pytest", "terminal"]
+  },
+  "critical_process_hints": [
+    "systemd",
+    "init",
+    "kernel",
+    "svchost.exe",
+    "explorer.exe",
+    "wininit.exe",
+    "services.exe",
+    "lsass.exe",
+    "csrss.exe",
+    "xorg",
+    "wayland",
+    "gnome-shell",
+    "plasmashell",
+    "xfce4-session",
+    "xfwm4",
+    "networkmanager"
+  ]
+}
