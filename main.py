@@ -634,6 +634,115 @@ def _child_storm_profile(
     }
 
 
+def _descendant_tree_profile(
+    pid,
+    children_by_parent
+):
+    stack = [
+        (
+            child,
+            1
+        )
+        for child in children_by_parent.get(
+            pid,
+            []
+        )
+    ]
+    seen = set()
+    signatures = Counter()
+    young_count = 0
+    total = 0
+    max_depth = 0
+    branching_parents = 0
+
+    while stack:
+        child, depth = stack.pop()
+        child_pid = child.get(
+            "pid"
+        )
+
+        if child_pid in seen:
+            continue
+
+        seen.add(
+            child_pid
+        )
+        total += 1
+        max_depth = max(
+            max_depth,
+            depth
+        )
+
+        signatures[
+            _process_signature(
+                child
+            )
+        ] += 1
+
+        if child.get(
+            "age_seconds",
+            9999
+        ) <= 120:
+            young_count += 1
+
+        grandchildren = children_by_parent.get(
+            child_pid,
+            []
+        )
+
+        if len(grandchildren) >= 2:
+            branching_parents += 1
+
+        stack.extend(
+            (
+                grandchild,
+                depth + 1
+            )
+            for grandchild in grandchildren
+        )
+
+    repeated_descendant_count = (
+        max(
+            signatures.values()
+        )
+        if signatures
+        else 0
+    )
+
+    similarity = (
+        repeated_descendant_count
+        /
+        max(
+            total,
+            1
+        )
+    )
+
+    young_ratio = (
+        young_count
+        /
+        max(
+            total,
+            1
+        )
+    )
+
+    return {
+        "descendants": total,
+        "max_depth": max_depth,
+        "branching_parents": branching_parents,
+        "repeated_descendant_count": repeated_descendant_count,
+        "descendant_similarity": round(
+            similarity,
+            3
+        ),
+        "descendant_young_ratio": round(
+            young_ratio,
+            3
+        )
+    }
+
+
 def _build_children_by_parent(
     processes
 ):
@@ -747,6 +856,11 @@ def emergency_process_storm_preflight(
             children_by_parent
         )
 
+        tree_profile = _descendant_tree_profile(
+            pid,
+            children_by_parent
+        )
+
         catastrophic_storm = (
             profile["direct_children"] >= 12
             and profile["repeated_child_count"] >= 8
@@ -763,16 +877,29 @@ def emergency_process_storm_preflight(
             and descendants >= 20
         )
 
+        deep_recursive_storm = (
+            tree_profile["descendants"] >= 28
+            and tree_profile["max_depth"] >= 4
+            and tree_profile["branching_parents"] >= 4
+            and tree_profile["repeated_descendant_count"] >= 18
+            and tree_profile["descendant_similarity"] >= 0.70
+            and tree_profile["descendant_young_ratio"] >= 0.60
+        )
+
         if not (
             catastrophic_storm
             or emergency_storm
+            or deep_recursive_storm
         ):
             continue
 
         features = {
             "f_proc_spawn": profile["direct_children"],
             "f_proc_tree": descendants,
-            "f_process_trend": profile["direct_children"],
+            "f_process_trend": max(
+                profile["direct_children"],
+                tree_profile["branching_parents"]
+            ),
             "f_young_process": (
                 1
                 if process.get(
@@ -784,11 +911,22 @@ def emergency_process_storm_preflight(
             "f_repeated_child_count": profile[
                 "repeated_child_count"
             ],
-            "f_child_similarity": profile[
-                "child_similarity"
+            "f_child_similarity": max(
+                profile["child_similarity"],
+                tree_profile["descendant_similarity"]
+            ),
+            "f_short_lived_child_ratio": max(
+                profile["young_child_ratio"],
+                tree_profile["descendant_young_ratio"]
+            ),
+            "f_recursive_depth": tree_profile[
+                "max_depth"
             ],
-            "f_short_lived_child_ratio": profile[
-                "young_child_ratio"
+            "f_branching_parents": tree_profile[
+                "branching_parents"
+            ],
+            "f_repeated_descendant_count": tree_profile[
+                "repeated_descendant_count"
             ],
             "file_events": 0,
             "worm_score": 95,
@@ -812,7 +950,8 @@ def emergency_process_storm_preflight(
                     "large_or_growing_tree": True,
                     "repeated_similar_children": True,
                     "short_lived_recursive_children": True,
-                    "process_storm_burst": True
+                    "process_storm_burst": True,
+                    "deep_recursive_tree": deep_recursive_storm
                 }
             }
         }
@@ -845,7 +984,9 @@ def emergency_process_storm_preflight(
             f"repeated={profile['repeated_child_count']} "
             f"similarity={profile['child_similarity']} "
             f"young_ratio={profile['young_child_ratio']} "
-            f"tree={descendants}",
+            f"tree={descendants} "
+            f"depth={tree_profile['max_depth']} "
+            f"branching={tree_profile['branching_parents']}",
             interval=3
         )
 

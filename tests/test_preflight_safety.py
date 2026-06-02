@@ -231,3 +231,69 @@ def test_process_storm_preflight_skips_terminal_parent(monkeypatch):
 
     assert handled == set()
     assert calls == []
+
+
+def test_deep_recursive_process_tree_triggers_emergency(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    now = time.time()
+    processes = [
+        {
+            "pid": 61000,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python Test_Worm.py",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "create_time": now - 4,
+            "age_seconds": 4,
+        }
+    ]
+
+    next_pid = 61001
+    current_level = [61000]
+
+    for _depth in range(5):
+        next_level = []
+        for parent_pid in current_level:
+            for _ in range(2):
+                processes.append({
+                    "pid": next_pid,
+                    "ppid": parent_pid,
+                    "name": "python",
+                    "cmdline": "python Test_Worm.py worker",
+                    "exe": "/usr/bin/python",
+                    "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                    "create_time": now - 1,
+                    "age_seconds": 1,
+                })
+                next_level.append(
+                    next_pid
+                )
+                next_pid += 1
+        current_level = next_level
+
+    handled = main_mod.emergency_process_storm_preflight(
+        processes,
+        {},
+        {},
+    )
+
+    assert 61000 in handled
+    assert calls
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["features"]["f_proc_tree"] >= 30
+    assert calls[0]["features"]["f_recursive_depth"] >= 4

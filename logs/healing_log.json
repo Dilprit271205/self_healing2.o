@@ -108,3 +108,5 @@
 {"timestamp":"2026-06-02T18:01:46","type":"healing","pid":2012,"stage":"terminate","action_taken":true,"status":"terminated"}
 {"timestamp":"2026-06-02T18:04:59","type":"healing","pid":20672,"stage":"terminate","action_taken":true,"status":"terminated"}
 {"timestamp":"2026-06-02T18:04:59","type":"healing","pid":8036,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T18:15:59","type":"healing","pid":13936,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T18:15:59","type":"healing","pid":2868,"stage":"terminate","action_taken":true,"status":"terminated"}
