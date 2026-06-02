@@ -174,6 +174,34 @@ class ExtractorEngine:
             )
         )
 
+        network_event_count = (
+            network_info.get(
+                "network_event_count",
+                0
+            )
+        )
+
+        loopback_event_count = (
+            network_info.get(
+                "loopback_event_count",
+                0
+            )
+        )
+
+        connection_rate = (
+            network_info.get(
+                "connection_rate",
+                0
+            )
+        )
+
+        loopback_connection_rate = (
+            network_info.get(
+                "loopback_connection_rate",
+                0
+            )
+        )
+
         scanning_score = (
             network_info.get(
                 "scanning_score",
@@ -425,6 +453,18 @@ class ExtractorEngine:
 
             "f_loopback_connections":
                 loopback_connections,
+
+            "f_network_event_count":
+                network_event_count,
+
+            "f_loopback_event_count":
+                loopback_event_count,
+
+            "f_connection_rate":
+                connection_rate,
+
+            "f_loopback_connection_rate":
+                loopback_connection_rate,
 
             "f_scanning_score":
                 scanning_score,

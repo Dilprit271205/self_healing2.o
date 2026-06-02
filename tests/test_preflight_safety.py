@@ -515,6 +515,97 @@ def test_behavior_localhost_beaconing_terminates(monkeypatch):
     assert handled == {62000}
     assert calls[0]["persistence_state"]["stage"] == "terminate"
     assert calls[0]["features"]["f_localhost_beaconing"] == 1
+    assert calls[0]["features"]["f_loopback_event_count"] == 0
+
+
+def test_behavior_rolling_localhost_beaconing_terminates(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv(
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
+        "true",
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    handled = main_mod.emergency_behavior_preflight(
+        [
+            {
+                "pid": 62010,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python worker.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/workload",
+                "age_seconds": 2,
+            }
+        ],
+        {
+            62010: {
+                "connections": 1,
+                "connection_velocity": 0,
+                "loopback_connections": 1,
+                "loopback_event_count": 12,
+                "loopback_connection_rate": 1.0,
+                "network_event_count": 12,
+                "connection_rate": 1.0,
+            }
+        },
+    )
+
+    assert handled == {62010}
+    assert calls[0]["features"]["f_localhost_beaconing"] == 1
+    assert calls[0]["features"]["f_loopback_event_count"] == 12
+
+
+def test_behavior_single_loopback_connection_observes(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv(
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
+        "true",
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    handled = main_mod.emergency_behavior_preflight(
+        [
+            {
+                "pid": 62011,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python worker.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/workload",
+                "age_seconds": 2,
+            }
+        ],
+        {
+            62011: {
+                "connections": 1,
+                "connection_velocity": 0,
+                "loopback_connections": 1,
+                "loopback_event_count": 1,
+                "loopback_connection_rate": 0.08,
+            }
+        },
+    )
+
+    assert handled == set()
+    assert calls == []
 
 
 def test_behavior_persistence_artifact_terminates(monkeypatch):

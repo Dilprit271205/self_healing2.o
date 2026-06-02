@@ -150,6 +150,15 @@ class WormClassifier:
                 +
                 min(
                     features.get(
+                        "f_connection_rate",
+                        0
+                    )
+                    / 8,
+                    1
+                )
+                +
+                min(
+                    features.get(
                         "f_remote_ips",
                         0
                     )
@@ -279,20 +288,20 @@ class WormClassifier:
         )
         network_burst = (
             features.get("f_connection_velocity", 0) >= 8
+            or features.get("f_connection_rate", 0) >= 8
+            or features.get("f_network_event_count", 0) >= 12
             or features.get("f_remote_ips", 0) >= 8
             or features.get("f_port_spread", 0) >= 12
             or features.get("f_scanning_detected", False)
         )
         localhost_beaconing = bool(
             features.get("f_localhost_beaconing", 0)
+            or features.get("f_loopback_event_count", 0) >= 8
+            or features.get("f_loopback_connection_rate", 0) >= 0.65
             or (
                 features.get("f_connection_velocity", 0) >= 6
                 and features.get("f_remote_ips", 0) <= 2
-                and (
-                    "127.0.0.1" in cmdline
-                    or "localhost" in cmdline
-                    or features.get("f_loopback_connections", 0) >= 6
-                )
+                and features.get("f_loopback_connections", 0) >= 6
             )
         )
 

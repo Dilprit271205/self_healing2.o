@@ -1903,6 +1903,34 @@ def emergency_behavior_preflight(
             )
             or 0
         )
+        connection_rate = float(
+            network_info.get(
+                "connection_rate",
+                0
+            )
+            or 0
+        )
+        loopback_connection_rate = float(
+            network_info.get(
+                "loopback_connection_rate",
+                0
+            )
+            or 0
+        )
+        network_event_count = int(
+            network_info.get(
+                "network_event_count",
+                0
+            )
+            or 0
+        )
+        loopback_event_count = int(
+            network_info.get(
+                "loopback_event_count",
+                0
+            )
+            or 0
+        )
         active_connections = int(
             network_info.get(
                 "connections",
@@ -1912,8 +1940,16 @@ def emergency_behavior_preflight(
         )
 
         beacon_like = (
-            loopback_connections >= 6
+            (
+                loopback_event_count >= 8
+                and loopback_connection_rate >= 0.65
+            )
+            or (
+                loopback_connections >= 4
+                and loopback_connection_rate >= 0.5
+            )
             or connection_velocity >= 12
+            or connection_rate >= 8
             or active_connections >= 30
         )
 
@@ -1974,7 +2010,11 @@ def emergency_behavior_preflight(
             or thread_storm_like
             or (
                 beacon_like
-                and active_connections >= 10
+                and (
+                    active_connections >= 10
+                    or loopback_event_count >= 8
+                    or network_event_count >= 12
+                )
             )
             or (
                 cpu_exhaustion_like
@@ -2027,6 +2067,11 @@ def emergency_behavior_preflight(
             ) else 0,
             "f_connection_velocity": connection_velocity,
             "f_loopback_connections": loopback_connections,
+            "f_connection_rate": connection_rate,
+            "f_loopback_connection_rate":
+                loopback_connection_rate,
+            "f_network_event_count": network_event_count,
+            "f_loopback_event_count": loopback_event_count,
             "f_localhost_beaconing": 1 if beacon_like else 0,
             "f_persistence_artifact": 1 if persistence_like else 0,
             "f_sensitive_file_access": 1 if sensitive_access_like else 0,
@@ -2099,6 +2144,7 @@ def emergency_behavior_preflight(
             f"[EMERGENCY] behavior pid={pid} "
             f"type={behavior} stage=terminate "
             f"loopback={loopback_connections} "
+            f"loopback_rate={loopback_connection_rate} "
             f"connections={active_connections}",
             interval=3
         )

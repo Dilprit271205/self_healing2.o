@@ -50,6 +50,30 @@ def map_connections(
                         0
                     ),
 
+                "network_event_count":
+                    info.get(
+                        "network_event_count",
+                        0
+                    ),
+
+                "loopback_event_count":
+                    info.get(
+                        "loopback_event_count",
+                        0
+                    ),
+
+                "connection_rate":
+                    info.get(
+                        "connection_rate",
+                        0
+                    ),
+
+                "loopback_connection_rate":
+                    info.get(
+                        "loopback_connection_rate",
+                        0
+                    ),
+
                 "scanning_score":
                     info.get(
                         "scanning_score",

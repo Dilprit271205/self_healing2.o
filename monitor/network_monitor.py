@@ -22,6 +22,13 @@ class NetworkMonitor:
             )
         )
 
+        self.connection_event_history = defaultdict(
+
+            lambda: deque(
+                maxlen=30
+            )
+        )
+
         # ---------------------------------
         # CACHE
         # avoids expensive scans
@@ -35,11 +42,21 @@ class NetworkMonitor:
             self.scan_interval = float(
                 __import__("os").getenv(
                     "SELF_HEALING_NETWORK_SCAN_INTERVAL",
-                    "2"
+                    "1"
                 )
             )
         except Exception:
-            self.scan_interval = 2
+            self.scan_interval = 1
+
+        try:
+            self.event_window_seconds = float(
+                __import__("os").getenv(
+                    "SELF_HEALING_NETWORK_EVENT_WINDOW",
+                    "12"
+                )
+            )
+        except Exception:
+            self.event_window_seconds = 12
 
 
     # =====================================
@@ -157,6 +174,63 @@ class NetworkMonitor:
                     "loopback_connections"
                 ]
 
+                event_history = self.connection_event_history[
+                    pid
+                ]
+
+                event_history.append(
+                    {
+                        "time": current_time,
+                        "connections": active_connections,
+                        "loopback_connections":
+                            loopback_connections,
+                        "port_spread": port_spread,
+                        "remote_ips": remote_ips
+                    }
+                )
+
+                while (
+                    event_history
+                    and current_time
+                    - event_history[0]["time"]
+                    > self.event_window_seconds
+                ):
+                    event_history.popleft()
+
+                network_event_count = sum(
+                    item.get(
+                        "connections",
+                        0
+                    )
+                    for item in event_history
+                )
+
+                loopback_event_count = sum(
+                    item.get(
+                        "loopback_connections",
+                        0
+                    )
+                    for item in event_history
+                )
+
+                connection_rate = (
+                    network_event_count
+                    /
+                    max(
+                        self.event_window_seconds,
+                        1
+                    )
+                )
+
+                loopback_connection_rate = (
+                    loopback_event_count
+                    /
+                    max(
+                        self.event_window_seconds,
+                        1
+                    )
+                )
+
                 scanning_score = 0
 
                 if (
@@ -168,6 +242,8 @@ class NetworkMonitor:
                 if (
                     connection_velocity
                     > 10
+                    or connection_rate
+                    > 8
                 ):
                     scanning_score += 0.3
 
@@ -201,6 +277,24 @@ class NetworkMonitor:
 
                     "loopback_connections":
                         loopback_connections,
+
+                    "network_event_count":
+                        network_event_count,
+
+                    "loopback_event_count":
+                        loopback_event_count,
+
+                    "connection_rate":
+                        round(
+                            connection_rate,
+                            2
+                        ),
+
+                    "loopback_connection_rate":
+                        round(
+                            loopback_connection_rate,
+                            2
+                        ),
 
                     "scanning_score":
                         round(

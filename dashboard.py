@@ -144,7 +144,12 @@ st.set_page_config(
 )
 
 st_autorefresh(
-    interval=5000,
+    interval=int(
+        os.getenv(
+            "SELF_HEALING_DASHBOARD_REFRESH_MS",
+            "8000"
+        )
+    ),
     key="refresh"
 )
 
@@ -234,26 +239,69 @@ page = st.radio(
 DASHBOARD_MAX_ROWS = int(
     os.getenv(
         "SELF_HEALING_DASHBOARD_MAX_ROWS",
-        "1500"
+        "500"
     )
 )
+
+CHART_MAX_ROWS = int(
+    os.getenv(
+        "SELF_HEALING_DASHBOARD_CHART_ROWS",
+        "250"
+    )
+)
+
+
+def _tail_lines(file_path, max_lines):
+
+    try:
+        with open(file_path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            position = f.tell()
+            blocks = []
+            lines = []
+            chunk_size = 65536
+
+            while position > 0 and len(lines) <= max_lines:
+                read_size = min(chunk_size, position)
+                position -= read_size
+                f.seek(position)
+                blocks.append(
+                    f.read(read_size)
+                )
+                lines = (
+                    b"".join(
+                        reversed(blocks)
+                    )
+                    .splitlines()
+                )
+
+        return [
+            line.decode(
+                "utf-8",
+                "ignore"
+            )
+            for line in lines[-max_lines:]
+        ]
+
+    except Exception:
+        return []
 
 
 def _load_json_lines(file_path):
 
     try:
-        rows = deque(
-            maxlen=DASHBOARD_MAX_ROWS
-        )
+        rows = deque(maxlen=DASHBOARD_MAX_ROWS)
 
-        with open(file_path, "r") as f:
-            for line in f:
-                try:
-                    rows.append(
-                        json.loads(line)
-                    )
-                except Exception:
-                    continue
+        for line in _tail_lines(
+            file_path,
+            DASHBOARD_MAX_ROWS
+        ):
+            try:
+                rows.append(
+                    json.loads(line)
+                )
+            except Exception:
+                continue
 
         return pd.DataFrame(
             list(
