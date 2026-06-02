@@ -124,3 +124,9 @@
 {"timestamp":"2026-06-02T19:02:19","type":"healing","pid":20752,"stage":"terminate","action_taken":true,"status":"terminated"}
 {"timestamp":"2026-06-02T19:04:54","type":"healing","pid":13560,"stage":"terminate","action_taken":true,"status":"terminated"}
 {"timestamp":"2026-06-02T19:04:54","type":"healing","pid":20096,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T19:13:51","type":"healing","pid":2064,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T19:13:51","type":"healing","pid":21472,"stage":"terminate","action_taken":true,"status":"terminated"}
+{"timestamp":"2026-06-02T19:18:39","type":"healing","pid":22456,"stage":"terminate","action_taken":true,"status":"terminated targets=19"}
+{"timestamp":"2026-06-02T19:18:39","type":"healing","pid":9832,"stage":"terminate","action_taken":true,"status":"terminated targets=1"}
+{"timestamp":"2026-06-02T19:19:29","type":"healing","pid":468,"stage":"terminate","action_taken":true,"status":"terminated targets=19"}
+{"timestamp":"2026-06-02T19:19:30","type":"healing","pid":11548,"stage":"terminate","action_taken":true,"status":"terminated targets=1"}

@@ -461,7 +461,14 @@ class ResponseEngine:
                 result = (
                     self.terminate_process(
                         pid,
-                        force=force_terminate
+                        force=force_terminate,
+                        process_info=process_info,
+                        kill_family=bool(
+                            persistence_state.get(
+                                "kill_family",
+                                False
+                            )
+                        )
                     )
                 )
 
@@ -741,7 +748,9 @@ class ResponseEngine:
     def terminate_process(
         self,
         pid,
-        force=False
+        force=False,
+        process_info=None,
+        kill_family=False
     ):
 
         try:
@@ -837,6 +846,36 @@ class ResponseEngine:
                 }
 
             kill_targets = []
+            seen_targets = set()
+
+            def add_target(target):
+                try:
+                    target_pid = int(target.pid)
+                except Exception:
+                    return
+
+                if target_pid in seen_targets:
+                    return
+
+                seen_targets.add(
+                    target_pid
+                )
+                kill_targets.append(
+                    target
+                )
+
+            for related in self._find_related_family_processes(
+                pid,
+                proc_name,
+                proc_cmdline,
+                proc_exe,
+                process_info or {},
+                force=force,
+                enabled=kill_family
+            ):
+                add_target(
+                    related
+                )
 
             for child in children:
                 try:
@@ -878,17 +917,28 @@ class ResponseEngine:
                     except:
                         pass
 
-                    kill_targets.append(child)
+                    add_target(child)
                 except Exception:
                     pass
 
             try:
                 proc.terminate()
-                kill_targets.append(proc)
+                add_target(proc)
             except psutil.NoSuchProcess:
                 pass
             except:
                 pass
+
+            for target in list(kill_targets):
+                if target.pid == pid:
+                    continue
+
+                try:
+                    target.terminate()
+                except psutil.NoSuchProcess:
+                    continue
+                except Exception:
+                    pass
 
             gone, alive = psutil.wait_procs(kill_targets, timeout=3)
 
@@ -919,7 +969,7 @@ class ResponseEngine:
                 "pid": pid,
                 "stage": "terminate",
                 "action_taken": bool(gone),
-                "status": "terminated",
+                "status": f"terminated targets={len(gone)}",
             }
 
         except Exception as e:
@@ -987,3 +1037,175 @@ class ResponseEngine:
                 "status":
                     str(e)
             }
+
+    def _find_related_family_processes(
+        self,
+        pid,
+        proc_name,
+        proc_cmdline,
+        proc_exe,
+        process_info,
+        force=False,
+        enabled=False
+    ):
+        if not (
+            enabled
+            and force
+        ):
+            return []
+
+        try:
+            target_cwd = self._normalize_text(
+                process_info.get(
+                    "cwd",
+                    ""
+                )
+            )
+            target_cmdline = self._normalize_text(
+                process_info.get(
+                    "cmdline",
+                    proc_cmdline
+                )
+            )
+            target_name = self._normalize_text(
+                process_info.get(
+                    "name",
+                    proc_name
+                )
+            )
+            target_exe = self._normalize_text(
+                process_info.get(
+                    "exe",
+                    proc_exe
+                )
+            )
+
+            if not (
+                target_cmdline
+                or target_cwd
+            ):
+                return []
+
+            try:
+                max_family = int(
+                    os.getenv(
+                        "SELF_HEALING_MAX_FAMILY_KILL",
+                        "500"
+                    )
+                )
+            except Exception:
+                max_family = 500
+
+            related = []
+
+            for candidate in psutil.process_iter([
+                "pid",
+                "name",
+                "exe",
+                "cmdline",
+                "cwd",
+                "create_time"
+            ]):
+                try:
+                    candidate_pid = int(
+                        candidate.info.get(
+                            "pid"
+                        )
+                    )
+
+                    if candidate_pid == int(pid):
+                        continue
+
+                    if self._is_hard_protected_pid(
+                        candidate_pid
+                    ):
+                        continue
+
+                    candidate_name = self._normalize_text(
+                        candidate.info.get(
+                            "name",
+                            ""
+                        )
+                    )
+                    candidate_cmdline = self._normalize_text(
+                        " ".join(
+                            candidate.info.get(
+                                "cmdline"
+                            )
+                            or []
+                        )
+                    )
+                    candidate_exe = self._normalize_text(
+                        candidate.info.get(
+                            "exe",
+                            ""
+                        )
+                    )
+                    candidate_cwd = self._normalize_text(
+                        candidate.info.get(
+                            "cwd",
+                            ""
+                        )
+                    )
+
+                    if self._is_critical_process_hint(
+                        candidate_name,
+                        candidate_cmdline,
+                        candidate_exe
+                    ):
+                        continue
+
+                    if (
+                        self.is_protected_process(
+                            candidate_pid,
+                            candidate_name,
+                            candidate_cmdline,
+                            candidate_exe
+                        )
+                        and not self._can_override_name_protection(
+                            force
+                        )
+                    ):
+                        continue
+
+                    same_cwd = (
+                        bool(target_cwd)
+                        and candidate_cwd == target_cwd
+                    )
+                    same_exe = (
+                        bool(target_exe)
+                        and candidate_exe == target_exe
+                    ) or (
+                        bool(target_name)
+                        and candidate_name == target_name
+                    )
+                    same_command = (
+                        bool(target_cmdline)
+                        and candidate_cmdline == target_cmdline
+                    )
+
+                    if (
+                        same_cwd
+                        and same_exe
+                        and same_command
+                    ):
+                        related.append(
+                            candidate
+                        )
+
+                    if len(related) >= max_family:
+                        break
+
+                except (
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    psutil.ZombieProcess
+                ):
+                    continue
+                except Exception:
+                    continue
+
+            return related
+
+        except Exception:
+            return []

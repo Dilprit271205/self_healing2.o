@@ -994,7 +994,8 @@ def emergency_process_storm_preflight(
             "avg_correlated_signals": 5,
             "termination_ready": True,
             "catastrophic_ready": True,
-            "force_terminate": True
+            "force_terminate": True,
+            "kill_family": True
         }
 
         rate_limited_print(

@@ -337,3 +337,81 @@ def test_terminate_worm_sim_process_tree():
         if proc.poll() is None:
             proc.kill()
             proc.wait(timeout=5)
+
+
+def test_force_terminate_can_kill_matching_process_family(tmp_path):
+    resp = ResponseEngine(safe_mode=False)
+    marker = "self_healing_family_kill_marker"
+    command = (
+        "import time; "
+        f"marker='{marker}'; "
+        "time.sleep(60)"
+    )
+    processes = [
+        subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                command,
+            ],
+            cwd=str(
+                tmp_path
+            ),
+        )
+        for _ in range(3)
+    ]
+
+    try:
+        time.sleep(0.5)
+        target = processes[0]
+        result = resp.terminate_process(
+            target.pid,
+            force=True,
+            process_info={
+                "pid": target.pid,
+                "name": "python",
+                "cmdline": f"{sys.executable} -c {command}",
+                "exe": sys.executable,
+                "cwd": str(
+                    tmp_path
+                ),
+            },
+            kill_family=True,
+        )
+
+        assert result["stage"] == "terminate"
+        assert result["action_taken"] is True
+
+        for process in processes:
+            process.wait(
+                timeout=10
+            )
+            assert process.poll() is not None
+
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+
+def test_kernel_helper_hint_is_protected():
+    resp = ResponseEngine(safe_mode=False)
+
+    result = resp.execute(
+        pid=999999,
+        process_info={
+            "pid": 999999,
+            "name": "ksoftirqd/3",
+            "cmdline": "ksoftirqd/3",
+            "exe": "",
+        },
+        persistence_state={
+            "stage": "terminate",
+            "force_terminate": True,
+            "termination_ready": True,
+        },
+    )
+
+    assert result["stage"] == "protected"
+    assert result["action_taken"] is False
