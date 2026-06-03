@@ -407,6 +407,12 @@ def log_process(data):
                     "severity"
                 ),
 
+            "signals":
+                data.get(
+                    "signals",
+                    {}
+                ),
+
             # -----------------------------
             # healing
             # -----------------------------

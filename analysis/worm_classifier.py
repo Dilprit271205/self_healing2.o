@@ -141,6 +141,9 @@ class WormClassifier:
                 "ml_behavior_probabilities":
                     prediction.behavior_probabilities,
 
+                "ml_top_drivers":
+                    prediction.top_drivers,
+
                 "ml_status":
                     {
                         "autotrain":

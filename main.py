@@ -1050,6 +1050,10 @@ def emergency_process_storm_preflight(
             "severity": classification[
                 "severity"
             ],
+            "signals": classification.get(
+                "signals",
+                {}
+            ),
             "stage": response_result[
                 "stage"
             ],
@@ -1781,6 +1785,10 @@ def emergency_file_activity_preflight(
             "severity": classification[
                 "severity"
             ],
+            "signals": classification.get(
+                "signals",
+                {}
+            ),
             "stage": response_result[
                 "stage"
             ],
@@ -2185,6 +2193,10 @@ def emergency_behavior_preflight(
             "severity": classification[
                 "severity"
             ],
+            "signals": classification.get(
+                "signals",
+                {}
+            ),
             "stage": response_result[
                 "stage"
             ],
@@ -2501,6 +2513,10 @@ def emergency_resource_preflight(
             "severity": classification[
                 "severity"
             ],
+            "signals": classification.get(
+                "signals",
+                {}
+            ),
             "stage": response_result[
                 "stage"
             ],
@@ -2920,6 +2936,12 @@ def monitor_loop():
                             classification[
                                 "severity"
                             ],
+
+                        "signals":
+                            classification.get(
+                                "signals",
+                                {}
+                            ),
 
                         "stage":
                             response_result[

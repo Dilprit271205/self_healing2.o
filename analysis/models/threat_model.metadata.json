@@ -119,5 +119,55 @@
   },
   "model_path": "C:\\Users\\user\\Desktop\\HEALING\\self_healing2.o\\analysis\\models\\threat_model.joblib",
   "rows": 495,
-  "trained_at": 1780465458.802537
+  "top_features": [
+    {
+      "feature": "source_worm_score",
+      "importance": 0.15172
+    },
+    {
+      "feature": "dynamic_trust",
+      "importance": 0.13113
+    },
+    {
+      "feature": "final_trust",
+      "importance": 0.12395
+    },
+    {
+      "feature": "f_proc_tree",
+      "importance": 0.08531
+    },
+    {
+      "feature": "f_repeated_child_count",
+      "importance": 0.07411
+    },
+    {
+      "feature": "static_trust",
+      "importance": 0.06775
+    },
+    {
+      "feature": "f_child_similarity",
+      "importance": 0.05961
+    },
+    {
+      "feature": "f_short_lived_child_ratio",
+      "importance": 0.04991
+    },
+    {
+      "feature": "file_events",
+      "importance": 0.03646
+    },
+    {
+      "feature": "threads",
+      "importance": 0.0347
+    },
+    {
+      "feature": "memory",
+      "importance": 0.03106
+    },
+    {
+      "feature": "aggregate_anomaly",
+      "importance": 0.02052
+    }
+  ],
+  "trained_at": 1780475612.222199
 }

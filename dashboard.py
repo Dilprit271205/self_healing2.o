@@ -160,7 +160,11 @@ st.markdown("""
 <style>
 
 .main {
-    background-color: #0E1117;
+    background: #0b0f14;
+}
+
+section[data-testid="stSidebar"] {
+    background: #0f1720;
 }
 
 .metric-container {
@@ -170,11 +174,73 @@ st.markdown("""
 }
 
 h1,h2,h3 {
-    color: #00E5FF;
+    color: #e7f2ff;
+    letter-spacing: 0;
 }
 
 [data-testid="stMetricValue"] {
-    color: #00FFAA;
+    color: #5eead4;
+}
+
+.command-band {
+    background: linear-gradient(135deg, #101923 0%, #162433 55%, #101923 100%);
+    border: 1px solid #26384a;
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 6px 0 18px 0;
+}
+
+.command-title {
+    color: #f8fafc;
+    font-size: 28px;
+    font-weight: 750;
+    line-height: 1.1;
+}
+
+.command-subtitle {
+    color: #a8bdcf;
+    font-size: 14px;
+    margin-top: 6px;
+}
+
+.status-pill {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 4px 10px;
+    margin: 0 6px 6px 0;
+    font-size: 12px;
+    font-weight: 650;
+    border: 1px solid #31465a;
+    color: #dcecff;
+    background: #111c27;
+}
+
+.brief-card {
+    border: 1px solid #26384a;
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: #0f1720;
+    min-height: 94px;
+}
+
+.brief-label {
+    color: #93a8bb;
+    font-size: 12px;
+    font-weight: 650;
+    text-transform: uppercase;
+}
+
+.brief-value {
+    color: #f8fafc;
+    font-size: 24px;
+    font-weight: 760;
+    margin-top: 4px;
+}
+
+.brief-note {
+    color: #a8bdcf;
+    font-size: 13px;
+    margin-top: 4px;
 }
 
 </style>
@@ -197,6 +263,10 @@ HEALING_LOG = (
 
 LEARNING_KB_LOG = (
     "logs/learning_kb.json"
+)
+
+MODEL_METADATA_LOG = (
+    "analysis/models/threat_model.metadata.json"
 )
 
 IGNORE_ROOTS = [1, 2]
@@ -379,6 +449,16 @@ def load_learning_kb(_signature):
     return _load_json_file(LEARNING_KB_LOG)
 
 
+@st.cache_data(ttl=2)
+def load_model_metadata(_signature):
+
+    try:
+        with open(MODEL_METADATA_LOG, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
 NUMERIC_DEFAULTS = {
     "pid": 0,
     "entity_root": 0,
@@ -523,11 +603,13 @@ process_signature = _file_signature(PROCESS_LOG)
 entity_signature = _file_signature(ENTITY_LOG)
 healing_signature = _file_signature(HEALING_LOG)
 learning_signature = _file_signature(LEARNING_KB_LOG)
+model_signature = _file_signature(MODEL_METADATA_LOG)
 
 df = load_process_logs(process_signature)
 entity_df = load_entity_logs(entity_signature)
 healing_df = load_healing_logs(healing_signature)
 learning_kb_df = load_learning_kb(learning_signature)
+model_metadata = load_model_metadata(model_signature)
 
 if df.empty and learning_kb_df.empty:
 
@@ -727,6 +809,145 @@ def _safe_table(dataframe):
         )
 
     return table
+
+
+def _coerce_dict(value):
+
+    if isinstance(value, dict):
+        return value
+
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            return {}
+
+    return {}
+
+
+def _signal_value(signals, path, default=None):
+
+    current = _coerce_dict(signals)
+
+    for key in path:
+        if not isinstance(current, dict):
+            return default
+        current = current.get(key, default)
+
+    return current
+
+
+def _latest_signal_rows(rows):
+
+    if rows.empty or "signals" not in rows.columns:
+        return []
+
+    signal_rows = []
+
+    for _, item in rows.iterrows():
+        signals = _coerce_dict(
+            item.get("signals")
+        )
+        if signals:
+            signal_rows.append(
+                {
+                    "pid": item.get("pid"),
+                    "name": item.get("name"),
+                    "label": item.get("label"),
+                    "severity": item.get("severity"),
+                    "worm_score": item.get("worm_score"),
+                    "confidence": item.get("confidence"),
+                    "signals": signals
+                }
+            )
+
+    return signal_rows
+
+
+def _behavior_summary(signal_rows):
+
+    counts = {}
+
+    for row in signal_rows:
+        correlated = _coerce_dict(
+            row["signals"].get("correlated_signals")
+        )
+
+        for name, active in correlated.items():
+            if active:
+                counts[name] = counts.get(name, 0) + 1
+
+    return pd.DataFrame(
+        [
+            {
+                "behavior": key.replace("_", " "),
+                "count": value
+            }
+            for key, value in sorted(
+                counts.items(),
+                key=lambda item: item[1],
+                reverse=True
+            )
+        ]
+    )
+
+
+def _top_driver_rows(signal_rows):
+
+    rows = []
+
+    for row in signal_rows:
+        drivers = (
+            row["signals"].get(
+                "ml_top_drivers",
+                []
+            )
+            or
+            []
+        )
+
+        for driver in drivers[:3]:
+            if not isinstance(driver, dict):
+                continue
+
+            rows.append(
+                {
+                    "pid": row["pid"],
+                    "process": row["name"],
+                    "label": row["label"],
+                    "driver": str(
+                        driver.get("feature", "")
+                    ).replace("_", " "),
+                    "value": driver.get("value", 0),
+                    "impact": driver.get("impact", 0)
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def _brief_card(label, value, note=""):
+
+    st.markdown(
+        f"""
+        <div class="brief-card">
+            <div class="brief-label">{label}</div>
+            <div class="brief-value">{value}</div>
+            <div class="brief-note">{note}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def _format_percent(value):
+
+    try:
+        return f"{round(float(value) * 100, 1)}%"
+    except Exception:
+        return "n/a"
 
 
 # prepare common safe size columns on latest
@@ -1159,6 +1380,115 @@ learning_snapshot = _learning_summary(
     df
 )
 
+signal_rows = _latest_signal_rows(latest)
+behavior_df = _behavior_summary(signal_rows)
+driver_df = _top_driver_rows(signal_rows)
+
+model_accuracy = (
+    model_metadata
+    .get("classification_report", {})
+    .get("accuracy")
+)
+model_labels = model_metadata.get(
+    "labels",
+    {}
+)
+model_top_features = pd.DataFrame(
+    model_metadata.get(
+        "top_features",
+        []
+    )
+)
+model_trained_rows = model_metadata.get(
+    "rows",
+    0
+)
+model_trained_at = model_metadata.get(
+    "trained_at",
+    0
+)
+model_trained_text = (
+    pd.to_datetime(
+        model_trained_at,
+        unit="s",
+        errors="coerce"
+    )
+    if model_trained_at
+    else None
+)
+model_status = (
+    signal_rows[-1]["signals"].get("ml_status", {})
+    if signal_rows
+    else {}
+)
+top_risk = (
+    latest.sort_values(
+        "worm_score",
+        ascending=False
+    )
+    .head(1)
+)
+top_risk_name = (
+    top_risk.iloc[0].get("name", "none")
+    if not top_risk.empty
+    else "none"
+)
+top_risk_score = (
+    round(float(top_risk.iloc[0].get("worm_score", 0)), 3)
+    if not top_risk.empty
+    else 0
+)
+
+st.markdown(
+    f"""
+    <div class="command-band">
+        <div class="command-title">Cyber Defense Command</div>
+        <div class="command-subtitle">
+            Live process risk, ML confidence, trust health, and containment status in one view.
+        </div>
+        <div style="margin-top: 12px;">
+            <span class="status-pill">Model rows: {model_trained_rows}</span>
+            <span class="status-pill">Accuracy: {_format_percent(model_accuracy)}</span>
+            <span class="status-pill">Autotrain: {model_status.get("autotrain", "unknown")}</span>
+            <span class="status-pill">Retraining: {model_status.get("retraining", False)}</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+brief1, brief2, brief3, brief4 = st.columns(4)
+
+with brief1:
+    _brief_card(
+        "System Health",
+        f"{health_score}%",
+        "Combined trust, severity, and worm-risk score"
+    )
+
+with brief2:
+    _brief_card(
+        "Top Risk",
+        top_risk_name,
+        f"worm score {top_risk_score}"
+    )
+
+with brief3:
+    _brief_card(
+        "Trust Stability",
+        f"{trust_stability}%",
+        "Average final trust across live entities"
+    )
+
+with brief4:
+    _brief_card(
+        "Active Containment",
+        healing_active,
+        f"{critical_processes} critical entities"
+    )
+
+st.markdown("---")
+
 k1, k2, k3, k4, k5 = (
     st.columns(5)
 )
@@ -1282,6 +1612,131 @@ else:
 
 st.markdown("---")
 
+st.subheader(
+    "AI Model Intelligence"
+)
+
+ai1, ai2, ai3 = st.columns([1, 1, 1])
+
+with ai1:
+    st.metric(
+        "Training Rows",
+        model_trained_rows
+    )
+    st.metric(
+        "Validation Accuracy",
+        _format_percent(model_accuracy)
+    )
+
+with ai2:
+    if model_labels:
+        label_df = pd.DataFrame(
+            [
+                {
+                    "label": label,
+                    "rows": count
+                }
+                for label, count in model_labels.items()
+            ]
+        )
+        fig = px.bar(
+            label_df,
+            x="label",
+            y="rows",
+            title="Training Class Mix",
+            color="label",
+            color_discrete_map={
+                "normal": "#22c55e",
+                "suspicious": "#f59e0b",
+                "worm": "#ef4444",
+                "forkbomb": "#a855f7"
+            }
+        )
+        fig.update_layout(
+            showlegend=False,
+            height=260,
+            margin=dict(l=10, r=10, t=45, b=10)
+        )
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+    else:
+        st.info(
+            "Model metadata not available yet."
+        )
+
+with ai3:
+    if not model_top_features.empty:
+        fig = px.bar(
+            model_top_features.head(8),
+            x="importance",
+            y="feature",
+            orientation="h",
+            title="Most Important Features",
+            color="importance",
+            color_continuous_scale="Teal"
+        )
+        fig.update_layout(
+            height=260,
+            margin=dict(l=10, r=10, t=45, b=10),
+            yaxis={"categoryorder": "total ascending"}
+        )
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+    else:
+        st.info(
+            "Feature importance will appear after training."
+        )
+
+ai4, ai5 = st.columns(2)
+
+with ai4:
+    if not behavior_df.empty:
+        fig = px.bar(
+            behavior_df.head(10),
+            x="count",
+            y="behavior",
+            orientation="h",
+            title="Active Behavior Signals",
+            color="count",
+            color_continuous_scale="OrRd"
+        )
+        fig.update_layout(
+            height=320,
+            margin=dict(l=10, r=10, t=45, b=10),
+            yaxis={"categoryorder": "total ascending"}
+        )
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+    else:
+        st.success(
+            "No active ML behavior signals in the current live window."
+        )
+
+with ai5:
+    if not driver_df.empty:
+        st.dataframe(
+            _safe_table(
+                driver_df.sort_values(
+                    "impact",
+                    ascending=False
+                ).head(12)
+            ),
+            width="stretch",
+            height=320
+        )
+    else:
+        st.info(
+            "Top prediction drivers will appear after new ML-scored logs arrive."
+        )
+
+st.markdown("---")
+
 # ===================================================
 # EXECUTIVE VISUALS
 # ===================================================
@@ -1307,9 +1762,24 @@ with v1:
                 {
                     "range":
                     [0, 100]
+                },
+                "bar": {"color": "#5eead4"},
+                "steps": [
+                    {"range": [0, 40], "color": "#3f1d24"},
+                    {"range": [40, 70], "color": "#3b3116"},
+                    {"range": [70, 100], "color": "#123326"}
+                ],
+                "threshold": {
+                    "line": {"color": "#f8fafc", "width": 3},
+                    "thickness": 0.75,
+                    "value": health_score
                 }
             }
         )
+    )
+    fig.update_layout(
+        height=340,
+        margin=dict(l=20, r=20, t=45, b=20)
     )
 
     st.plotly_chart(
@@ -1330,7 +1800,20 @@ with v2:
         names=sev.index,
 
         title=
-        "Threat Severity"
+        "Threat Severity",
+
+        color=sev.index,
+
+        color_discrete_map={
+            "low": "#22c55e",
+            "medium": "#f59e0b",
+            "high": "#f97316",
+            "critical": "#ef4444"
+        }
+    )
+    fig.update_layout(
+        height=340,
+        margin=dict(l=20, r=20, t=45, b=20)
     )
 
     st.plotly_chart(

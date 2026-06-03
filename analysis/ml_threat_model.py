@@ -562,6 +562,7 @@ class Prediction:
     anomaly_probability: float
     behavior_signals: dict
     behavior_probabilities: dict
+    top_drivers: list
 
 
 class MLThreatModel:
@@ -656,6 +657,23 @@ class MLThreatModel:
             },
             "feature_names": FEATURE_NAMES,
         }
+
+        if hasattr(classifier, "feature_importances_"):
+            importances = sorted(
+                zip(
+                    FEATURE_NAMES,
+                    classifier.feature_importances_
+                ),
+                key=lambda item: item[1],
+                reverse=True
+            )
+            report["top_features"] = [
+                {
+                    "feature": name,
+                    "importance": round(float(value), 5)
+                }
+                for name, value in importances[:12]
+            ]
 
         if len(frame) >= 12 and y.nunique() > 1:
             try:
@@ -774,6 +792,7 @@ class MLThreatModel:
         )
 
         confidence = max(probabilities.values())
+        top_drivers = self._top_prediction_drivers(x)
         return Prediction(
             label=label,
             severity=SEVERITY_BY_LABEL.get(label, "medium"),
@@ -786,7 +805,37 @@ class MLThreatModel:
             anomaly_probability=round(float(anomaly_probability), 4),
             behavior_signals=behavior_signals,
             behavior_probabilities=behavior_probabilities,
+            top_drivers=top_drivers,
         )
+
+    def _top_prediction_drivers(self, frame):
+        if not hasattr(self.classifier, "feature_importances_"):
+            return []
+
+        row = frame.iloc[0]
+        drivers = []
+
+        for name, importance in zip(
+            FEATURE_NAMES,
+            self.classifier.feature_importances_
+        ):
+            value = _safe_float(row.get(name, 0))
+            contribution = abs(value) * float(importance)
+            if contribution <= 0:
+                continue
+            drivers.append(
+                {
+                    "feature": name,
+                    "value": round(value, 4),
+                    "impact": round(contribution, 5)
+                }
+            )
+
+        return sorted(
+            drivers,
+            key=lambda item: item["impact"],
+            reverse=True
+        )[:8]
 
 
 def train_and_save(log_path="logs/system_log.json", model_path=MODEL_PATH):
