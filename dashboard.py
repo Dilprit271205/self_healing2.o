@@ -1189,6 +1189,146 @@ def _active_flag_rows(rows):
     return pd.DataFrame(output)
 
 
+def _acceptance_coverage_rows(latest_rows, signal_rows):
+
+    observed = set()
+
+    for row in signal_rows:
+        signals = _coerce_dashboard_dict(
+            row.get("signals")
+        )
+        correlated = _coerce_dashboard_dict(
+            signals.get("correlated_signals")
+        )
+
+        for name, active in correlated.items():
+            if active:
+                observed.add(name)
+
+        if signals.get("forkbomb_detected"):
+            observed.add("forkbomb_detected")
+        if signals.get("replication_detected"):
+            observed.add("replication_detected")
+        if signals.get("fanout_detected"):
+            observed.add("fanout_detected")
+        if signals.get("artifact_abuse_detected"):
+            observed.add("artifact_abuse_detected")
+
+    if latest_rows is not None and not latest_rows.empty:
+        if "beacon_detected" in latest_rows.columns and latest_rows[
+            "beacon_detected"
+        ].astype(bool).any():
+            observed.add("localhost_beaconing")
+            observed.add("network_fanout")
+
+        if "persistence_detected" in latest_rows.columns and latest_rows[
+            "persistence_detected"
+        ].astype(bool).any():
+            observed.add("persistence_artifact")
+            observed.add("artifact_abuse_detected")
+
+        if "sensitive_access_detected" in latest_rows.columns and latest_rows[
+            "sensitive_access_detected"
+        ].astype(bool).any():
+            observed.add("sensitive_file_access")
+            observed.add("artifact_abuse_detected")
+
+    checks = [
+        (
+            "1 Process storm",
+            {"forkbomb_detected", "process_storm_burst"}
+        ),
+        (
+            "2 Thread storm",
+            {"thread_explosion"}
+        ),
+        (
+            "3 CPU exhaustion",
+            {"cpu_memory_escalation", "resource_pressure"}
+        ),
+        (
+            "4 Memory spike",
+            {"cpu_memory_escalation", "resource_pressure"}
+        ),
+        (
+            "5 File replication",
+            {"replication_detected", "file_replication"}
+        ),
+        (
+            "6 Mass file modification",
+            {"mass_file_modification", "extreme_file_velocity"}
+        ),
+        (
+            "7 Suspicious rename",
+            {"suspicious_rename"}
+        ),
+        (
+            "8 Localhost beaconing",
+            {"localhost_beaconing", "network_fanout"}
+        ),
+        (
+            "9 Persistence artifact",
+            {"persistence_artifact", "artifact_abuse_detected"}
+        ),
+        (
+            "10 Sensitive access",
+            {"sensitive_file_access", "artifact_abuse_detected"}
+        ),
+        (
+            "11 Combined worm",
+            {
+                "localhost_beaconing",
+                "persistence_artifact",
+                "sensitive_file_access",
+                "thread_explosion"
+            }
+        ),
+        (
+            "12 Legit workload protected",
+            {"protected_workload"}
+        )
+    ]
+
+    protected_seen = False
+
+    if latest_rows is not None and not latest_rows.empty:
+        protected_seen = (
+            latest_rows.get(
+                "stage",
+                pd.Series(dtype=str)
+            ).astype(str).str.lower().eq("protected").any()
+            or latest_rows.get(
+                "response",
+                pd.Series(dtype=str)
+            ).astype(str).str.lower().str.contains(
+                "protected",
+                na=False
+            ).any()
+        )
+
+    if protected_seen:
+        observed.add("protected_workload")
+
+    rows = []
+
+    for label, requirements in checks:
+        matched = sorted(
+            requirements
+            &
+            observed
+        )
+        rows.append(
+            {
+                "scenario": label,
+                "status": "detected" if matched else "missing",
+                "coverage": 1 if matched else 0,
+                "evidence": ", ".join(matched) if matched else "none"
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
 def _brief_card(label, value, note=""):
 
     st.markdown(
@@ -1645,6 +1785,10 @@ signal_rows = _latest_signal_rows(latest)
 behavior_df = _behavior_summary(signal_rows)
 driver_df = _top_driver_rows(signal_rows)
 active_flag_df = _active_flag_rows(latest)
+coverage_df = _acceptance_coverage_rows(
+    latest,
+    signal_rows
+)
 
 model_accuracy = (
     model_metadata
@@ -1864,6 +2008,66 @@ else:
         ),
         width="stretch",
         height=220
+    )
+
+st.subheader(
+    "12 Scenario Coverage"
+)
+
+coverage_score = (
+    int(
+        coverage_df["coverage"].sum()
+    )
+    if not coverage_df.empty
+    else 0
+)
+
+cov1, cov2, cov3 = st.columns([1, 1, 2])
+
+with cov1:
+    st.metric(
+        "Detected Scenarios",
+        f"{coverage_score}/12"
+    )
+    st.progress(
+        min(
+            coverage_score / 12,
+            1.0
+        )
+    )
+
+with cov2:
+    if not coverage_df.empty:
+        coverage_counts = coverage_df[
+            "status"
+        ].value_counts()
+        fig = px.pie(
+            values=coverage_counts.values,
+            names=coverage_counts.index,
+            hole=0.55,
+            title="Coverage State",
+            color=coverage_counts.index,
+            color_discrete_map={
+                "detected": "#22c55e",
+                "missing": "#ef4444"
+            }
+        )
+        fig.update_layout(
+            height=240,
+            margin=dict(l=10, r=10, t=45, b=10)
+        )
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+with cov3:
+    st.dataframe(
+        _safe_table(
+            coverage_df
+        ),
+        width="stretch",
+        height=260
     )
 
 st.subheader(

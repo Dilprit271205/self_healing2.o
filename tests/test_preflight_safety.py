@@ -686,7 +686,7 @@ def test_behavior_persistence_artifact_detects_file_map_path(monkeypatch):
         {},
         {
             "__paths__": {
-                "/home/kali/workload/.config/autostart/worker.desktop": 2,
+                "/home/kali/workload/launch_agents/fake_persistence_1.json": 2,
             }
         },
     )

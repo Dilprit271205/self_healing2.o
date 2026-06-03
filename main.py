@@ -1212,14 +1212,23 @@ PERSISTENCE_PATH_HINTS = (
     "startup",
     "start menu/programs/startup",
     "autorun",
+    "autorun_registry",
     "runonce",
     "systemd/user",
     ".config/autostart",
+    "autostart",
     "launchagents",
+    "launch_agents",
     "launchdaemons",
+    "launch_daemons",
     "cron",
     "crontab",
-    "scheduled tasks"
+    "scheduled tasks",
+    "scheduled_tasks",
+    "services",
+    "service",
+    "relaunch",
+    "fake_persistence"
 )
 
 SENSITIVE_PATH_HINTS = (
@@ -1229,7 +1238,12 @@ SENSITIVE_PATH_HINTS = (
     "password",
     "passwd",
     "secret",
+    "secrets",
     "token",
+    "tokens",
+    "api_key",
+    "apikey",
+    "private_key",
     "id_rsa",
     "id_dsa",
     ".ssh",

@@ -56,3 +56,43 @@ def test_dashboard_healing_status_overlays_process_stage():
     assert merged.iloc[0]["stage"] == "terminate"
     assert merged.iloc[0]["response"] == "terminated targets=1"
     assert merged.iloc[0]["action_taken"] is True
+
+
+def test_dashboard_acceptance_coverage_tracks_behavior_flags():
+    import pandas as pd
+    import dashboard
+
+    latest_rows = pd.DataFrame([
+        {
+            "pid": 1,
+            "name": "python",
+            "stage": "terminate",
+            "response": "terminated",
+            "beacon_detected": True,
+            "persistence_detected": True,
+            "sensitive_access_detected": True,
+        }
+    ])
+    signal_rows = [
+        {
+            "signals": {
+                "forkbomb_detected": True,
+                "replication_detected": True,
+                "correlated_signals": {
+                    "thread_explosion": True,
+                    "cpu_memory_escalation": True,
+                    "resource_pressure": True,
+                    "mass_file_modification": True,
+                    "suspicious_rename": True,
+                },
+            }
+        }
+    ]
+
+    coverage = dashboard._acceptance_coverage_rows(
+        latest_rows,
+        signal_rows,
+    )
+
+    assert len(coverage) == 12
+    assert coverage["coverage"].sum() >= 10

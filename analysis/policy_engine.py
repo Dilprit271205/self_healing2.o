@@ -39,6 +39,11 @@ DEFAULT_POLICY = {
         "max_stage_without_confirmed_behavior": "throttle",
     },
     "category_hints": {},
+    "hard_protected_categories": [
+        "dashboard",
+        "ide",
+        "remote_dev"
+    ],
     "critical_process_hints": [],
 }
 
@@ -108,6 +113,11 @@ class PolicyEngine:
     def is_suppressed_category(self, category):
         return category in set(
             self.get("false_positive_suppression.suppressed_categories", [])
+        )
+
+    def is_hard_protected_category(self, category):
+        return category in set(
+            self.get("hard_protected_categories", [])
         )
 
     def is_critical_process_hint(self, process_info):

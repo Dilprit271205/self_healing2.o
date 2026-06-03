@@ -91,7 +91,16 @@
       "leafpad"
     ]
   },
+  "hard_protected_categories": [
+    "dashboard",
+    "ide",
+    "remote_dev"
+  ],
   "critical_process_hints": [
+    "streamlit",
+    "dashboard.py",
+    "jupyter",
+    "notebook",
     "systemd",
     "init",
     "kernel",

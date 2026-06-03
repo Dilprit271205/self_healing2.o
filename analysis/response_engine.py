@@ -90,6 +90,31 @@ class ResponseEngine:
             "exe": exe_path,
         })
 
+    def _is_non_overridable_process(
+        self,
+        process_name="",
+        cmdline="",
+        exe_path="",
+        cwd=""
+    ):
+        if self._is_critical_process_hint(
+            process_name,
+            cmdline,
+            exe_path
+        ):
+            return True
+
+        category = policy_engine.infer_category({
+            "name": process_name,
+            "cmdline": cmdline,
+            "exe": exe_path,
+            "cwd": cwd,
+        })
+
+        return policy_engine.is_hard_protected_category(
+            category
+        )
+
     def is_protected_process(self, pid, process_name="", cmdline="", exe_path=""):
         process_name = self._normalize_text(process_name)
         cmdline = self._normalize_text(cmdline)
@@ -99,6 +124,13 @@ class ResponseEngine:
             return True
 
         if self._is_critical_process_hint(
+            process_name,
+            cmdline,
+            exe_path
+        ):
+            return True
+
+        if self._is_non_overridable_process(
             process_name,
             cmdline,
             exe_path
@@ -344,6 +376,13 @@ class ResponseEngine:
                 ))
             )
 
+            cwd = (
+                self._normalize_text(process_info.get(
+                    "cwd",
+                    ""
+                ))
+            )
+
             stage = self._apply_false_positive_suppression(
                 stage,
                 process_info,
@@ -353,11 +392,30 @@ class ResponseEngine:
                 "stage"
             ] = stage
 
+            if (
+                stage != "observe"
+                and self._is_non_overridable_process(
+                    process_name,
+                    cmdline,
+                    exe_path,
+                    cwd
+                )
+            ):
+                return {
+                    "pid": pid,
+                    "stage": "protected",
+                    "action_taken": False,
+                    "status": "hard protected process"
+                }
+
             # Protect explicitly configured PIDs (monitor, parent, etc.)
-            if self._is_critical_process_hint(
+            if (
+                stage != "observe"
+                and self._is_critical_process_hint(
                 process_name,
                 cmdline,
                 exe_path
+                )
             ):
                 return {
                     "pid": pid,
@@ -367,6 +425,8 @@ class ResponseEngine:
                 }
 
             if (
+                stage != "observe"
+                and
                 self.is_protected_process(pid, process_name, cmdline, exe_path)
                 and
                 not self._can_override_name_protection(force_terminate)
@@ -776,6 +836,16 @@ class ResponseEngine:
             except Exception:
                 proc_exe = ""
 
+            try:
+                proc_cwd = self._normalize_text(proc.cwd())
+            except Exception:
+                proc_cwd = self._normalize_text(
+                    (process_info or {}).get(
+                        "cwd",
+                        ""
+                    )
+                )
+
             if self._is_hard_protected_pid(pid):
                 return {
                     "pid": pid,
@@ -784,16 +854,17 @@ class ResponseEngine:
                     "status": "hard protected pid - not terminated"
                 }
 
-            if self._is_critical_process_hint(
+            if self._is_non_overridable_process(
                 proc_name,
                 proc_cmdline,
-                proc_exe
+                proc_exe,
+                proc_cwd
             ):
                 return {
                     "pid": pid,
                     "stage": "terminate",
                     "action_taken": False,
-                    "status": "critical process hint - not terminated"
+                    "status": "hard protected process - not terminated"
                 }
 
             if (
@@ -887,14 +958,19 @@ class ResponseEngine:
                     child_exe = self._normalize_text(
                         child.exe() if hasattr(child, "exe") else ""
                     )
+                    try:
+                        child_cwd = self._normalize_text(child.cwd())
+                    except Exception:
+                        child_cwd = ""
 
                     if self._is_hard_protected_pid(child.pid):
                         continue
 
-                    if self._is_critical_process_hint(
+                    if self._is_non_overridable_process(
                         child_name,
                         child_cmd,
-                        child_exe
+                        child_exe,
+                        child_cwd
                     ):
                         continue
 
@@ -1148,10 +1224,11 @@ class ResponseEngine:
                         )
                     )
 
-                    if self._is_critical_process_hint(
+                    if self._is_non_overridable_process(
                         candidate_name,
                         candidate_cmdline,
-                        candidate_exe
+                        candidate_exe,
+                        candidate_cwd
                     ):
                         continue
 
