@@ -1,0 +1,123 @@
+{
+  "behavior_labels": {
+    "catastrophic_behavior": 41,
+    "cpu_memory_escalation": 6,
+    "extreme_file_velocity": 40,
+    "file_replication": 57,
+    "high_file_velocity": 57,
+    "large_or_growing_tree": 46,
+    "localhost_beaconing": 17,
+    "mass_file_modification": 23,
+    "network_fanout": 39,
+    "persistence_artifact": 23,
+    "process_storm_burst": 41,
+    "rapid_child_spawning": 18,
+    "repeated_similar_children": 41,
+    "resource_pressure": 14,
+    "sensitive_file_access": 17,
+    "short_lived_recursive_children": 41,
+    "suspicious_rename": 17,
+    "thread_explosion": 3
+  },
+  "classification_report": {
+    "accuracy": 0.9838709677419355,
+    "forkbomb": {
+      "f1-score": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 29.0
+    },
+    "macro avg": {
+      "f1-score": 0.986904761904762,
+      "precision": 0.9827586206896551,
+      "recall": 0.9918032786885246,
+      "support": 124.0
+    },
+    "normal": {
+      "f1-score": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 7.0
+    },
+    "suspicious": {
+      "f1-score": 0.9642857142857143,
+      "precision": 0.9310344827586207,
+      "recall": 1.0,
+      "support": 27.0
+    },
+    "weighted avg": {
+      "f1-score": 0.9840245775729646,
+      "precision": 0.9849833147942159,
+      "recall": 0.9838709677419355,
+      "support": 124.0
+    },
+    "worm": {
+      "f1-score": 0.9833333333333333,
+      "precision": 1.0,
+      "recall": 0.9672131147540983,
+      "support": 61.0
+    }
+  },
+  "feature_names": [
+    "cpu",
+    "memory",
+    "threads",
+    "connections",
+    "file_events",
+    "f_proc_spawn",
+    "f_proc_tree",
+    "f_process_trend",
+    "f_young_process",
+    "f_repeated_child_count",
+    "f_child_similarity",
+    "f_short_lived_child_ratio",
+    "f_recursive_depth",
+    "f_branching_parents",
+    "f_repeated_descendant_count",
+    "f_thread",
+    "f_thread_velocity",
+    "f_connection_velocity",
+    "f_connection_rate",
+    "f_remote_ips",
+    "f_port_spread",
+    "f_loopback_connections",
+    "f_localhost_beaconing",
+    "f_persistence_artifact",
+    "persistence_events",
+    "f_sensitive_file_access",
+    "sensitive_file_events",
+    "f_mass_file_modification",
+    "f_suspicious_rename",
+    "rename_events",
+    "f_scanning_score",
+    "f_scanning_detected",
+    "source_worm_score",
+    "cpu_anomaly",
+    "memory_anomaly",
+    "threads_anomaly",
+    "connections_anomaly",
+    "file_events_anomaly",
+    "spawn_anomaly",
+    "tree_anomaly",
+    "remote_ips_anomaly",
+    "child_similarity_anomaly",
+    "aggregate_anomaly",
+    "dynamic_trust",
+    "final_trust",
+    "static_trust"
+  ],
+  "labels": {
+    "forkbomb": 116,
+    "normal": 28,
+    "suspicious": 108,
+    "worm": 243
+  },
+  "log_signature": {
+    "mtime": 1780464698.5610063,
+    "path": "logs/system_log.json",
+    "size": 181623
+  },
+  "model_path": "C:\\Users\\user\\Desktop\\HEALING\\self_healing2.o\\analysis\\models\\threat_model.joblib",
+  "rows": 495,
+  "trained_at": 1780465458.802537
+}

@@ -5,3 +5,5 @@ streamlit-autorefresh
 pandas
 plotly
 pytest
+scikit-learn
+joblib
