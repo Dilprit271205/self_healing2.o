@@ -8,6 +8,56 @@ from utils.file_event_mapper import (
 )
 from analysis.policy_engine import policy_engine
 
+PERSISTENCE_PATH_HINTS = (
+    "startup",
+    "start menu/programs/startup",
+    "autorun",
+    "runonce",
+    "systemd/user",
+    ".config/autostart",
+    "launchagents",
+    "launchdaemons",
+    "cron",
+    "crontab",
+    "scheduled tasks"
+)
+
+SENSITIVE_PATH_HINTS = (
+    ".env",
+    "credential",
+    "credentials",
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "id_rsa",
+    "id_dsa",
+    ".ssh",
+    ".aws",
+    ".azure",
+    ".kube",
+    "keychain",
+    "wallet"
+)
+
+
+def _path_contains_any(
+    path,
+    hints
+):
+    normalized = str(
+        path
+        or ""
+    ).replace(
+        "\\",
+        "/"
+    ).lower()
+
+    return any(
+        hint in normalized
+        for hint in hints
+    )
+
 # ---------------------------------------------------
 # HISTORY STORE
 # fixes review:
@@ -126,6 +176,14 @@ class ExtractorEngine:
                     {}
                 )
             )
+
+        file_behavior = self._file_behavior_flags_for_process(
+            process,
+            file_map.get(
+                "__paths__",
+                {}
+            )
+        )
 
         # -----------------------------------------
         # NETWORK FEATURES
@@ -403,7 +461,10 @@ class ExtractorEngine:
             "connections":
                 connection_count,
             "file_events":
-                file_events,
+                max(
+                    file_events,
+                    file_behavior["file_events"]
+                ),
 
             # review requested
             "f_thread":
@@ -472,6 +533,18 @@ class ExtractorEngine:
             "f_scanning_detected":
                 scanning_detected,
 
+            "f_persistence_artifact":
+                file_behavior["f_persistence_artifact"],
+
+            "persistence_events":
+                file_behavior["persistence_events"],
+
+            "f_sensitive_file_access":
+                file_behavior["f_sensitive_file_access"],
+
+            "sensitive_file_events":
+                file_behavior["sensitive_file_events"],
+
             # heuristics
             "worm_score":
                 worm_score,
@@ -533,6 +606,87 @@ class ExtractorEngine:
 
         except Exception:
             return 0
+
+    def _file_behavior_flags_for_process(
+        self,
+        process,
+        path_events
+    ):
+        try:
+            import os
+
+            cwd = process.get(
+                "cwd",
+                ""
+            )
+
+            if not cwd:
+                return {
+                    "file_events": 0,
+                    "f_persistence_artifact": 0,
+                    "persistence_events": 0,
+                    "f_sensitive_file_access": 0,
+                    "sensitive_file_events": 0
+                }
+
+            cwd = os.path.abspath(
+                cwd
+            )
+
+            file_events = 0
+            persistence_events = 0
+            sensitive_events = 0
+
+            for path, count in path_events.items():
+                try:
+                    event_path = os.path.abspath(
+                        path
+                    )
+                    event_count = int(
+                        count
+                        or 0
+                    )
+                except Exception:
+                    continue
+
+                if not (
+                    event_path == cwd
+                    or event_path.startswith(
+                        cwd + os.sep
+                    )
+                ):
+                    continue
+
+                file_events += event_count
+
+                if _path_contains_any(
+                    event_path,
+                    PERSISTENCE_PATH_HINTS
+                ):
+                    persistence_events += event_count
+
+                if _path_contains_any(
+                    event_path,
+                    SENSITIVE_PATH_HINTS
+                ):
+                    sensitive_events += event_count
+
+            return {
+                "file_events": file_events,
+                "f_persistence_artifact": 1 if persistence_events else 0,
+                "persistence_events": persistence_events,
+                "f_sensitive_file_access": 1 if sensitive_events else 0,
+                "sensitive_file_events": sensitive_events
+            }
+
+        except Exception:
+            return {
+                "file_events": 0,
+                "f_persistence_artifact": 0,
+                "persistence_events": 0,
+                "f_sensitive_file_access": 0,
+                "sensitive_file_events": 0
+            }
 
     def _descendant_count(
         self,

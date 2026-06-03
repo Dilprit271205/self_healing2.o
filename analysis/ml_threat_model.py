@@ -778,6 +778,103 @@ class MLThreatModel:
                     BEHAVIOR_ACTIVATION_PROBABILITY
                 )
 
+        row = x.iloc[0]
+
+        direct_rules = {
+            "file_replication": _safe_float(row.get("file_events", 0)) >= 60,
+            "high_file_velocity": _safe_float(row.get("file_events", 0)) >= 45,
+            "extreme_file_velocity": _safe_float(row.get("file_events", 0)) >= 75,
+            "network_fanout": (
+                _safe_float(row.get("f_connection_velocity", 0)) >= 10
+                or _safe_float(row.get("f_remote_ips", 0)) >= 10
+                or _safe_float(row.get("f_loopback_connections", 0)) >= 8
+            ),
+            "localhost_beaconing": (
+                _safe_float(row.get("f_localhost_beaconing", 0)) > 0
+                or (
+                    _safe_float(row.get("f_loopback_connections", 0)) >= 8
+                    and _safe_float(row.get("f_connection_velocity", 0)) >= 8
+                )
+            ),
+            "persistence_artifact": (
+                _safe_float(row.get("f_persistence_artifact", 0)) > 0
+                or _safe_float(row.get("persistence_events", 0)) > 0
+            ),
+            "sensitive_file_access": (
+                _safe_float(row.get("f_sensitive_file_access", 0)) > 0
+                or _safe_float(row.get("sensitive_file_events", 0)) > 0
+            ),
+            "thread_explosion": (
+                _safe_float(row.get("f_thread", 0)) >= 80
+                or _safe_float(row.get("f_thread_velocity", 0)) >= 50
+            ),
+            "cpu_memory_escalation": (
+                _safe_float(row.get("cpu", 0)) >= 85
+                or _safe_float(row.get("memory", 0)) >= 35
+            ),
+            "resource_pressure": (
+                _safe_float(row.get("cpu", 0)) >= 85
+                or _safe_float(row.get("memory", 0)) >= 35
+                or _safe_float(row.get("f_thread", 0)) >= 80
+            ),
+            "rapid_child_spawning": _safe_float(row.get("f_proc_spawn", 0)) >= 4,
+            "large_or_growing_tree": _safe_float(row.get("f_proc_tree", 0)) >= 12,
+            "repeated_similar_children": (
+                _safe_float(row.get("f_repeated_child_count", 0)) >= 8
+                and _safe_float(row.get("f_child_similarity", 0)) >= 0.65
+            ),
+            "short_lived_recursive_children": (
+                _safe_float(row.get("f_short_lived_child_ratio", 0)) >= 0.65
+            ),
+            "process_storm_burst": (
+                _safe_float(row.get("f_proc_tree", 0)) >= 20
+                and _safe_float(row.get("f_repeated_child_count", 0)) >= 8
+            ),
+        }
+        direct_rules["catastrophic_behavior"] = (
+            direct_rules["process_storm_burst"]
+            and direct_rules["repeated_similar_children"]
+            and direct_rules["short_lived_recursive_children"]
+        )
+
+        for tag, active in direct_rules.items():
+            if not active:
+                continue
+
+            behavior_signals[tag] = True
+            behavior_probabilities[tag] = max(
+                behavior_probabilities.get(tag, 0.0),
+                0.99
+            )
+
+        if direct_rules["catastrophic_behavior"]:
+            probabilities["forkbomb"] = max(
+                probabilities.get("forkbomb", 0.0),
+                0.96
+            )
+            probabilities["normal"] = min(
+                probabilities.get("normal", 0.0),
+                0.04
+            )
+        elif any(
+            direct_rules[tag]
+            for tag in (
+                "file_replication",
+                "network_fanout",
+                "persistence_artifact",
+                "sensitive_file_access",
+                "thread_explosion"
+            )
+        ):
+            probabilities["worm"] = max(
+                probabilities.get("worm", 0.0),
+                0.92
+            )
+            probabilities["normal"] = min(
+                probabilities.get("normal", 0.0),
+                0.08
+            )
+
         worm_score = min(
             1.0,
             probabilities.get("worm", 0.0)

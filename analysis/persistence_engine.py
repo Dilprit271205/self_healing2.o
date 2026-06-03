@@ -464,7 +464,22 @@ class PersistenceEngine:
             )
         )
 
-        if terminate_ready or catastrophic_ready:
+        confirmed_catastrophic_ready = (
+            persistent
+            and catastrophic_count >= policy_engine.get(
+                "persistence.catastrophic_loops",
+                1
+            )
+            and worm_count >= max(2, self.delta - 1)
+            and avg_worm_score >= 0.85
+            and avg_correlated_signals >= 4
+        )
+
+        if (
+            terminate_ready
+            or catastrophic_ready
+            or confirmed_catastrophic_ready
+        ):
             stage = "terminate"
 
         if (
@@ -508,8 +523,14 @@ class PersistenceEngine:
                 avg_correlated_signals,
 
             "termination_ready":
-                terminate_ready,
+                (
+                    terminate_ready
+                    or confirmed_catastrophic_ready
+                ),
 
             "catastrophic_ready":
-                catastrophic_ready
+                (
+                    catastrophic_ready
+                    or confirmed_catastrophic_ready
+                )
         }

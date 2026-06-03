@@ -1208,6 +1208,162 @@ def _path_is_under(
         return False
 
 
+PERSISTENCE_PATH_HINTS = (
+    "startup",
+    "start menu/programs/startup",
+    "autorun",
+    "runonce",
+    "systemd/user",
+    ".config/autostart",
+    "launchagents",
+    "launchdaemons",
+    "cron",
+    "crontab",
+    "scheduled tasks"
+)
+
+SENSITIVE_PATH_HINTS = (
+    ".env",
+    "credential",
+    "credentials",
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "id_rsa",
+    "id_dsa",
+    ".ssh",
+    ".aws",
+    ".azure",
+    ".kube",
+    "keychain",
+    "wallet"
+)
+
+
+def _path_contains_any(
+    path,
+    hints
+):
+    normalized = str(
+        path
+        or ""
+    ).replace(
+        "\\",
+        "/"
+    ).lower()
+
+    return any(
+        hint in normalized
+        for hint in hints
+    )
+
+
+def _file_behavior_evidence_for_process(
+    process,
+    file_map=None
+):
+    file_map = file_map or {}
+    path_events = file_map.get(
+        "__paths__",
+        {}
+    )
+
+    try:
+        pid = process.get(
+            "pid"
+        )
+        direct_events = int(
+            file_map.get(
+                pid,
+                0
+            )
+            or 0
+        )
+    except Exception:
+        direct_events = 0
+
+    cwd = process.get(
+        "cwd",
+        ""
+    )
+    cwd_abs = ""
+
+    if cwd:
+        try:
+            cwd_abs = os.path.abspath(
+                cwd
+            )
+        except Exception:
+            cwd_abs = ""
+
+    total_events = direct_events
+    persistence_events = 0
+    sensitive_events = 0
+
+    for path, count in path_events.items():
+        try:
+            event_count = int(
+                count
+                or 0
+            )
+        except Exception:
+            event_count = 0
+
+        if event_count <= 0:
+            continue
+
+        try:
+            path_abs = os.path.abspath(
+                path
+            )
+        except Exception:
+            path_abs = str(
+                path
+            )
+
+        belongs_to_process = (
+            bool(cwd_abs)
+            and not _is_broad_file_root(
+                cwd_abs
+            )
+            and (
+                _path_is_under(
+                    path_abs,
+                    cwd_abs
+                )
+                or _path_is_under(
+                    cwd_abs,
+                    path_abs
+                )
+            )
+        )
+
+        if belongs_to_process:
+            total_events += event_count
+
+        if belongs_to_process or direct_events:
+            if _path_contains_any(
+                path_abs,
+                PERSISTENCE_PATH_HINTS
+            ):
+                persistence_events += event_count
+
+            if _path_contains_any(
+                path_abs,
+                SENSITIVE_PATH_HINTS
+            ):
+                sensitive_events += event_count
+
+    return {
+        "file_events": total_events,
+        "persistence_events": persistence_events,
+        "sensitive_file_events": sensitive_events,
+        "f_persistence_artifact": 1 if persistence_events else 0,
+        "f_sensitive_file_access": 1 if sensitive_events else 0
+    }
+
+
 def _behavior_containment_enabled():
     return os.getenv(
         "SELF_HEALING_BEHAVIOR_CONTAINMENT",
@@ -1837,12 +1993,14 @@ def emergency_file_activity_preflight(
 
 def emergency_behavior_preflight(
     processes,
-    connection_map=None
+    connection_map=None,
+    file_map=None
 ):
     if not _behavior_containment_enabled():
         return set()
 
     connection_map = connection_map or {}
+    file_map = file_map or {}
     handled_pids = set()
 
     for process in _candidate_processes_with_recent(
@@ -1946,6 +2104,10 @@ def emergency_behavior_preflight(
             )
             or 0
         )
+        file_evidence = _file_behavior_evidence_for_process(
+            process,
+            file_map
+        )
 
         beacon_like = (
             (
@@ -1970,6 +2132,14 @@ def emergency_behavior_preflight(
                 "persistence_events",
                 0
             )
+            or file_evidence.get(
+                "f_persistence_artifact",
+                0
+            )
+            or file_evidence.get(
+                "persistence_events",
+                0
+            )
         )
 
         sensitive_access_like = bool(
@@ -1978,6 +2148,14 @@ def emergency_behavior_preflight(
                 0
             )
             or process.get(
+                "sensitive_file_events",
+                0
+            )
+            or file_evidence.get(
+                "f_sensitive_file_access",
+                0
+            )
+            or file_evidence.get(
                 "sensitive_file_events",
                 0
             )
@@ -2072,7 +2250,10 @@ def emergency_behavior_preflight(
             "file_events": 3 if (
                 persistence_like
                 or sensitive_access_like
-            ) else 0,
+            ) else file_evidence.get(
+                "file_events",
+                0
+            ),
             "f_connection_velocity": connection_velocity,
             "f_loopback_connections": loopback_connections,
             "f_connection_rate": connection_rate,
@@ -2083,6 +2264,14 @@ def emergency_behavior_preflight(
             "f_localhost_beaconing": 1 if beacon_like else 0,
             "f_persistence_artifact": 1 if persistence_like else 0,
             "f_sensitive_file_access": 1 if sensitive_access_like else 0,
+            "persistence_events": file_evidence.get(
+                "persistence_events",
+                0
+            ),
+            "sensitive_file_events": file_evidence.get(
+                "sensitive_file_events",
+                0
+            ),
             "f_thread_storm": 1 if thread_storm_like else 0,
             "f_cpu_exhaustion": 1 if cpu_exhaustion_like else 0,
             "f_memory_spike": 1 if memory_spike_like else 0,
@@ -2574,13 +2763,14 @@ def monitor_loop():
                 )
             )
 
-            emergency_behavior_preflight(
-                processes,
-                connection_map
-            )
-
             file_map = (
                 get_file_map()
+            )
+
+            emergency_behavior_preflight(
+                processes,
+                connection_map,
+                file_map
             )
 
             # =====================================

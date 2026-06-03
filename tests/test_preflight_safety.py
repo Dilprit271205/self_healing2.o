@@ -651,6 +651,51 @@ def test_behavior_persistence_artifact_terminates(monkeypatch):
     assert calls[0]["features"]["f_persistence_artifact"] == 1
 
 
+def test_behavior_persistence_artifact_detects_file_map_path(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv(
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
+        "true",
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    handled = main_mod.emergency_behavior_preflight(
+        [
+            {
+                "pid": 62012,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python worker.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/workload",
+                "age_seconds": 2,
+            }
+        ],
+        {},
+        {
+            "__paths__": {
+                "/home/kali/workload/.config/autostart/worker.desktop": 2,
+            }
+        },
+    )
+
+    assert handled == {62012}
+    assert calls[0]["features"]["f_persistence_artifact"] == 1
+    assert calls[0]["features"]["persistence_events"] == 2
+
+
 def test_behavior_preflight_respects_production_safe_mode(monkeypatch):
     calls = []
 
@@ -841,6 +886,48 @@ def test_behavior_sensitive_file_access_terminates(monkeypatch):
     assert handled == {62006}
     assert calls[0]["features"]["f_sensitive_file_access"] == 1
     assert calls[0]["persistence_state"]["stage"] == "terminate"
+
+
+def test_behavior_sensitive_file_access_detects_file_map_path(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    handled = main_mod.emergency_behavior_preflight(
+        [
+            {
+                "pid": 62013,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python worker.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/workload",
+                "age_seconds": 2,
+            }
+        ],
+        {},
+        {
+            "__paths__": {
+                "/home/kali/workload/secrets/.env": 1,
+            }
+        },
+    )
+
+    assert handled == {62013}
+    assert calls[0]["features"]["f_sensitive_file_access"] == 1
+    assert calls[0]["features"]["sensitive_file_events"] == 1
 
 
 def test_non_lab_cpu_heavy_process_is_not_terminated(monkeypatch):

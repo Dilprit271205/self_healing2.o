@@ -18,3 +18,41 @@ def test_dashboard_log_window_is_bounded():
     import dashboard
 
     assert dashboard.DASHBOARD_MAX_ROWS <= 1000
+
+
+def test_dashboard_healing_status_overlays_process_stage():
+    import pandas as pd
+    import dashboard
+
+    process_rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp("2026-06-03T10:00:00"),
+            "pid": 1234,
+            "name": "python",
+            "stage": "observe",
+            "response": "none",
+            "severity": "critical",
+            "worm_score": 0.9,
+            "features": {},
+            "signals": {},
+        }
+    ])
+    healing_rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp("2026-06-03T10:00:02"),
+            "pid": 1234,
+            "stage": "terminate",
+            "status": "terminated targets=1",
+            "action_taken": True,
+        }
+    ])
+
+    merged = dashboard._overlay_healing_status(
+        process_rows,
+        healing_rows,
+        process_rows,
+    )
+
+    assert merged.iloc[0]["stage"] == "terminate"
+    assert merged.iloc[0]["response"] == "terminated targets=1"
+    assert merged.iloc[0]["action_taken"] is True

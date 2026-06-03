@@ -596,6 +596,202 @@ def _normalize_dashboard_df(dataframe, required=None):
     return normalized
 
 
+def _coerce_dashboard_dict(value):
+
+    if isinstance(value, dict):
+        return value
+
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            return {}
+
+    return {}
+
+
+def _with_feature_flags(dataframe):
+
+    if dataframe is None or dataframe.empty:
+        return dataframe
+
+    enriched = dataframe.copy()
+
+    if "features" not in enriched.columns:
+        enriched["features"] = [{} for _ in range(len(enriched))]
+
+    flag_defaults = {
+        "f_localhost_beaconing": 0,
+        "f_persistence_artifact": 0,
+        "persistence_events": 0,
+        "f_sensitive_file_access": 0,
+        "sensitive_file_events": 0,
+        "file_events": 0,
+        "f_loopback_connections": 0,
+        "f_connection_velocity": 0
+    }
+
+    for col, default in flag_defaults.items():
+        values = []
+
+        for _, row in enriched.iterrows():
+            features = _coerce_dashboard_dict(
+                row.get("features")
+            )
+            values.append(
+                features.get(
+                    col,
+                    row.get(
+                        col,
+                        default
+                    )
+                )
+            )
+
+        enriched[col] = pd.Series(
+            pd.to_numeric(
+                values,
+                errors="coerce"
+            )
+        ).fillna(default).values
+
+    enriched["beacon_detected"] = (
+        enriched["f_localhost_beaconing"] > 0
+    )
+    enriched["persistence_detected"] = (
+        enriched["f_persistence_artifact"] > 0
+    )
+    enriched["sensitive_access_detected"] = (
+        enriched["f_sensitive_file_access"] > 0
+    )
+
+    return enriched
+
+
+def _overlay_healing_status(latest_rows, healing_rows, all_process_rows):
+
+    if latest_rows is None or latest_rows.empty:
+        return latest_rows
+
+    if healing_rows is None or healing_rows.empty:
+        return latest_rows
+
+    merged = latest_rows.copy()
+    healing = healing_rows.copy()
+
+    if "timestamp" in healing.columns:
+        healing["timestamp"] = pd.to_datetime(
+            healing["timestamp"],
+            errors="coerce"
+        )
+
+    healing = healing.dropna(
+        subset=["pid"]
+    )
+
+    if healing.empty:
+        return merged
+
+    healing["pid"] = pd.to_numeric(
+        healing["pid"],
+        errors="coerce"
+    )
+    healing = healing.dropna(
+        subset=["pid"]
+    )
+
+    if healing.empty:
+        return merged
+
+    latest_healing = (
+        healing.sort_values("timestamp")
+        .groupby("pid")
+        .tail(1)
+        .reset_index(drop=True)
+    )
+
+    for _, heal in latest_healing.iterrows():
+        pid = heal.get("pid")
+        mask = merged["pid"].astype(float).eq(float(pid))
+
+        if mask.any():
+            merged.loc[mask, "stage"] = str(
+                heal.get(
+                    "stage",
+                    merged.loc[mask, "stage"].iloc[0]
+                )
+            ).lower()
+            merged.loc[mask, "response"] = str(
+                heal.get(
+                    "status",
+                    merged.loc[mask, "response"].iloc[0]
+                )
+            ).lower()
+            merged.loc[mask, "action_taken"] = bool(
+                heal.get(
+                    "action_taken",
+                    False
+                )
+            )
+            continue
+
+        source = pd.DataFrame()
+
+        if all_process_rows is not None and not all_process_rows.empty:
+            source = (
+                all_process_rows[
+                    all_process_rows["pid"].astype(float).eq(float(pid))
+                ]
+                .sort_values("timestamp")
+                .tail(1)
+            )
+
+        if source.empty:
+            source = pd.DataFrame([
+                {
+                    "timestamp": heal.get("timestamp"),
+                    "pid": pid,
+                    "name": "terminated process",
+                    "label": "unknown",
+                    "severity": "critical",
+                    "worm_score": 0,
+                    "confidence": 0,
+                    "dynamic_trust": 0,
+                    "final_trust": 0,
+                    "static_trust": 0,
+                    "cpu": 0,
+                    "memory": 0,
+                    "threads": 0,
+                    "connections": 0,
+                    "file_events": 0,
+                    "features": {},
+                    "signals": {}
+                }
+            ])
+
+        new_row = source.iloc[-1].copy()
+        new_row["stage"] = str(
+            heal.get("stage", "observe")
+        ).lower()
+        new_row["response"] = str(
+            heal.get("status", "")
+        ).lower()
+        new_row["action_taken"] = bool(
+            heal.get("action_taken", False)
+        )
+        merged = pd.concat(
+            [
+                merged,
+                pd.DataFrame([new_row])
+            ],
+            ignore_index=True
+        )
+
+    return merged
+
+
 # ===================================================
 # LOAD DATA
 # ===================================================
@@ -715,6 +911,20 @@ latest = (
     .tail(1)
 
     .reset_index(drop=True)
+)
+
+latest = _overlay_healing_status(
+    latest,
+    healing_df,
+    df
+)
+
+latest = _with_feature_flags(
+    latest
+)
+
+df = _with_feature_flags(
+    df
 )
 
 # ===================================================
@@ -926,6 +1136,57 @@ def _top_driver_rows(signal_rows):
             )
 
     return pd.DataFrame(rows)
+
+
+def _active_flag_rows(rows):
+
+    if rows is None or rows.empty:
+        return pd.DataFrame()
+
+    flag_specs = [
+        (
+            "Beacon",
+            "beacon_detected",
+            "f_loopback_connections"
+        ),
+        (
+            "Persistence",
+            "persistence_detected",
+            "persistence_events"
+        ),
+        (
+            "Sensitive Access",
+            "sensitive_access_detected",
+            "sensitive_file_events"
+        )
+    ]
+
+    output = []
+
+    for _, item in rows.iterrows():
+        for label, flag_col, evidence_col in flag_specs:
+            if not bool(
+                item.get(
+                    flag_col,
+                    False
+                )
+            ):
+                continue
+
+            output.append(
+                {
+                    "flag": label,
+                    "pid": item.get("pid"),
+                    "process": item.get("name"),
+                    "severity": item.get("severity"),
+                    "stage": item.get("stage"),
+                    "response": item.get("response"),
+                    "evidence_count": item.get(evidence_col, 0),
+                    "worm_score": item.get("worm_score", 0)
+                }
+            )
+
+    return pd.DataFrame(output)
 
 
 def _brief_card(label, value, note=""):
@@ -1383,6 +1644,7 @@ learning_snapshot = _learning_summary(
 signal_rows = _latest_signal_rows(latest)
 behavior_df = _behavior_summary(signal_rows)
 driver_df = _top_driver_rows(signal_rows)
+active_flag_df = _active_flag_rows(latest)
 
 model_accuracy = (
     model_metadata
@@ -1489,8 +1751,8 @@ with brief4:
 
 st.markdown("---")
 
-k1, k2, k3, k4, k5 = (
-    st.columns(5)
+k1, k2, k3, k4, k5, k6 = (
+    st.columns(6)
 )
 
 k1.metric(
@@ -1516,6 +1778,11 @@ k4.metric(
 k5.metric(
     "🚨 Critical",
     critical_processes
+)
+
+k6.metric(
+    "Behavior Flags",
+    len(active_flag_df)
 )
 
 st.markdown("---")
@@ -1571,6 +1838,32 @@ else:
         _safe_table(recent_alerts_df[alert_cols]),
         width="stretch",
         height=280
+    )
+
+st.subheader(
+    "Behavior Flags"
+)
+
+if active_flag_df.empty:
+    st.success(
+        "No active beacon, persistence, or sensitive-access flags."
+    )
+else:
+    st.dataframe(
+        _safe_table(
+            active_flag_df.sort_values(
+                [
+                    "flag",
+                    "worm_score"
+                ],
+                ascending=[
+                    True,
+                    False
+                ]
+            )
+        ),
+        width="stretch",
+        height=220
     )
 
 st.subheader(
@@ -2262,6 +2555,11 @@ if page == "🛡 Operations":
         "severity",
 
         "stage",
+        "response",
+
+        "beacon_detected",
+        "persistence_detected",
+        "sensitive_access_detected",
 
         "cpu",
         "memory",
