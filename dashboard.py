@@ -379,6 +379,143 @@ def load_learning_kb(_signature):
     return _load_json_file(LEARNING_KB_LOG)
 
 
+NUMERIC_DEFAULTS = {
+    "pid": 0,
+    "entity_root": 0,
+    "dynamic_trust": 1.0,
+    "final_trust": 1.0,
+    "static_trust": 1.0,
+    "worm_score": 0.0,
+    "confidence": 0.0,
+    "cpu": 0.0,
+    "memory": 0.0,
+    "threads": 0.0,
+    "connections": 0.0,
+    "files": 0.0,
+    "file_events": 0.0,
+    "children_count": 0.0,
+    "growth_velocity": 0.0,
+    "total_cpu": 0.0,
+    "total_memory": 0.0,
+    "observations": 0.0,
+    "action_count": 0.0,
+    "false_positive_count": 0.0
+}
+
+TEXT_DEFAULTS = {
+    "name": "unknown",
+    "label": "normal",
+    "severity": "low",
+    "stage": "observe",
+    "response": "none",
+    "status": "",
+    "type": "",
+    "source": "",
+    "alert": "",
+    "disposition": "",
+    "attack_family": "",
+    "recommended_stage": "",
+    "summary": "",
+    "evidence": "",
+    "last_process_name": "",
+    "last_label": "",
+    "last_severity": ""
+}
+
+
+def _normalize_score_series(series, default=0.0):
+
+    numeric = pd.to_numeric(
+        series,
+        errors="coerce"
+    ).fillna(default)
+
+    return numeric.clip(lower=0)
+
+
+def _normalize_trust_series(series, default=1.0):
+
+    numeric = pd.to_numeric(
+        series,
+        errors="coerce"
+    ).fillna(default)
+
+    # Some historical rows store trust as 0-100; current rows use 0-1.
+    numeric = numeric.where(
+        numeric <= 1,
+        numeric / 100
+    )
+
+    return numeric.clip(
+        lower=0,
+        upper=1
+    )
+
+
+def _normalize_dashboard_df(dataframe, required=None):
+
+    if dataframe.empty:
+        return dataframe
+
+    normalized = dataframe.copy()
+
+    for col, default in NUMERIC_DEFAULTS.items():
+        if col not in normalized.columns:
+            if required and col in required:
+                normalized[col] = default
+            continue
+
+        if col in {
+            "dynamic_trust",
+            "final_trust",
+            "static_trust"
+        }:
+            normalized[col] = _normalize_trust_series(
+                normalized[col],
+                default
+            )
+        else:
+            normalized[col] = _normalize_score_series(
+                normalized[col],
+                default
+            )
+
+    for col, default in TEXT_DEFAULTS.items():
+        if col not in normalized.columns:
+            if required and col in required:
+                normalized[col] = default
+            continue
+
+        normalized[col] = (
+            normalized[col]
+            .fillna(default)
+            .astype(str)
+            .replace(
+                {
+                    "": default,
+                    "None": default,
+                    "nan": default,
+                    "NaT": default
+                }
+            )
+            .str.lower()
+            if col in {"severity", "stage", "response", "label"}
+            else normalized[col]
+            .fillna(default)
+            .astype(str)
+            .replace(
+                {
+                    "": default,
+                    "None": default,
+                    "nan": default,
+                    "NaT": default
+                }
+            )
+        )
+
+    return normalized
+
+
 # ===================================================
 # LOAD DATA
 # ===================================================
@@ -425,12 +562,40 @@ if df.empty:
         }
     ])
 
+df = _normalize_dashboard_df(
+    df,
+    required=set(NUMERIC_DEFAULTS) | set(TEXT_DEFAULTS)
+)
+entity_df = _normalize_dashboard_df(
+    entity_df
+)
+healing_df = _normalize_dashboard_df(
+    healing_df
+)
+learning_kb_df = _normalize_dashboard_df(
+    learning_kb_df
+)
+
 # ===================================================
 # CLEAN DATA
 # ===================================================
 df["timestamp"] = pd.to_datetime(
-    df["timestamp"]
+    df["timestamp"],
+    errors="coerce"
 )
+
+df = df.dropna(
+    subset=[
+        "timestamp"
+    ]
+)
+
+if df.empty:
+    st.warning(
+        "Process log rows exist, but none have valid timestamps."
+    )
+
+    st.stop()
 
 LIVE_WINDOW_SECONDS = 45
 
@@ -510,25 +675,6 @@ for col, val in defaults.items():
 # ===================================================
 
 # ---------------------------------------
-# NUMERIC SAFETY
-# ---------------------------------------
-latest["final_trust"] = pd.to_numeric(
-
-    latest["final_trust"],
-
-    errors="coerce"
-
-).fillna(1.0)
-
-latest["worm_score"] = pd.to_numeric(
-
-    latest["worm_score"],
-
-    errors="coerce"
-
-).fillna(0)
-
-# ---------------------------------------
 # SIZE SANITIZER
 # ensure plotly receives valid non-negative
 # numeric values for marker sizing
@@ -541,6 +687,46 @@ def _safe_size_col(df, col, tmp_name):
             df[tmp_name] = 0
     except Exception:
         df[tmp_name] = 0
+
+
+def _safe_table(dataframe):
+
+    if dataframe is None or dataframe.empty:
+        return pd.DataFrame()
+
+    table = _normalize_dashboard_df(
+        dataframe
+    )
+
+    def _safe_table_value(value):
+
+        if isinstance(
+            value,
+            (dict, list, tuple, set)
+        ):
+            return json.dumps(
+                value,
+                sort_keys=True,
+                default=str
+            )
+
+        try:
+            if pd.isna(value):
+                return ""
+        except Exception:
+            pass
+
+        return str(value)
+
+    for col in table.columns:
+        if table[col].dtype != "object":
+            continue
+
+        table[col] = table[col].apply(
+            _safe_table_value
+        )
+
+    return table
 
 
 # prepare common safe size columns on latest
@@ -788,11 +974,11 @@ def _recent_alert_rows(process_rows, healing_rows):
                     "pid": item.get("pid"),
                     "name": "",
                     "alert": "response",
-                    "severity": "",
+                    "severity": "low",
                     "stage": item.get("stage"),
                     "status": item.get("status"),
-                    "worm_score": "",
-                    "final_trust": ""
+                    "worm_score": 0.0,
+                    "final_trust": 1.0
                 })
 
         if not rows:
@@ -802,6 +988,20 @@ def _recent_alert_rows(process_rows, healing_rows):
         alert_df["timestamp"] = pd.to_datetime(
             alert_df["timestamp"],
             errors="coerce"
+        )
+        alert_df = _normalize_dashboard_df(
+            alert_df,
+            required={
+                "pid",
+                "worm_score",
+                "final_trust",
+                "severity",
+                "stage",
+                "status",
+                "source",
+                "alert",
+                "name"
+            }
         )
 
         return (
@@ -1038,7 +1238,7 @@ else:
         if col in recent_alerts_df.columns
     ]
     st.dataframe(
-        recent_alerts_df[alert_cols],
+        _safe_table(recent_alerts_df[alert_cols]),
         width="stretch",
         height=280
     )
@@ -1071,7 +1271,7 @@ l4.metric(
 
 if not learning_snapshot["recent"].empty:
     st.dataframe(
-        learning_snapshot["recent"],
+        _safe_table(learning_snapshot["recent"]),
         width="stretch",
         height=180
     )
@@ -1609,7 +1809,7 @@ if page == "🛡 Operations":
     )
 
     st.dataframe(
-        display_df,
+        _safe_table(display_df),
         width="stretch",
         height=500
     )
@@ -1810,9 +2010,9 @@ elif page == "🧬 Threat Intelligence":
 
         st.dataframe(
 
-            latest_entity[
+            _safe_table(latest_entity[
                 entity_cols
-            ]
+            ])
 
             .sort_values(
                 "children_count",
@@ -1979,9 +2179,9 @@ elif page == "🐇 Worm Lab":
 
         st.dataframe(
 
-            worm_df[
+            _safe_table(worm_df[
                 worm_cols
-            ],
+            ]),
 
             width="stretch",
             height=400
@@ -2105,14 +2305,14 @@ elif page == "📚 Learning Center":
         ]
 
         st.dataframe(
-            kb_top[display_cols],
+            _safe_table(kb_top[display_cols]),
             width="stretch",
             height=360
         )
 
         with st.expander("Knowledge Base Raw Patterns"):
             st.dataframe(
-                kb.sort_values("observations", ascending=False),
+                _safe_table(kb.sort_values("observations", ascending=False)),
                 width="stretch",
                 height=420
             )
@@ -2193,7 +2393,7 @@ elif page == "📚 Learning Center":
             )
 
             st.dataframe(
-                learning_df,
+                _safe_table(learning_df),
                 width="stretch",
                 height=400
             )
@@ -2229,9 +2429,9 @@ elif page == "📚 Learning Center":
 
     st.dataframe(
 
-        latest[
+        _safe_table(latest[
             audit_cols
-        ]
+        ])
 
         .sort_values(
             "worm_score",
