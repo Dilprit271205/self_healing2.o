@@ -1329,6 +1329,77 @@ def _acceptance_coverage_rows(latest_rows, signal_rows):
     return pd.DataFrame(rows)
 
 
+def _self_healing_flow_rows(latest_rows, alert_rows, flag_rows):
+
+    active_rows = (
+        latest_rows
+        if latest_rows is not None
+        else pd.DataFrame()
+    )
+    alert_count = (
+        len(alert_rows)
+        if alert_rows is not None and not alert_rows.empty
+        else 0
+    )
+    flag_count = (
+        len(flag_rows)
+        if flag_rows is not None and not flag_rows.empty
+        else 0
+    )
+
+    if active_rows.empty:
+        stage_counts = {}
+        live_count = 0
+    else:
+        stage_counts = (
+            active_rows["stage"]
+            .astype(str)
+            .str.lower()
+            .value_counts()
+            .to_dict()
+        )
+        live_count = len(active_rows)
+
+    return pd.DataFrame([
+        {
+            "loop_stage": "Observe",
+            "count": live_count,
+            "detail": "live process rows"
+        },
+        {
+            "loop_stage": "Detect",
+            "count": alert_count,
+            "detail": "alerts in window"
+        },
+        {
+            "loop_stage": "Correlate",
+            "count": flag_count,
+            "detail": "behavior flags"
+        },
+        {
+            "loop_stage": "Respond",
+            "count": sum(
+                stage_counts.get(stage, 0)
+                for stage in (
+                    "throttle",
+                    "quarantine",
+                    "block_resources",
+                    "terminate"
+                )
+            ),
+            "detail": "active response stages"
+        },
+        {
+            "loop_stage": "Recover",
+            "count": stage_counts.get(
+                "trust_recovery",
+                0
+            ),
+            "detail": "trust recovery"
+        }
+    ])
+
+
 def _brief_card(label, value, note=""):
 
     st.markdown(
@@ -1789,6 +1860,11 @@ coverage_df = _acceptance_coverage_rows(
     latest,
     signal_rows
 )
+self_healing_flow_df = _self_healing_flow_rows(
+    latest,
+    recent_alerts_df,
+    active_flag_df
+)
 
 model_accuracy = (
     model_metadata
@@ -2008,6 +2084,49 @@ else:
         ),
         width="stretch",
         height=220
+    )
+
+st.subheader(
+    "Self-Healing Loop"
+)
+
+loop1, loop2 = st.columns([2, 1])
+
+with loop1:
+    fig = px.funnel(
+        self_healing_flow_df,
+        x="count",
+        y="loop_stage",
+        color="loop_stage",
+        hover_data=[
+            "detail"
+        ],
+        title="Observe -> Detect -> Correlate -> Respond -> Recover",
+        color_discrete_sequence=[
+            "#38bdf8",
+            "#f59e0b",
+            "#a855f7",
+            "#ef4444",
+            "#22c55e"
+        ]
+    )
+    fig.update_layout(
+        height=300,
+        showlegend=False,
+        margin=dict(l=10, r=10, t=45, b=10)
+    )
+    st.plotly_chart(
+        fig,
+        width="stretch"
+    )
+
+with loop2:
+    st.dataframe(
+        _safe_table(
+            self_healing_flow_df
+        ),
+        width="stretch",
+        height=300
     )
 
 st.subheader(

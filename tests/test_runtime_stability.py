@@ -96,3 +96,43 @@ def test_dashboard_acceptance_coverage_tracks_behavior_flags():
 
     assert len(coverage) == 12
     assert coverage["coverage"].sum() >= 10
+
+
+def test_incompatible_sklearn_model_metadata_retrains(tmp_path, monkeypatch):
+    import json
+    from analysis import ml_threat_model
+
+    model_path = tmp_path / "threat_model.joblib"
+    metadata_path = tmp_path / "threat_model.metadata.json"
+    model_path.write_bytes(b"old-model")
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "sklearn_version": "0.0",
+                "feature_names": ml_threat_model.FEATURE_NAMES,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    calls = []
+    fake_model = object()
+
+    monkeypatch.setattr(
+        ml_threat_model,
+        "MODEL_META_PATH",
+        metadata_path,
+    )
+    monkeypatch.setattr(
+        ml_threat_model,
+        "train_and_save",
+        lambda **kwargs: calls.append(kwargs) or fake_model,
+    )
+
+    model = ml_threat_model.load_or_train(
+        model_path=model_path,
+        log_path=str(tmp_path / "system_log.json"),
+    )
+
+    assert model is fake_model
+    assert calls

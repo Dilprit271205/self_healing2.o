@@ -102,6 +102,46 @@ Tune the retrain check interval in seconds:
 set SELF_HEALING_ML_RETRAIN_SECONDS=300
 ```
 
+## Fork-Bomb And Worm Detection Notes
+
+Recent defensive references line up on the same practical idea: do not
+terminate on one noisy metric. Fork bombs are best treated as process-tree
+storms: fast child growth, repeated similar children, short-lived recursive
+children, and a growing descendant tree. Worm-like behavior needs correlation:
+replication/file velocity, persistence artifacts, sensitive credential access,
+network fanout or localhost beaconing, and trust/risk degradation.
+
+MITRE ATT&CK examples map the same way:
+
+- Conficker used Windows autostart persistence through Registry Run keys /
+  Startup Folder.
+- Replication through removable media is detected by newly executed processes
+  from newly mounted/removable locations plus follow-on network or discovery
+  behavior.
+- Persistence and credential access should be correlated with file path intent,
+  not just a high file-event count.
+
+Defensive decision:
+
+- CPU-only and memory-only spikes can raise `resource_pressure`, but must not
+  become termination-ready by themselves.
+- Fork-bomb termination requires repeated process-tree evidence and correlated
+  fork-bomb signals.
+- File replication termination requires ownership of the file burst plus
+  behavioral evidence, such as duplicate content, subtree fanout, persistence
+  paths, or sensitive-access paths.
+- Dashboard, IDE, remote-dev, and controller processes are hard protected so
+  forced family-kill logic cannot terminate the operator interface.
+- The persisted sklearn model is version-checked. If the runtime sklearn
+  version or feature schema differs from metadata, the model is retrained
+  instead of being loaded with compatibility warnings.
+
+Primary references:
+
+- https://attack.mitre.org/software/S0608/
+- https://attack.mitre.org/techniques/T0847/
+- https://attack.mitre.org/detectionstrategies/
+
 ## How To Train
 
 ```bash

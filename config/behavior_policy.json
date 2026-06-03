@@ -99,6 +99,8 @@
   "critical_process_hints": [
     "streamlit",
     "dashboard.py",
+    "main.py",
+    "checking.py",
     "jupyter",
     "notebook",
     "systemd",

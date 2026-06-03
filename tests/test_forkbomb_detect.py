@@ -132,7 +132,7 @@ def spawn_forkbomb():
     env = os.environ.copy()
     env["FORKBOMB_MAX_CHILDREN"] = "18"
     env["FORKBOMB_SPAWN_DELAY"] = "0.05"
-    env["FORKBOMB_RUN_TIME"] = "15"
+    env["FORKBOMB_RUN_TIME"] = "45"
     env["SELF_HEALING_FORK_TREE_THRESHOLD"] = "8"
     cmd = [sys.executable, os.path.join(os.path.dirname(__file__), "..", "forkbomb_sim.py")]
     return subprocess.Popen(cmd, env=env)

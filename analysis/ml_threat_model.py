@@ -10,6 +10,7 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+import sklearn
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
@@ -148,7 +149,8 @@ def _log_signature(log_path=DEFAULT_LOG_PATH):
         }
 
 
-def _load_metadata(path=MODEL_META_PATH):
+def _load_metadata(path=None):
+    path = path or MODEL_META_PATH
     try:
         with open(path, "r", encoding="utf-8") as handle:
             return json.load(handle)
@@ -156,7 +158,8 @@ def _load_metadata(path=MODEL_META_PATH):
         return {}
 
 
-def _write_metadata(metadata, path=MODEL_META_PATH):
+def _write_metadata(metadata, path=None):
+    path = path or MODEL_META_PATH
     try:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -656,6 +659,7 @@ class MLThreatModel:
                 for tag in BEHAVIOR_LABELS
             },
             "feature_names": FEATURE_NAMES,
+            "sklearn_version": sklearn.__version__,
         }
 
         if hasattr(classifier, "feature_importances_"):
@@ -949,7 +953,26 @@ def train_and_save(log_path="logs/system_log.json", model_path=MODEL_PATH):
 def load_or_train(model_path=MODEL_PATH, log_path="logs/system_log.json"):
     try:
         if Path(model_path).exists():
-            return MLThreatModel.load(model_path)
+            metadata = _load_metadata()
+
+            if metadata.get("sklearn_version") != sklearn.__version__:
+                return train_and_save(
+                    log_path=log_path,
+                    model_path=model_path
+                )
+
+            if metadata.get("feature_names") != FEATURE_NAMES:
+                return train_and_save(
+                    log_path=log_path,
+                    model_path=model_path
+                )
+
+            model = MLThreatModel.load(model_path)
+            model.report.setdefault(
+                "sklearn_version",
+                sklearn.__version__
+            )
+            return model
     except Exception:
         pass
 
@@ -1012,7 +1035,10 @@ class AutonomousThreatModel:
         )
 
     def _reload_model(self):
-        self.model = MLThreatModel.load(self.model_path)
+        self.model = load_or_train(
+            model_path=self.model_path,
+            log_path=self.log_path
+        )
         self.metadata = _load_metadata()
 
     def _train_background(self):

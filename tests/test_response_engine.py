@@ -190,6 +190,37 @@ def test_force_terminate_cannot_kill_streamlit_dashboard_process():
             process.wait(timeout=5)
 
 
+def test_force_terminate_cannot_kill_operator_checking_script():
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "python",
+                "cmdline": "python checking.py",
+                "exe": sys.executable,
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            },
+            persistence_state={
+                "stage": "terminate",
+                "termination_ready": True,
+                "force_terminate": True,
+                "kill_family": True,
+            },
+        )
+
+        assert result["stage"] == "protected"
+        assert result["action_taken"] is False
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
 def test_nano_editor_process_is_never_quarantined():
     resp = ResponseEngine(safe_mode=False)
     process = spawn_sleep_process()
