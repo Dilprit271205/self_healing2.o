@@ -24,7 +24,7 @@ BEHAVIOR_ACTIVATION_PROBABILITY = 0.35
 AUTO_RETRAIN_MIN_SECONDS = int(
     os.getenv(
         "SELF_HEALING_ML_RETRAIN_SECONDS",
-        "300"
+        "45"
     )
 )
 DEFAULT_LOG_PATH = "logs/system_log.json"

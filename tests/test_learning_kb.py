@@ -222,3 +222,62 @@ def test_learning_engine_learns_trust_score_anomaly_pattern(tmp_path, monkeypatc
         classification,
         "throttle",
     ) in {"quarantine", "terminate"}
+
+
+def test_learning_engine_terminates_repeated_strong_pattern_after_one_observation(tmp_path, monkeypatch):
+    kb_path = tmp_path / "learning_kb.json"
+    monkeypatch.setenv("SELF_HEALING_KB_PATH", str(kb_path))
+
+    engine = LearningEngine()
+    process = {
+        "pid": 789,
+        "name": "python",
+        "cmdline": "python repeated file replication fanout",
+        "exe": "/usr/bin/python",
+    }
+    classification = {
+        "label": "worm",
+        "severity": "critical",
+        "worm_score": 0.95,
+        "confidence": 95,
+        "signals": {
+            "worm_like_behavior": True,
+            "replication_detected": True,
+            "trust_anomaly_pattern": True,
+            "correlated_signals": {
+                "file_replication": True,
+                "network_fanout": True,
+                "trust_anomaly_pattern": True,
+                "worm_like_behavior": True,
+            },
+        },
+    }
+
+    entry = engine.update(
+        pid=789,
+        process_info=process,
+        classification=classification,
+        response_result={
+            "stage": "quarantine",
+            "action_taken": True,
+        },
+        trust_state={
+            "static_trust": 0.84,
+            "dynamic_trust": 0.35,
+            "final_trust": 0.42,
+            "trust_anomaly_pressure": 0.88,
+        },
+        features={
+            "process_category": "unknown",
+            "behavior_correlation_score": 0.9,
+            "worm_pattern_anomaly": 0.9,
+        },
+    )
+
+    assert entry["recommended_stage"] == "terminate"
+
+    assert engine.recommend_from_knowledge(
+        process,
+        classification,
+        "throttle",
+    ) == "terminate"

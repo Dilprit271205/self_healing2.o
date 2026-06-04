@@ -348,7 +348,7 @@ class LearningEngine:
 
         if (
             disposition == "malicious"
-            and confidence >= 0.72
+            and confidence >= 0.50
         ):
             return self._more_severe_stage(
                 persistence_stage,
@@ -687,14 +687,15 @@ class LearningEngine:
         )
 
         confidence = (
-            risk_signal * 0.45
-            + action_rate * 0.35
+            risk_signal * 0.50
+            + action_rate * 0.25
             + min(
-                observations / 10,
+                observations / 4,
                 1
-            ) * 0.20
-            + entry["avg_pattern_strength"] * 0.20
-            + entry["avg_trust_anomaly_pressure"] * 0.15
+            ) * 0.15
+            + entry["avg_pattern_strength"] * 0.25
+            + entry["avg_trust_anomaly_pressure"] * 0.20
+            + entry["avg_trust_drop_risk"] * 0.10
             - false_positive_rate * 0.45
         )
 
@@ -736,11 +737,18 @@ class LearningEngine:
                 "file_replication",
                 "ransomware_like_file_rename",
                 "correlated_worm_behavior"
-            } and confidence >= 0.82:
+            } and confidence >= 0.62:
                 entry[
                     "recommended_stage"
                 ] = "terminate"
-            elif confidence >= 0.65:
+            elif (
+                family == "trust_score_anomaly"
+                and confidence >= 0.65
+            ):
+                entry[
+                    "recommended_stage"
+                ] = "quarantine"
+            elif confidence >= 0.50:
                 entry[
                     "recommended_stage"
                 ] = "quarantine"

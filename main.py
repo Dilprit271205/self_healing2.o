@@ -3480,6 +3480,20 @@ def execute_healing(
             learned_stage
         )
 
+        if (
+            learned_stage == "terminate"
+            and not force_stage
+        ):
+            persistence_state[
+                "termination_ready"
+            ] = True
+            persistence_state[
+                "force_terminate"
+            ] = True
+            persistence_state[
+                "kill_family"
+            ] = True
+
         if force_stage:
             persistence_state["stage"] = "terminate"
 
