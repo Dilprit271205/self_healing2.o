@@ -1192,19 +1192,8 @@ def _path_event_totals(
             "/"
         ).lower()
 
-        if (
-            "/logs" in normalized_posix
-            or "/.git" in normalized_posix
-            or "__pycache__" in normalized_posix
-            or "/.pytest_cache" in normalized_posix
-            or "/analysis/models" in normalized_posix
-            or normalized_posix.endswith("/analysis/models")
-            or "/.venv" in normalized_posix
-            or normalized_posix.endswith("/.venv")
-            or "/venv" in normalized_posix
-            or normalized_posix.endswith("/venv")
-            or "/env" in normalized_posix
-            or normalized_posix.endswith("/env")
+        if _is_ignored_file_activity_path(
+            directory
         ):
             continue
 
@@ -1215,6 +1204,33 @@ def _path_event_totals(
         )
 
     return totals
+
+
+def _is_ignored_file_activity_path(
+    path
+):
+    normalized_posix = str(
+        path
+        or ""
+    ).replace(
+        "\\",
+        "/"
+    ).lower()
+
+    return (
+        "/logs" in normalized_posix
+        or "/.git" in normalized_posix
+        or "__pycache__" in normalized_posix
+        or "/.pytest_cache" in normalized_posix
+        or "/analysis/models" in normalized_posix
+        or normalized_posix.endswith("/analysis/models")
+        or "/.venv" in normalized_posix
+        or normalized_posix.endswith("/.venv")
+        or "/venv" in normalized_posix
+        or normalized_posix.endswith("/venv")
+        or "/env" in normalized_posix
+        or normalized_posix.endswith("/env")
+    )
 
 
 def _is_broad_file_root(
@@ -1437,6 +1453,11 @@ def _file_behavior_evidence_for_process(
             path_abs = str(
                 path
             )
+
+        if _is_ignored_file_activity_path(
+            path_abs
+        ):
+            continue
 
         belongs_to_process = (
             bool(cwd_abs)
@@ -2132,6 +2153,9 @@ def emergency_behavior_preflight(
             )
             or 0
         )
+        category = policy_engine.infer_category(
+            process
+        )
 
         network_info = connection_map.get(
             pid,
@@ -2258,24 +2282,103 @@ def emergency_behavior_preflight(
                 or 0
             ) >= 750 * 1024 * 1024
         )
+        file_replication_like = (
+            file_evidence.get(
+                "file_events",
+                0
+            ) >= 5
+        )
         behavior_signal_count = sum(
             1
             for active in (
                 beacon_like,
                 persistence_like,
                 sensitive_access_like,
+                file_replication_like,
                 thread_storm_like,
                 cpu_exhaustion_like,
                 memory_spike_like
             )
             if active
         )
+        learned_behavior_classification = {
+            "label": "worm",
+            "severity": "critical",
+            "worm_score": 0.86,
+            "confidence": 86,
+            "signals": {
+                "combined_risk": 0.86,
+                "correlated_signal_count": behavior_signal_count,
+                "catastrophic_behavior": False,
+                "forkbomb_detected": False,
+                "replication_detected": file_replication_like,
+                "fanout_detected": beacon_like,
+                "artifact_abuse_detected": (
+                    persistence_like
+                    or sensitive_access_like
+                ),
+                "thread_storm_detected": thread_storm_like,
+                "worm_like_behavior": (
+                    file_replication_like
+                    and (
+                        cpu_exhaustion_like
+                        or thread_count >= 20
+                        or beacon_like
+                    )
+                ),
+                "correlated_signals": {
+                    "file_replication": file_replication_like,
+                    "localhost_beaconing": beacon_like,
+                    "network_fanout": beacon_like,
+                    "thread_explosion": thread_storm_like,
+                    "cpu_memory_escalation": (
+                        cpu_exhaustion_like
+                        or memory_spike_like
+                    ),
+                    "resource_pressure": (
+                        thread_storm_like
+                        or cpu_exhaustion_like
+                        or memory_spike_like
+                    ),
+                    "behavior_preflight": True
+                }
+            }
+        }
+        learned_behavior_pattern = (
+            behavior_signal_count >= 2
+            and learning_engine.is_learned_terminate_pattern(
+                {
+                    **process,
+                    "process_category": category
+                },
+                learned_behavior_classification
+            )
+        )
 
         if not (
-            behavior_signal_count >= 2
+            (
+                behavior_signal_count >= 2
+                and (
+                    file_replication_like
+                    or beacon_like
+                    or persistence_like
+                    or sensitive_access_like
+                    or thread_storm_like
+                    or learned_behavior_pattern
+                )
+            )
             or persistence_like
             or sensitive_access_like
             or thread_storm_like
+            or (
+                file_replication_like
+                and (
+                    thread_count >= 20
+                    or cpu_exhaustion_like
+                    or beacon_like
+                    or learned_behavior_pattern
+                )
+            )
             or (
                 beacon_like
                 and (
@@ -2287,17 +2390,21 @@ def emergency_behavior_preflight(
             or (
                 cpu_exhaustion_like
                 and (
-                    thread_count >= 25
+                    thread_count >= 45
+                    or file_replication_like
                     or memory_spike_like
                     or active_connections >= 10
+                    or learned_behavior_pattern
                 )
             )
             or (
                 memory_spike_like
                 and (
-                    thread_count >= 25
+                    thread_count >= 45
+                    or file_replication_like
                     or cpu_exhaustion_like
                     or active_connections >= 10
+                    or learned_behavior_pattern
                 )
             )
         ):
@@ -2309,6 +2416,8 @@ def emergency_behavior_preflight(
             behavior = "persistence_artifact"
         elif sensitive_access_like:
             behavior = "sensitive_file_access"
+        elif file_replication_like:
+            behavior = "file_replication_with_resource_pressure"
         elif thread_storm_like:
             behavior = "thread_storm"
         elif cpu_exhaustion_like:
@@ -2346,6 +2455,7 @@ def emergency_behavior_preflight(
             "f_localhost_beaconing": 1 if beacon_like else 0,
             "f_persistence_artifact": 1 if persistence_like else 0,
             "f_sensitive_file_access": 1 if sensitive_access_like else 0,
+            "f_file_replication": 1 if file_replication_like else 0,
             "persistence_events": file_evidence.get(
                 "persistence_events",
                 0
@@ -2360,7 +2470,8 @@ def emergency_behavior_preflight(
             "worm_score": 92,
             "emergency_preflight": True,
             "behavior_preflight": True,
-            "behavior": behavior
+            "behavior": behavior,
+            "learned_behavior_pattern": learned_behavior_pattern
         }
 
         classification = {
@@ -2373,7 +2484,7 @@ def emergency_behavior_preflight(
                 "correlated_signal_count": 4,
                 "catastrophic_behavior": False,
                 "forkbomb_detected": False,
-                "replication_detected": False,
+                "replication_detected": file_replication_like,
                 "fanout_detected": beacon_like,
                 "artifact_abuse_detected": (
                     persistence_like
@@ -2381,6 +2492,7 @@ def emergency_behavior_preflight(
                 ),
                 "thread_storm_detected": thread_storm_like,
                 "correlated_signals": {
+                    "file_replication": file_replication_like,
                     "localhost_beaconing": beacon_like,
                     "network_fanout": beacon_like,
                     "persistence_artifact": persistence_like,
@@ -2392,7 +2504,8 @@ def emergency_behavior_preflight(
                     ),
                     "resource_pressure": resource_like,
                     "baseline_anomaly": True,
-                    "behavior_preflight": True
+                    "behavior_preflight": True,
+                    "learned_behavior_pattern": learned_behavior_pattern
                 }
             }
         }

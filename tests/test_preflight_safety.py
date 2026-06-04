@@ -1003,7 +1003,38 @@ def test_behavior_thread_storm_terminates(monkeypatch):
     assert calls[0]["persistence_state"]["stage"] == "terminate"
 
 
-def test_behavior_cpu_exhaustion_with_correlation_terminates(monkeypatch):
+def test_behavior_cpu_exhaustion_without_file_or_network_correlation_observes(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    handled = main_mod.emergency_behavior_preflight(
+        [
+            {
+                "pid": 62004,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python worker.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/workload",
+                "cpu": 91,
+                "threads": 30,
+                "age_seconds": 2,
+            }
+        ],
+        {},
+    )
+
+    assert handled == set()
+    assert calls == []
+
+
+def test_behavior_combined_resource_and_file_replication_terminates(monkeypatch):
     calls = []
 
     monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
@@ -1026,19 +1057,29 @@ def test_behavior_cpu_exhaustion_with_correlation_terminates(monkeypatch):
                 "pid": 62004,
                 "ppid": 100,
                 "name": "python",
-                "cmdline": "python worker.py",
+                "cmdline": "python na.py",
                 "exe": "/usr/bin/python",
-                "cwd": "/home/kali/workload",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
                 "cpu": 91,
-                "threads": 30,
+                "threads": 26,
                 "age_seconds": 2,
             }
         ],
         {},
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/p11_combined_worm_lab/gen_0/copy_1.txt": 1,
+                "/home/kali/Downloads/self_healing2.o-main/p11_combined_worm_lab/gen_0/copy_2.txt": 1,
+                "/home/kali/Downloads/self_healing2.o-main/p11_combined_worm_lab/gen_0/copy_3.txt": 1,
+                "/home/kali/Downloads/self_healing2.o-main/p11_combined_worm_lab/gen_0/copy_4.txt": 1,
+                "/home/kali/Downloads/self_healing2.o-main/p11_combined_worm_lab/gen_0/copy_5.txt": 1,
+            }
+        },
     )
 
     assert handled == {62004}
     assert calls[0]["features"]["f_cpu_exhaustion"] == 1
+    assert calls[0]["features"]["f_file_replication"] == 1
     assert calls[0]["persistence_state"]["stage"] == "terminate"
 
 
@@ -1069,7 +1110,7 @@ def test_behavior_memory_spike_with_correlation_terminates(monkeypatch):
                 "exe": "/usr/bin/python",
                 "cwd": "/home/kali/workload",
                 "memory": 42,
-                "threads": 30,
+                "threads": 45,
                 "age_seconds": 2,
             }
         ],
