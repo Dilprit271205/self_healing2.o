@@ -188,9 +188,10 @@ def _normalize_process_rows(frame):
     ):
         frame = _numeric(frame, column)
 
-    frame["signals"] = frame.get("signals", {}).apply(_coerce_dashboard_dict)
-    frame["anomalies"] = frame.get("anomalies", {}).apply(_coerce_dashboard_dict)
-    frame["features"] = frame.get("features", {}).apply(_coerce_dashboard_dict)
+    for column in ("signals", "anomalies", "features"):
+        if column not in frame.columns:
+            frame[column] = [{} for _ in range(len(frame))]
+        frame[column] = frame[column].apply(_coerce_dashboard_dict)
 
     frame["worm_pattern_anomaly"] = frame["anomalies"].apply(
         lambda item: float(item.get("worm_pattern", item.get("aggregate", 0)) or 0)
@@ -221,12 +222,49 @@ def _normalize_process_rows(frame):
     frame["worm_like_behavior"] = frame["signals"].apply(
         lambda signals: bool(signals.get("worm_like_behavior", False))
     )
+    frame["category_suppressed"] = frame.apply(
+        lambda row: bool(
+            _coerce_dashboard_dict(row.get("signals")).get(
+                "category_suppressed",
+                False
+            )
+            or _coerce_dashboard_dict(row.get("features")).get(
+                "false_positive_suppression",
+                0
+            )
+        ),
+        axis=1,
+    )
+    frame["confirmed_behavior"] = (
+        frame["worm_like_behavior"].astype(bool)
+        | frame["signals"].apply(
+            lambda signals: any(
+                bool(signals.get(key, False))
+                for key in (
+                    "forkbomb_detected",
+                    "replication_detected",
+                    "fanout_detected",
+                    "artifact_abuse_detected",
+                    "thread_storm_detected",
+                    "catastrophic_behavior",
+                )
+            )
+        )
+        | (frame["correlated_signal_count"] >= 3)
+    )
     frame["flagged"] = (
-        frame["label"].astype(str).str.lower().isin({"worm", "forkbomb", "suspicious"})
-        | frame["severity"].astype(str).str.lower().isin({"high", "critical"})
-        | frame["trust_anomaly_pattern"].astype(bool)
-        | frame["worm_like_behavior"].astype(bool)
-        | (frame["final_trust"] < 0.75)
+        (
+            frame["label"].astype(str).str.lower().isin({"worm", "forkbomb", "suspicious"})
+            | frame["severity"].astype(str).str.lower().isin({"high", "critical"})
+            | frame["trust_anomaly_pattern"].astype(bool)
+            | frame["worm_like_behavior"].astype(bool)
+            | (frame["final_trust"] < 0.75)
+        )
+        & (
+            ~frame["category_suppressed"].astype(bool)
+            | frame["confirmed_behavior"].astype(bool)
+            | frame["severity"].astype(str).str.lower().eq("critical")
+        )
     )
     return frame
 
@@ -1091,10 +1129,3 @@ def run_dashboard():
 
 if __name__ == "__main__":
     run_dashboard()
-else:
-    # Streamlit executes imported scripts as modules; pytest imports should stay cheap.
-    try:
-        if getattr(st, "runtime", None) is not None:
-            run_dashboard()
-    except Exception:
-        pass

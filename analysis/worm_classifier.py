@@ -121,18 +121,116 @@ class WormClassifier:
             False
         )
 
+        process_category = str(
+            features.get(
+                "process_category",
+                ""
+            )
+            or
+            ""
+        )
+        suppressed_category = bool(
+            features.get(
+                "false_positive_suppression",
+                0
+            )
+        )
+        if not suppressed_category and process_category:
+            try:
+                from analysis.policy_engine import policy_engine
+
+                suppressed_category = (
+                    policy_engine.is_suppressed_category(
+                        process_category
+                    )
+                    or
+                    policy_engine.is_hard_protected_category(
+                        process_category
+                    )
+                )
+            except Exception:
+                suppressed_category = False
+
+        confirmed_worm_behavior = any(
+            [
+                catastrophic_behavior,
+                replication_detected,
+                fanout_detected,
+                artifact_abuse_detected,
+                thread_storm_detected,
+                worm_like_behavior,
+            ]
+        )
+
+        label = prediction.label
+        severity = prediction.severity
+        worm_score = prediction.worm_score
+        confidence = prediction.confidence
+
+        if (
+            label in {"worm", "forkbomb"}
+            and not confirmed_worm_behavior
+        ):
+            label = "suspicious"
+            severity = "medium"
+            worm_score = min(
+                worm_score,
+                0.69
+            )
+            confidence = min(
+                confidence,
+                65.0
+            )
+
+        if (
+            suppressed_category
+            and not catastrophic_behavior
+        ):
+            if confirmed_worm_behavior and correlated_signal_count >= 3:
+                label = "suspicious"
+                severity = "medium"
+                worm_score = min(
+                    worm_score,
+                    0.74
+                )
+                confidence = min(
+                    confidence,
+                    72.0
+                )
+            else:
+                label = "normal"
+                severity = "low"
+                worm_score = min(
+                    worm_score,
+                    0.30
+                )
+                confidence = min(
+                    confidence,
+                    55.0
+                )
+
         return {
             "label":
-                prediction.label,
+                label,
 
             "severity":
-                prediction.severity,
+                severity,
 
             "worm_score":
-                prediction.worm_score,
+                round(
+                    float(
+                        worm_score
+                    ),
+                    3
+                ),
 
             "confidence":
-                prediction.confidence,
+                round(
+                    float(
+                        confidence
+                    ),
+                    2
+                ),
 
             "dynamic_trust":
                 dynamic_trust,
@@ -173,10 +271,15 @@ class WormClassifier:
                     },
 
                 "forkbomb_detected":
-                    prediction.label == "forkbomb",
+                    label == "forkbomb",
 
                 "combined_risk":
-                    prediction.worm_score,
+                    round(
+                        float(
+                            worm_score
+                        ),
+                        3
+                    ),
 
                 "correlated_signal_count":
                     correlated_signal_count,
@@ -206,6 +309,6 @@ class WormClassifier:
                     thread_storm_detected,
 
                 "category_suppressed":
-                    False,
+                    suppressed_category,
             }
         }

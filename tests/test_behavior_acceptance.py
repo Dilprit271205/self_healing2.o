@@ -268,3 +268,28 @@ def test_13_trust_anomaly_pattern_promotes_worm_like_response():
     assert result["signals"]["worm_like_behavior"] is True
     assert result["signals"]["correlated_signals"]["trust_anomaly_pattern"] is True
     assert result["label"] == "worm"
+
+
+def test_14_suppressed_runtime_noise_is_not_critical():
+    result = classify(
+        {
+            "cmdline": "streamlit run dashboard.py",
+            "process_category": "dashboard",
+            "false_positive_suppression": 1,
+            "cpu": 30,
+            "memory": 20,
+            "f_thread": 18,
+            "worm_score": 35,
+        },
+        aggregate=0.42,
+        trust={
+            "static_trust": 0.88,
+            "dynamic_trust": 0.70,
+            "final_trust": 0.75,
+            "trust_anomaly_pressure": 0.42,
+        },
+    )
+
+    assert result["severity"] in {"low", "medium"}
+    assert result["label"] in {"normal", "suspicious"}
+    assert result["signals"]["category_suppressed"] is True

@@ -314,7 +314,7 @@ class LearningEngine:
         classification,
         persistence_stage
     ):
-        key, _, _, _ = self._pattern_key(
+        key, family, active, category = self._pattern_key(
             process_info,
             classification
         )
@@ -322,6 +322,13 @@ class LearningEngine:
         entry = self.knowledge_base.get(
             key
         )
+
+        if not entry:
+            entry = self._best_similar_pattern(
+                family=family,
+                active_signals=active,
+                category=category
+            )
 
         if not entry:
             return persistence_stage
@@ -356,6 +363,106 @@ class LearningEngine:
             )
 
         return persistence_stage
+
+    def _best_similar_pattern(
+        self,
+        family,
+        active_signals,
+        category
+    ):
+        active = set(
+            active_signals
+            or []
+        )
+        best_entry = None
+        best_score = 0.0
+
+        for entry in self.knowledge_base.values():
+            if not isinstance(
+                entry,
+                dict
+            ):
+                continue
+
+            if entry.get(
+                "disposition"
+            ) != "malicious":
+                continue
+
+            if entry.get(
+                "attack_family"
+            ) != family:
+                continue
+
+            evidence = set(
+                entry.get(
+                    "evidence",
+                    []
+                )
+                or []
+            )
+
+            if active or evidence:
+                overlap = (
+                    len(active & evidence)
+                    /
+                    max(
+                        len(active | evidence),
+                        1
+                    )
+                )
+            else:
+                overlap = 0.0
+
+            category_score = (
+                1.0
+                if entry.get(
+                    "process_category",
+                    "unknown"
+                )
+                in {
+                    category,
+                    "unknown",
+                    ""
+                }
+                else 0.45
+            )
+
+            confidence = float(
+                entry.get(
+                    "confidence",
+                    0
+                )
+                or 0
+            )
+
+            observations = min(
+                float(
+                    entry.get(
+                        "observations",
+                        0
+                    )
+                    or 0
+                )
+                / 3,
+                1.0
+            )
+
+            score = (
+                overlap * 0.55
+                + category_score * 0.15
+                + confidence * 0.20
+                + observations * 0.10
+            )
+
+            if (
+                overlap >= 0.45
+                and score > best_score
+            ):
+                best_score = score
+                best_entry = entry
+
+        return best_entry
 
     def _stage_rank(self, stage):
         order = {
