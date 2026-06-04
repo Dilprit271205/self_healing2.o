@@ -3249,10 +3249,28 @@ def monitor_loop():
                 get_file_map()
             )
 
-            emergency_behavior_preflight(
+            file_handled = emergency_file_activity_preflight(
+                processes,
+                file_map
+            )
+            emergency_handled.update(
+                file_handled
+            )
+
+            behavior_handled = emergency_behavior_preflight(
                 processes,
                 connection_map,
                 file_map
+            )
+            emergency_handled.update(
+                behavior_handled
+            )
+
+            resource_handled = emergency_resource_preflight(
+                processes
+            )
+            emergency_handled.update(
+                resource_handled
             )
 
             # =====================================
