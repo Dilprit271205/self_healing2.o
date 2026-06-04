@@ -62,6 +62,71 @@ def test_file_preflight_ignores_self_generated_log_bursts():
     assert main_mod.file_burst_window == {}
 
 
+def test_file_preflight_ignores_model_retrain_bursts():
+    main_mod.file_burst_window.clear()
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [],
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/analysis/models/threat_model.joblib": 300,
+                "/home/kali/Downloads/self_healing2.o-main/analysis/models/threat_model.metadata.json": 120,
+            }
+        },
+    )
+
+    assert handled == set()
+    assert main_mod.file_burst_window == {}
+
+
+def test_file_preflight_skips_operator_terminal(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
+        "true",
+    )
+
+    main_mod.file_burst_window.clear()
+
+    processes = [
+        {
+            "pid": 50007,
+            "ppid": 100,
+            "name": "qterminal",
+            "cmdline": "qterminal",
+            "exe": "/usr/bin/qterminal",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "age_seconds": 5,
+        }
+    ]
+
+    handled = main_mod.emergency_file_activity_preflight(
+        processes,
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/output/a.bin": 140,
+                "/home/kali/Downloads/self_healing2.o-main/output/b.bin": 140,
+            }
+        },
+    )
+
+    assert handled == set()
+    assert calls == []
+
+
 def test_duplicate_file_hash_count_is_recorded(tmp_path):
     first = tmp_path / "a.txt"
     second = tmp_path / "b.txt"

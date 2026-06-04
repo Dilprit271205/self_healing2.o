@@ -126,6 +126,38 @@ class ResponseEngine:
             for token in controller_context
         )
 
+    def _is_operator_control_process(
+        self,
+        process_name="",
+        exe_path=""
+    ):
+        identity = " ".join([
+            self._normalize_text(process_name),
+            self._normalize_text(exe_path),
+        ])
+
+        operator_tokens = (
+            "qterminal",
+            "gnome-terminal",
+            "xfce4-terminal",
+            "konsole",
+            "xterm",
+            "bash",
+            "zsh",
+            "fish",
+            "powershell",
+            "pwsh",
+            "cmd.exe",
+            "wt.exe",
+            "openconsole.exe",
+            "conhost.exe",
+        )
+
+        return any(
+            token in identity
+            for token in operator_tokens
+        )
+
     def _is_non_overridable_process(
         self,
         process_name="",
@@ -136,6 +168,12 @@ class ResponseEngine:
         if self._is_critical_process_hint(
             process_name,
             cmdline,
+            exe_path
+        ):
+            return True
+
+        if self._is_operator_control_process(
+            process_name,
             exe_path
         ):
             return True
@@ -166,6 +204,12 @@ class ResponseEngine:
         cwd = self._normalize_text(cwd)
 
         if self._is_hard_protected_pid(pid):
+            return True
+
+        if self._is_operator_control_process(
+            process_name,
+            exe_path
+        ):
             return True
 
         if self._is_runtime_controller_process(

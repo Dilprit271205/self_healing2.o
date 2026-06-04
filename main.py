@@ -1153,6 +1153,14 @@ def _path_event_totals(
             or "/.git" in normalized_posix
             or "__pycache__" in normalized_posix
             or "/.pytest_cache" in normalized_posix
+            or "/analysis/models" in normalized_posix
+            or normalized_posix.endswith("/analysis/models")
+            or "/.venv" in normalized_posix
+            or normalized_posix.endswith("/.venv")
+            or "/venv" in normalized_posix
+            or normalized_posix.endswith("/venv")
+            or "/env" in normalized_posix
+            or normalized_posix.endswith("/env")
         ):
             continue
 

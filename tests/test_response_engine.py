@@ -118,8 +118,40 @@ def test_confirmed_suppressed_category_is_capped_at_throttle():
             },
         )
 
-        assert result["stage"] == "throttle"
+        assert result["stage"] == "protected"
+        assert result["action_taken"] is False
         assert psutil.Process(process.pid).status() != psutil.STATUS_STOPPED
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
+def test_force_terminate_cannot_kill_operator_terminal():
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "qterminal",
+                "cmdline": "qterminal",
+                "exe": "/usr/bin/qterminal",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            },
+            persistence_state={
+                "stage": "terminate",
+                "termination_ready": True,
+                "catastrophic_ready": True,
+                "force_terminate": True,
+            },
+        )
+
+        assert result["stage"] == "protected"
+        assert result["action_taken"] is False
         assert process.poll() is None
     finally:
         if process.poll() is None:
