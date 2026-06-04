@@ -579,7 +579,7 @@ def test_process_storm_preflight_uses_learned_fast_path(monkeypatch):
             "create_time": now - 1,
             "age_seconds": 1,
         }
-        for index in range(4)
+        for index in range(1)
     ]
 
     handled = main_mod.emergency_process_storm_preflight(

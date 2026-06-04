@@ -16,6 +16,40 @@ def spawn_sleep_process():
     )
 
 
+def test_terminate_stale_root_kills_related_forced_family_process():
+    resp = ResponseEngine(safe_mode=False)
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import time; time.sleep(60)",
+        ],
+        cwd=os.getcwd(),
+    )
+
+    try:
+        result = resp.terminate_process(
+            99999999,
+            force=True,
+            kill_family=True,
+            process_info={
+                "pid": 99999999,
+                "name": os.path.basename(sys.executable),
+                "cmdline": "python worm_sim.py",
+                "exe": sys.executable,
+                "cwd": os.getcwd(),
+            },
+        )
+
+        assert result["stage"] == "terminate"
+        assert result["action_taken"] is True
+        process.wait(timeout=5)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
 def test_safe_process_is_not_terminated():
     resp = ResponseEngine(safe_mode=False)
     process = spawn_sleep_process()

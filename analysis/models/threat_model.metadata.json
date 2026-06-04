@@ -27,13 +27,13 @@
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 34.0
+      "support": 60.0
     },
     "macro avg": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 146.0
+      "support": 186.0
     },
     "normal": {
       "f1-score": 1.0,
@@ -45,19 +45,19 @@
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 29.0
+      "support": 28.0
     },
     "weighted avg": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 146.0
+      "support": 186.0
     },
     "worm": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 76.0
+      "support": 91.0
     }
   },
   "feature_names": [
@@ -115,68 +115,68 @@
     "static_trust"
   ],
   "labels": {
-    "forkbomb": 136,
+    "forkbomb": 238,
     "normal": 28,
     "suspicious": 114,
-    "worm": 306
+    "worm": 362
   },
   "log_signature": {
-    "mtime": 1780575469.2827568,
+    "mtime": 1780576746.2203512,
     "path": "logs/system_log.json",
-    "size": 299312
+    "size": 494154
   },
   "model_path": "C:\\Users\\user\\Desktop\\HEALING\\self_healing2.o\\analysis\\models\\threat_model.joblib",
-  "rows": 584,
+  "rows": 742,
   "sklearn_version": "1.9.0",
   "top_features": [
     {
       "feature": "source_worm_score",
-      "importance": 0.12783
+      "importance": 0.12646
     },
     {
       "feature": "dynamic_trust",
-      "importance": 0.09739
+      "importance": 0.10528
     },
     {
       "feature": "trust_anomaly_pressure",
-      "importance": 0.09607
+      "importance": 0.08844
     },
     {
       "feature": "final_trust",
-      "importance": 0.09087
+      "importance": 0.08781
     },
     {
       "feature": "trust_drop_risk",
-      "importance": 0.08171
-    },
-    {
-      "feature": "f_proc_tree",
-      "importance": 0.07021
-    },
-    {
-      "feature": "f_repeated_child_count",
-      "importance": 0.06386
-    },
-    {
-      "feature": "f_child_similarity",
-      "importance": 0.05636
-    },
-    {
-      "feature": "static_trust",
-      "importance": 0.05602
+      "importance": 0.07841
     },
     {
       "feature": "f_short_lived_child_ratio",
-      "importance": 0.04741
+      "importance": 0.06086
     },
     {
-      "feature": "memory",
-      "importance": 0.02267
+      "feature": "f_repeated_child_count",
+      "importance": 0.05939
+    },
+    {
+      "feature": "static_trust",
+      "importance": 0.05688
+    },
+    {
+      "feature": "f_child_similarity",
+      "importance": 0.05076
+    },
+    {
+      "feature": "f_proc_tree",
+      "importance": 0.05034
     },
     {
       "feature": "f_young_process",
-      "importance": 0.02179
+      "importance": 0.03142
+    },
+    {
+      "feature": "f_repeated_descendant_count",
+      "importance": 0.02563
     }
   ],
-  "trained_at": 1780575600.3107991
+  "trained_at": 1780576919.100474
 }

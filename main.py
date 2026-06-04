@@ -369,11 +369,11 @@ def rapid_lineage_monitor_loop():
         interval = float(
             os.getenv(
                 "SELF_HEALING_RAPID_LINEAGE_INTERVAL",
-                "1.0"
+                "0.10"
             )
         )
     except Exception:
-        interval = 1.0
+        interval = 0.10
 
     while not rapid_lineage_stop.is_set():
         try:
@@ -944,22 +944,22 @@ def emergency_process_storm_preflight(
                 "replication_detected": False,
                 "fanout_detected": False,
                 "correlated_signals": {
-                    "rapid_child_spawning": profile["direct_children"] >= 3,
-                    "large_or_growing_tree": descendants >= 4,
-                    "repeated_similar_children": profile["repeated_child_count"] >= 3,
+                    "rapid_child_spawning": profile["direct_children"] >= 1,
+                    "large_or_growing_tree": descendants >= 1,
+                    "repeated_similar_children": profile["repeated_child_count"] >= 1,
                     "short_lived_recursive_children": profile["young_child_ratio"] >= 0.40,
-                    "process_storm_burst": profile["direct_children"] >= 3,
+                    "process_storm_burst": profile["direct_children"] >= 1,
                     "deep_recursive_tree": tree_profile["max_depth"] >= 3
                 }
             }
         }
 
         learned_repeat_storm = (
-            profile["direct_children"] >= 4
-            and profile["repeated_child_count"] >= 3
-            and profile["child_similarity"] >= 0.55
-            and profile["young_child_ratio"] >= 0.40
-            and descendants >= 4
+            profile["direct_children"] >= 1
+            and profile["repeated_child_count"] >= 1
+            and profile["child_similarity"] >= 0.90
+            and profile["young_child_ratio"] >= 0.80
+            and descendants >= 1
             and learning_engine.is_learned_terminate_pattern(
                 {
                     **process,
@@ -972,19 +972,19 @@ def emergency_process_storm_preflight(
         )
 
         catastrophic_storm = (
-            profile["direct_children"] >= 12
-            and profile["repeated_child_count"] >= 8
+            profile["direct_children"] >= 8
+            and profile["repeated_child_count"] >= 6
             and profile["child_similarity"] >= 0.65
             and profile["young_child_ratio"] >= 0.65
-            and descendants >= 12
+            and descendants >= 8
         )
 
         emergency_storm = (
-            profile["direct_children"] >= 20
-            and profile["repeated_child_count"] >= 12
+            profile["direct_children"] >= 12
+            and profile["repeated_child_count"] >= 8
             and profile["child_similarity"] >= 0.70
             and profile["young_child_ratio"] >= 0.50
-            and descendants >= 20
+            and descendants >= 12
         )
 
         deep_recursive_storm = (

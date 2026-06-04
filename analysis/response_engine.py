@@ -911,10 +911,43 @@ class ResponseEngine:
     ):
 
         try:
+            process_info = process_info or {}
 
-            proc = psutil.Process(
-                pid
-            )
+            try:
+                proc = psutil.Process(
+                    pid
+                )
+            except psutil.NoSuchProcess:
+                related = self._find_related_family_processes(
+                    pid,
+                    self._normalize_text(
+                        process_info.get(
+                            "name",
+                            ""
+                        )
+                    ),
+                    self._normalize_text(
+                        process_info.get(
+                            "cmdline",
+                            ""
+                        )
+                    ),
+                    self._normalize_text(
+                        process_info.get(
+                            "exe",
+                            ""
+                        )
+                    ),
+                    process_info,
+                    force=force,
+                    enabled=kill_family
+                )
+
+                return self._terminate_targets(
+                    pid,
+                    related,
+                    status_prefix="root exited; terminated related targets"
+                )
 
             print(f"[ResponseEngine] Attempting termination: pid={pid}")
 
@@ -1037,7 +1070,7 @@ class ResponseEngine:
                 proc_name,
                 proc_cmdline,
                 proc_exe,
-                process_info or {},
+                process_info,
                 force=force,
                 enabled=kill_family
             ):
@@ -1161,6 +1194,85 @@ class ResponseEngine:
                 "status":
                     str(e)
             }
+
+    def _terminate_targets(
+        self,
+        pid,
+        targets,
+        status_prefix="terminated targets"
+    ):
+        kill_targets = []
+        seen = set()
+
+        for target in targets or []:
+            try:
+                target_pid = int(
+                    target.pid
+                )
+            except Exception:
+                continue
+
+            if target_pid in seen:
+                continue
+
+            seen.add(
+                target_pid
+            )
+            kill_targets.append(
+                target
+            )
+
+        if not kill_targets:
+            return {
+                "pid": pid,
+                "stage": "terminate",
+                "action_taken": False,
+                "status": "No such process and no related family targets"
+            }
+
+        for target in list(
+            kill_targets
+        ):
+            try:
+                target.terminate()
+            except psutil.NoSuchProcess:
+                continue
+            except Exception:
+                pass
+
+        gone, alive = psutil.wait_procs(
+            kill_targets,
+            timeout=1.5
+        )
+
+        if alive:
+            for target in alive:
+                try:
+                    target.kill()
+                except psutil.NoSuchProcess:
+                    continue
+                except Exception:
+                    pass
+
+            gone2, alive2 = psutil.wait_procs(
+                alive,
+                timeout=1
+            )
+            gone = gone + gone2
+        else:
+            alive2 = []
+
+        return {
+            "pid": pid,
+            "stage": "terminate",
+            "action_taken": bool(gone),
+            "status": (
+                f"{status_prefix}={len(gone)}"
+                if not alive2
+                else
+                f"{status_prefix}={len(gone)} alive={[p.pid for p in alive2]}"
+            )
+        }
 
     # -----------------------------------------
     # TRUST RECOVERY
@@ -1361,7 +1473,10 @@ class ResponseEngine:
                     if (
                         same_cwd
                         and same_exe
-                        and same_command
+                        and (
+                            same_command
+                            or force
+                        )
                     ):
                         related.append(
                             candidate
