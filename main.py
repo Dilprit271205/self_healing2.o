@@ -166,6 +166,7 @@ file_observer = None
 rapid_lineage_thread = None
 rapid_lineage_stop = threading.Event()
 file_burst_window = defaultdict(list)
+file_behavior_memory = defaultdict(list)
 resource_burst_window = defaultdict(list)
 last_console_events = {}
 recent_process_cache = {}
@@ -1251,6 +1252,132 @@ def _path_event_totals(
     return totals
 
 
+def _update_file_behavior_memory(
+    now,
+    directory_totals,
+    duplicate_file_hash_count,
+    event_type_counts
+):
+    try:
+        memory_seconds = float(
+            os.getenv(
+                "SELF_HEALING_FILE_MEMORY_SECONDS",
+                "180"
+            )
+        )
+    except Exception:
+        memory_seconds = 180.0
+
+    for directory, count in directory_totals.items():
+        file_behavior_memory[
+            directory
+        ].append({
+            "timestamp": now,
+            "count": int(
+                count
+            ),
+            "duplicate": int(
+                duplicate_file_hash_count
+            ),
+            "create": int(
+                event_type_counts.get(
+                    "create",
+                    0
+                )
+                or 0
+            ),
+            "modify": int(
+                event_type_counts.get(
+                    "modify",
+                    0
+                )
+                or 0
+            ),
+            "rename": int(
+                event_type_counts.get(
+                    "rename",
+                    0
+                )
+                or 0
+            )
+        })
+
+    for directory in list(
+        file_behavior_memory.keys()
+    ):
+        file_behavior_memory[
+            directory
+        ] = [
+            sample
+            for sample in file_behavior_memory[
+                directory
+            ]
+            if now - sample.get(
+                "timestamp",
+                0
+            ) <= memory_seconds
+        ]
+
+        if not file_behavior_memory[
+            directory
+        ]:
+            file_behavior_memory.pop(
+                directory,
+                None
+            )
+
+    return {
+        directory: {
+            "events": sum(
+                int(
+                    sample.get(
+                        "count",
+                        0
+                    )
+                )
+                for sample in samples
+            ),
+            "duplicate": sum(
+                int(
+                    sample.get(
+                        "duplicate",
+                        0
+                    )
+                )
+                for sample in samples
+            ),
+            "create": sum(
+                int(
+                    sample.get(
+                        "create",
+                        0
+                    )
+                )
+                for sample in samples
+            ),
+            "modify": sum(
+                int(
+                    sample.get(
+                        "modify",
+                        0
+                    )
+                )
+                for sample in samples
+            ),
+            "rename": sum(
+                int(
+                    sample.get(
+                        "rename",
+                        0
+                    )
+                )
+                for sample in samples
+            )
+        }
+        for directory, samples in file_behavior_memory.items()
+    }
+
+
 def _is_ignored_file_activity_path(
     path
 ):
@@ -1746,28 +1873,87 @@ def emergency_file_activity_preflight(
         for directory, samples in file_burst_window.items()
     }
 
+    memory_summary = _update_file_behavior_memory(
+        now,
+        directory_totals,
+        duplicate_file_hash_count,
+        event_type_counts
+    )
+
+    memory_totals = {
+        directory: int(
+            summary.get(
+                "events",
+                0
+            )
+        )
+        for directory, summary in memory_summary.items()
+    }
+
+    combined_totals = dict(
+        rolling_totals
+    )
+
+    for directory, count in memory_totals.items():
+        combined_totals[
+            directory
+        ] = max(
+            combined_totals.get(
+                directory,
+                0
+            ),
+            count
+        )
+
     total_events = sum(
         rolling_totals.values()
+    )
+    memory_total_events = sum(
+        memory_totals.values()
+    )
+    memory_fanout = sum(
+        1
+        for count in memory_totals.values()
+        if count >= 2
+    )
+    duplicate_memory_count = sum(
+        int(
+            summary.get(
+                "duplicate",
+                0
+            )
+        )
+        for summary in memory_summary.values()
     )
 
     duplicate_replication_burst = (
         duplicate_file_hash_count >= 8
+        or duplicate_memory_count >= 8
+    )
+    low_slow_replication_memory = (
+        memory_total_events >= 30
+        and memory_fanout >= 8
     )
 
     if (
         total_events < 25
         and not duplicate_replication_burst
+        and not low_slow_replication_memory
     ):
         return set()
 
     active_directories = [
         directory
-        for directory, count in rolling_totals.items()
+        for directory, count in combined_totals.items()
         if (
             count >= 20
             or (
                 duplicate_replication_burst
-                and count >= 5
+                and count >= 2
+            )
+            or (
+                low_slow_replication_memory
+                and count >= 2
             )
         )
     ]
@@ -1828,7 +2014,7 @@ def emergency_file_activity_preflight(
                 cwd_abs = ""
 
         if cwd_abs:
-            for directory, count in rolling_totals.items():
+            for directory, count in combined_totals.items():
                 if (
                     not _is_broad_file_root(
                         cwd_abs
@@ -1860,9 +2046,15 @@ def emergency_file_activity_preflight(
         candidate_seen = True
         matched_directories = [
             directory
-            for directory, count in rolling_totals.items()
+            for directory, count in combined_totals.items()
             if (
-                count >= 20
+                (
+                    count >= 20
+                    or (
+                        low_slow_replication_memory
+                        and count >= 2
+                    )
+                )
                 and (
                     _path_is_under(
                         directory,
@@ -1878,9 +2070,15 @@ def emergency_file_activity_preflight(
         subtree_fanout = len(
             matched_directories
         )
+        low_slow_file_replication = (
+            low_slow_replication_memory
+            and matched_events >= 30
+            and subtree_fanout >= 8
+        )
         strong_file_replication = (
             matched_events >= 25
             or duplicate_replication_burst
+            or low_slow_file_replication
         )
         file_containment_enabled = os.getenv(
             "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
@@ -1896,11 +2094,13 @@ def emergency_file_activity_preflight(
             and (
                 matched_events >= 60
                 or duplicate_replication_burst
+                or low_slow_file_replication
             )
             and (
                 subtree_fanout >= 2
                 or matched_events >= 45
                 or duplicate_replication_burst
+                or low_slow_file_replication
             )
             and not process.get(
                 "_exited",
@@ -1911,6 +2111,7 @@ def emergency_file_activity_preflight(
             (
                 matched_events >= 25
                 or duplicate_replication_burst
+                or low_slow_file_replication
             )
             and not _is_broad_file_root(
                 cwd_abs
@@ -2009,6 +2210,7 @@ def emergency_file_activity_preflight(
                 0
             ),
             "duplicate_file_hash_count": duplicate_file_hash_count,
+            "duplicate_file_hash_memory": duplicate_memory_count,
             "f_mass_file_modification": (
                 1
                 if matched_events >= 45
@@ -2027,6 +2229,9 @@ def emergency_file_activity_preflight(
             "file_replication_preflight": True,
             "behavior_file_containment": behavior_file_containment,
             "subtree_fanout": subtree_fanout,
+            "low_slow_file_replication": low_slow_file_replication,
+            "file_memory_events": memory_total_events,
+            "file_memory_fanout": memory_fanout,
             "post_event_attribution": bool(
                 process.get(
                     "_exited",
@@ -2056,6 +2261,7 @@ def emergency_file_activity_preflight(
                     ),
                     "mass_file_modification": matched_events >= 45,
                     "duplicate_payload_replication": duplicate_replication_burst,
+                    "low_slow_file_replication": low_slow_file_replication,
                     "baseline_anomaly": True
                 }
             }

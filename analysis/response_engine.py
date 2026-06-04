@@ -2,6 +2,7 @@
 
 import os
 import psutil
+import time
 from collections import defaultdict
 from analysis.policy_engine import policy_engine
 
@@ -918,12 +919,7 @@ class ResponseEngine:
                     pid
                 )
             except psutil.NoSuchProcess:
-                related = self._processes_from_observed_pids(
-                    process_info,
-                    force=force
-                )
-                related.extend(
-                    self._find_related_family_processes(
+                return self._drain_related_family(
                     pid,
                     self._normalize_text(
                         process_info.get(
@@ -945,14 +941,8 @@ class ResponseEngine:
                     ),
                     process_info,
                     force=force,
-                    enabled=kill_family
-                    )
-                )
-
-                return self._terminate_targets(
-                    pid,
-                    related,
-                    status_prefix="root exited; terminated related targets"
+                    kill_family=kill_family,
+                    status_prefix="root exited; drained related targets"
                 )
 
             print(f"[ResponseEngine] Attempting termination: pid={pid}")
@@ -1019,6 +1009,12 @@ class ResponseEngine:
                     "action_taken": False,
                     "status": "protected pid - not terminated"
                 }
+
+            if force:
+                try:
+                    proc.suspend()
+                except Exception:
+                    pass
 
             children = proc.children(recursive=True)
 
@@ -1185,6 +1181,33 @@ class ResponseEngine:
                         ),
                     }
 
+            if force and kill_family:
+                drain_result = self._drain_related_family(
+                    pid,
+                    proc_name,
+                    proc_cmdline,
+                    proc_exe,
+                    process_info,
+                    force=force,
+                    kill_family=kill_family,
+                    status_prefix="drained related targets"
+                )
+
+                if drain_result.get(
+                    "action_taken",
+                    False
+                ):
+                    drained_count = drain_result.get(
+                        "terminated_count",
+                        0
+                    )
+                    gone = gone + [
+                        None
+                        for _ in range(
+                            drained_count
+                        )
+                    ]
+
             return {
                 "pid": pid,
                 "stage": "terminate",
@@ -1208,6 +1231,95 @@ class ResponseEngine:
                 "status":
                     str(e)
             }
+
+    def _drain_related_family(
+        self,
+        pid,
+        proc_name,
+        proc_cmdline,
+        proc_exe,
+        process_info,
+        force=False,
+        kill_family=False,
+        status_prefix="drained related targets"
+    ):
+        terminated_count = 0
+        last_status = ""
+
+        try:
+            drain_seconds = float(
+                os.getenv(
+                    "SELF_HEALING_FAMILY_DRAIN_SECONDS",
+                    "1.25"
+                )
+            )
+        except Exception:
+            drain_seconds = 1.25
+
+        deadline = (
+            time.time()
+            + max(
+                drain_seconds,
+                0.1
+            )
+        )
+
+        while time.time() < deadline:
+            related = self._processes_from_observed_pids(
+                process_info,
+                force=force
+            )
+            related.extend(
+                self._find_related_family_processes(
+                    pid,
+                    proc_name,
+                    proc_cmdline,
+                    proc_exe,
+                    process_info,
+                    force=force,
+                    enabled=kill_family
+                )
+            )
+
+            if not related:
+                time.sleep(0.05)
+                continue
+
+            result = self._terminate_targets(
+                pid,
+                related,
+                status_prefix=status_prefix
+            )
+            last_status = result.get(
+                "status",
+                ""
+            )
+
+            if result.get(
+                "action_taken",
+                False
+            ):
+                terminated_count += int(
+                    result.get(
+                        "terminated_count",
+                        0
+                    )
+                    or 0
+                )
+
+            time.sleep(0.05)
+
+        return {
+            "pid": pid,
+            "stage": "terminate",
+            "action_taken": terminated_count > 0,
+            "terminated_count": terminated_count,
+            "status": (
+                f"{status_prefix}={terminated_count}"
+                if terminated_count
+                else last_status or "no related family targets"
+            )
+        }
 
     def _processes_from_observed_pids(
         self,
@@ -1336,6 +1448,7 @@ class ResponseEngine:
                 "pid": pid,
                 "stage": "terminate",
                 "action_taken": False,
+                "terminated_count": 0,
                 "status": "No such process and no related family targets"
             }
 
@@ -1375,6 +1488,9 @@ class ResponseEngine:
             "pid": pid,
             "stage": "terminate",
             "action_taken": bool(gone),
+            "terminated_count": len(
+                gone
+            ),
             "status": (
                 f"{status_prefix}={len(gone)}"
                 if not alive2

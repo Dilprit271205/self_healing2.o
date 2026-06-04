@@ -1,7 +1,22 @@
 import time
 
+import pytest
+
 import main as main_mod
 from utils.file_event_mapper import get_file_map, record_file_event
+
+
+@pytest.fixture(autouse=True)
+def clear_preflight_state():
+    main_mod.file_burst_window.clear()
+    main_mod.file_behavior_memory.clear()
+    main_mod.recent_process_cache.clear()
+    main_mod.dead_process_first_seen.clear()
+    yield
+    main_mod.file_burst_window.clear()
+    main_mod.file_behavior_memory.clear()
+    main_mod.recent_process_cache.clear()
+    main_mod.dead_process_first_seen.clear()
 
 
 def test_file_preflight_does_not_attribute_home_burst_to_new_process(monkeypatch):
@@ -373,6 +388,71 @@ def test_file_preflight_uses_recent_exited_process_for_attribution(monkeypatch):
     assert len(calls) == 1
     assert calls[0]["classification"]["label"] == "worm"
     assert calls[0]["persistence_state"]["stage"] == "observe"
+
+
+def test_file_preflight_detects_low_and_slow_replication_memory(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {
+                "recommended_action": "terminate"
+            },
+        },
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
+        "true",
+    )
+
+    processes = [
+        {
+            "pid": 50007,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python edr_12_tests_runner.py --test 12",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/workload",
+            "age_seconds": 55,
+        }
+    ]
+
+    handled = set()
+
+    for generation in range(15):
+        handled = main_mod.emergency_file_activity_preflight(
+            processes,
+            {
+                "__paths__": {
+                    (
+                        "/home/kali/workload/p12_low_slow_lab/"
+                        f"gen_{generation}/copy_a_{generation}.txt"
+                    ): 1,
+                    (
+                        "/home/kali/workload/p12_low_slow_lab/"
+                        f"gen_{generation}/copy_b_{generation}.txt"
+                    ): 1,
+                },
+                "__event_types__": {
+                    "create": 2,
+                    "modify": 2,
+                },
+                "__duplicate_hash_count__": 1,
+            },
+        )
+
+    assert handled == {50007}
+    assert calls
+    assert calls[-1]["features"]["low_slow_file_replication"] is True
+    assert calls[-1]["persistence_state"]["stage"] == "terminate"
+    assert calls[-1]["persistence_state"]["force_terminate"] is True
 
 
 def test_file_preflight_can_contain_in_explicit_lab_mode(monkeypatch):

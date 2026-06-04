@@ -66,6 +66,11 @@ FEATURE_NAMES = [
     "f_mass_file_modification",
     "f_suspicious_rename",
     "rename_events",
+    "duplicate_file_hash_count",
+    "duplicate_file_hash_memory",
+    "low_slow_file_replication",
+    "file_memory_events",
+    "file_memory_fanout",
     "f_scanning_score",
     "f_scanning_detected",
     "source_worm_score",
@@ -111,6 +116,7 @@ BEHAVIOR_LABELS = [
     "resource_pressure",
     "high_file_velocity",
     "extreme_file_velocity",
+    "low_slow_file_replication",
     "mass_file_modification",
     "suspicious_rename",
     "persistence_artifact",
@@ -910,9 +916,20 @@ class MLThreatModel:
         row = x.iloc[0]
 
         direct_rules = {
-            "file_replication": _safe_float(row.get("file_events", 0)) >= 60,
+            "file_replication": (
+                _safe_float(row.get("file_events", 0)) >= 60
+                or _safe_float(row.get("low_slow_file_replication", 0)) > 0
+                or _safe_float(row.get("duplicate_file_hash_memory", 0)) >= 8
+            ),
             "high_file_velocity": _safe_float(row.get("file_events", 0)) >= 45,
             "extreme_file_velocity": _safe_float(row.get("file_events", 0)) >= 75,
+            "low_slow_file_replication": (
+                _safe_float(row.get("low_slow_file_replication", 0)) > 0
+                or (
+                    _safe_float(row.get("file_memory_events", 0)) >= 30
+                    and _safe_float(row.get("file_memory_fanout", 0)) >= 8
+                )
+            ),
             "network_fanout": (
                 _safe_float(row.get("f_connection_velocity", 0)) >= 10
                 or _safe_float(row.get("f_remote_ips", 0)) >= 10
@@ -980,6 +997,7 @@ class MLThreatModel:
                 "large_or_growing_tree",
                 "repeated_similar_children",
                 "file_replication",
+                "low_slow_file_replication",
                 "network_fanout",
                 "persistence_artifact",
                 "sensitive_file_access",
@@ -1020,6 +1038,7 @@ class MLThreatModel:
             direct_rules[tag]
             for tag in (
                 "file_replication",
+                "low_slow_file_replication",
                 "network_fanout",
                 "persistence_artifact",
                 "sensitive_file_access",

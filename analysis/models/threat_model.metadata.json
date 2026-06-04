@@ -7,6 +7,7 @@
     "high_file_velocity": 57,
     "large_or_growing_tree": 46,
     "localhost_beaconing": 17,
+    "low_slow_file_replication": 0,
     "mass_file_modification": 23,
     "network_fanout": 39,
     "persistence_artifact": 23,
@@ -22,18 +23,18 @@
     "worm_like_behavior": 0
   },
   "classification_report": {
-    "accuracy": 0.9904306220095693,
+    "accuracy": 1.0,
     "forkbomb": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 76.0
+      "support": 116.0
     },
     "macro avg": {
-      "f1-score": 0.9888019907571988,
-      "precision": 0.9833333333333334,
-      "recall": 0.9948979591836735,
-      "support": 209.0
+      "f1-score": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 267.0
     },
     "normal": {
       "f1-score": 1.0,
@@ -42,22 +43,22 @@
       "support": 7.0
     },
     "suspicious": {
-      "f1-score": 0.9655172413793104,
-      "precision": 0.9333333333333333,
+      "f1-score": 1.0,
+      "precision": 1.0,
       "recall": 1.0,
       "support": 28.0
     },
     "weighted avg": {
-      "f1-score": 0.9905462845945942,
-      "precision": 0.9910685805422648,
-      "recall": 0.9904306220095693,
-      "support": 209.0
+      "f1-score": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 267.0
     },
     "worm": {
-      "f1-score": 0.9896907216494846,
+      "f1-score": 1.0,
       "precision": 1.0,
-      "recall": 0.9795918367346939,
-      "support": 98.0
+      "recall": 1.0,
+      "support": 116.0
     }
   },
   "feature_names": [
@@ -91,6 +92,11 @@
     "f_mass_file_modification",
     "f_suspicious_rename",
     "rename_events",
+    "duplicate_file_hash_count",
+    "duplicate_file_hash_memory",
+    "low_slow_file_replication",
+    "file_memory_events",
+    "file_memory_fanout",
     "f_scanning_score",
     "f_scanning_detected",
     "source_worm_score",
@@ -115,68 +121,68 @@
     "static_trust"
   ],
   "labels": {
-    "forkbomb": 303,
+    "forkbomb": 463,
     "normal": 28,
     "suspicious": 114,
-    "worm": 390
+    "worm": 462
   },
   "log_signature": {
-    "mtime": 1780578364.6495705,
+    "mtime": 1780579810.9994454,
     "path": "logs/system_log.json",
-    "size": 658645
+    "size": 891625
   },
   "model_path": "C:\\Users\\user\\Desktop\\HEALING\\self_healing2.o\\analysis\\models\\threat_model.joblib",
-  "rows": 835,
+  "rows": 1067,
   "sklearn_version": "1.9.0",
   "top_features": [
     {
       "feature": "source_worm_score",
-      "importance": 0.13217
-    },
-    {
-      "feature": "dynamic_trust",
-      "importance": 0.10551
-    },
-    {
-      "feature": "final_trust",
-      "importance": 0.09835
-    },
-    {
-      "feature": "trust_drop_risk",
-      "importance": 0.08067
+      "importance": 0.11644
     },
     {
       "feature": "trust_anomaly_pressure",
-      "importance": 0.07642
+      "importance": 0.10883
     },
     {
-      "feature": "f_repeated_child_count",
-      "importance": 0.06216
+      "feature": "dynamic_trust",
+      "importance": 0.1018
+    },
+    {
+      "feature": "final_trust",
+      "importance": 0.0901
+    },
+    {
+      "feature": "trust_drop_risk",
+      "importance": 0.08962
     },
     {
       "feature": "f_short_lived_child_ratio",
-      "importance": 0.06001
+      "importance": 0.05525
     },
     {
-      "feature": "static_trust",
-      "importance": 0.05543
-    },
-    {
-      "feature": "f_proc_tree",
-      "importance": 0.05374
+      "feature": "f_repeated_child_count",
+      "importance": 0.05318
     },
     {
       "feature": "f_child_similarity",
-      "importance": 0.04933
+      "importance": 0.05249
+    },
+    {
+      "feature": "static_trust",
+      "importance": 0.04293
+    },
+    {
+      "feature": "f_proc_tree",
+      "importance": 0.04111
+    },
+    {
+      "feature": "f_recursive_depth",
+      "importance": 0.03323
     },
     {
       "feature": "f_young_process",
-      "importance": 0.03063
-    },
-    {
-      "feature": "f_repeated_descendant_count",
-      "importance": 0.02678
+      "importance": 0.03308
     }
   ],
-  "trained_at": 1780578364.6566572
+  "trained_at": 1780580062.2701025
 }

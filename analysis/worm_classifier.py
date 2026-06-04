@@ -107,11 +107,40 @@ class WormClassifier:
                         "file_replication_preflight",
                         False
                     )
+                )
+                or bool(
+                    features.get(
+                        "low_slow_file_replication",
+                        False
+                    )
                 ),
             "high_file_velocity":
                 file_events >= 25,
             "extreme_file_velocity":
                 file_events >= 60,
+            "low_slow_file_replication":
+                bool(
+                    features.get(
+                        "low_slow_file_replication",
+                        False
+                    )
+                )
+                or (
+                    float(
+                        features.get(
+                            "file_memory_events",
+                            0
+                        )
+                        or 0
+                    ) >= 30
+                    and float(
+                        features.get(
+                            "file_memory_fanout",
+                            0
+                        )
+                        or 0
+                    ) >= 8
+                ),
             "mass_file_modification":
                 file_events >= 45
                 or bool(
@@ -290,6 +319,8 @@ class WormClassifier:
                 behavior.get("high_file_velocity", False),
             "extreme_file_velocity":
                 behavior.get("extreme_file_velocity", False),
+            "low_slow_file_replication":
+                behavior.get("low_slow_file_replication", False),
             "mass_file_modification":
                 behavior.get("mass_file_modification", False),
             "suspicious_rename":
@@ -311,6 +342,7 @@ class WormClassifier:
         replication_detected = any(
             [
                 behavior.get("file_replication", False),
+                behavior.get("low_slow_file_replication", False),
                 behavior.get("mass_file_modification", False),
                 behavior.get("suspicious_rename", False),
             ]
