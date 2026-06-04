@@ -160,3 +160,65 @@ def test_learning_engine_suppresses_false_positive_pattern(tmp_path, monkeypatch
         )
         == "observe"
     )
+
+
+def test_learning_engine_learns_trust_score_anomaly_pattern(tmp_path, monkeypatch):
+    kb_path = tmp_path / "learning_kb.json"
+    monkeypatch.setenv("SELF_HEALING_KB_PATH", str(kb_path))
+
+    engine = LearningEngine()
+    process = {
+        "pid": 456,
+        "name": "python",
+        "cmdline": "python worm-like fanout replication",
+        "exe": "/usr/bin/python",
+    }
+    classification = {
+        "label": "worm",
+        "severity": "critical",
+        "worm_score": 0.93,
+        "confidence": 93,
+        "signals": {
+            "worm_like_behavior": True,
+            "trust_anomaly_pattern": True,
+            "correlated_signals": {
+                "network_fanout": True,
+                "file_replication": True,
+                "trust_anomaly_pattern": True,
+                "worm_like_behavior": True,
+            },
+        },
+    }
+
+    for _ in range(3):
+        entry = engine.update(
+            pid=456,
+            process_info=process,
+            classification=classification,
+            response_result={
+                "stage": "quarantine",
+                "action_taken": True,
+            },
+            trust_state={
+                "static_trust": 0.82,
+                "dynamic_trust": 0.42,
+                "final_trust": 0.48,
+                "trust_anomaly_pressure": 0.72,
+            },
+            features={
+                "process_category": "unknown",
+                "behavior_correlation_score": 0.82,
+                "worm_pattern_anomaly": 0.82,
+            },
+        )
+
+    assert entry["disposition"] == "malicious"
+    assert entry["attack_family"] == "correlated_worm_behavior"
+    assert entry["avg_pattern_strength"] >= 0.8
+    assert entry["avg_trust_anomaly_pressure"] >= 0.7
+
+    assert engine.recommend_from_knowledge(
+        process,
+        classification,
+        "throttle",
+    ) in {"quarantine", "terminate"}

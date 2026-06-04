@@ -75,6 +75,24 @@ class TrustEngine:
             0
         )
 
+        process_anomaly = max(
+            anomaly_vector.get("process", 0),
+            anomaly_vector.get("spawn", 0),
+            anomaly_vector.get("tree", 0),
+            anomaly_vector.get("child_similarity", 0)
+        )
+
+        network_anomaly = max(
+            anomaly_vector.get("network", 0),
+            anomaly_vector.get("remote_ips", 0),
+            anomaly_vector.get("connections", 0)
+        )
+
+        worm_pattern_anomaly = anomaly_vector.get(
+            "worm_pattern",
+            anomaly_vector.get("aggregate", 0)
+        )
+
         # -----------------------------------------
         # PREVIOUS TRUST
         # slide 24
@@ -344,11 +362,14 @@ class TrustEngine:
         )
 
         anomaly_weights = {
-            "cpu": 0.25,
-            "memory": 0.2,
-            "threads": 0.2,
-            "connections": 0.2,
-            "files": 0.15
+            "cpu": 0.14,
+            "memory": 0.12,
+            "threads": 0.12,
+            "connections": 0.10,
+            "files": 0.12,
+            "process": 0.18,
+            "network": 0.10,
+            "worm_pattern": 0.16
         }
 
         weighted_anomaly = round(
@@ -358,8 +379,16 @@ class TrustEngine:
                 + thread_anomaly * anomaly_weights["threads"]
                 + connection_anomaly * anomaly_weights["connections"]
                 + file_anomaly * anomaly_weights["files"]
+                + process_anomaly * anomaly_weights["process"]
+                + network_anomaly * anomaly_weights["network"]
+                + worm_pattern_anomaly * anomaly_weights["worm_pattern"]
             ),
             3
+        )
+
+        trust_anomaly_pressure = max(
+            weighted_anomaly,
+            worm_pattern_anomaly
         )
 
         if weighted_anomaly < MIN_ANOMALY_THRESHOLD:
@@ -419,9 +448,44 @@ class TrustEngine:
             "threads": threads_trust,
             "connections": connections_trust,
             "files": files_trust,
+            "process": round(
+                max(
+                    0.0,
+                    min(
+                        1.0,
+                        1.0 - process_anomaly
+                    )
+                ),
+                3
+            ),
+            "network": round(
+                max(
+                    0.0,
+                    min(
+                        1.0,
+                        1.0 - network_anomaly
+                    )
+                ),
+                3
+            ),
+            "worm_pattern": round(
+                max(
+                    0.0,
+                    min(
+                        1.0,
+                        1.0 - worm_pattern_anomaly
+                    )
+                ),
+                3
+            ),
             "static_trust": static_score,
             "dynamic_trust": dynamic_trust,
-            "final_trust": final_trust
+            "final_trust": final_trust,
+            "weighted_anomaly": weighted_anomaly,
+            "trust_anomaly_pressure": round(
+                trust_anomaly_pressure,
+                3
+            )
         }
 
         return trust_db[pid]

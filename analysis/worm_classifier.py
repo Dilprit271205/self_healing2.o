@@ -88,6 +88,10 @@ class WormClassifier:
                 behavior.get("sensitive_file_access", False),
             "localhost_beaconing":
                 behavior.get("localhost_beaconing", False),
+            "trust_anomaly_pattern":
+                behavior.get("trust_anomaly_pattern", False),
+            "worm_like_behavior":
+                behavior.get("worm_like_behavior", False),
         }
         correlated_signal_count = sum(
             1 for active in correlated_signals.values() if active
@@ -108,6 +112,14 @@ class WormClassifier:
         )
         thread_storm_detected = behavior.get("thread_explosion", False)
         catastrophic_behavior = behavior.get("catastrophic_behavior", False)
+        trust_anomaly_pattern = behavior.get(
+            "trust_anomaly_pattern",
+            False
+        )
+        worm_like_behavior = behavior.get(
+            "worm_like_behavior",
+            False
+        )
 
         return {
             "label":
@@ -174,6 +186,12 @@ class WormClassifier:
 
                 "catastrophic_behavior":
                     catastrophic_behavior,
+
+                "trust_anomaly_pattern":
+                    trust_anomaly_pattern,
+
+                "worm_like_behavior":
+                    worm_like_behavior,
 
                 "replication_detected":
                     replication_detected,

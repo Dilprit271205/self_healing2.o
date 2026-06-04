@@ -192,6 +192,16 @@ class LearningEngine:
             return "process_storm"
 
         if signals.get(
+            "worm_like_behavior"
+        ):
+            return "correlated_worm_behavior"
+
+        if signals.get(
+            "trust_anomaly_pattern"
+        ):
+            return "trust_score_anomaly"
+
+        if signals.get(
             "replication_detected"
         ):
             if "suspicious_rename" in active_signals:
@@ -417,7 +427,11 @@ class LearningEngine:
                 "confidence": 0.5,
                 "recommended_stage": "observe",
                 "disposition": "unknown",
-                "evidence": []
+                "evidence": [],
+                "pattern_strength_total": 0.0,
+                "avg_pattern_strength": 0.0,
+                "avg_trust_anomaly_pressure": 0.0,
+                "avg_trust_drop_risk": 0.0
             }
         )
 
@@ -441,6 +455,81 @@ class LearningEngine:
         severity = classification.get(
             "severity",
             "low"
+        )
+
+        signals = classification.get(
+            "signals",
+            {}
+        ) or {}
+
+        pattern_strength = max(
+            float(
+                features.get(
+                    "behavior_correlation_score",
+                    0
+                )
+                or
+                0
+            ),
+            float(
+                features.get(
+                    "worm_pattern_anomaly",
+                    0
+                )
+                or
+                0
+            ),
+            float(
+                signals.get(
+                    "ml_anomaly_probability",
+                    0
+                )
+                or
+                0
+            ),
+            min(
+                1.0,
+                len(active_signals) / 6
+            )
+        )
+
+        trust_anomaly_pressure = float(
+            trust_state.get(
+                "trust_anomaly_pressure",
+                features.get(
+                    "trust_anomaly_pressure",
+                    0
+                )
+            )
+            or
+            0
+        )
+
+        trust_drop_risk = max(
+            0.0,
+            float(
+                trust_state.get(
+                    "static_trust",
+                    features.get(
+                        "static_trust",
+                        1.0
+                    )
+                )
+                or
+                1.0
+            )
+            -
+            float(
+                trust_state.get(
+                    "dynamic_trust",
+                    features.get(
+                        "dynamic_trust",
+                        1.0
+                    )
+                )
+                or
+                1.0
+            )
         )
 
         suppressed_or_protected = (
@@ -504,6 +593,66 @@ class LearningEngine:
             1
         )
 
+        entry[
+            "pattern_strength_total"
+        ] = round(
+            float(
+                entry.get(
+                    "pattern_strength_total",
+                    0
+                )
+            )
+            + pattern_strength,
+            4
+        )
+
+        entry[
+            "trust_anomaly_pressure_total"
+        ] = round(
+            float(
+                entry.get(
+                    "trust_anomaly_pressure_total",
+                    0
+                )
+            )
+            + trust_anomaly_pressure,
+            4
+        )
+
+        entry[
+            "trust_drop_risk_total"
+        ] = round(
+            float(
+                entry.get(
+                    "trust_drop_risk_total",
+                    0
+                )
+            )
+            + trust_drop_risk,
+            4
+        )
+
+        entry[
+            "avg_pattern_strength"
+        ] = round(
+            entry["pattern_strength_total"] / observations,
+            3
+        )
+
+        entry[
+            "avg_trust_anomaly_pressure"
+        ] = round(
+            entry["trust_anomaly_pressure_total"] / observations,
+            3
+        )
+
+        entry[
+            "avg_trust_drop_risk"
+        ] = round(
+            entry["trust_drop_risk_total"] / observations,
+            3
+        )
+
         action_rate = (
             entry[
                 "action_count"
@@ -544,6 +693,8 @@ class LearningEngine:
                 observations / 10,
                 1
             ) * 0.20
+            + entry["avg_pattern_strength"] * 0.20
+            + entry["avg_trust_anomaly_pressure"] * 0.15
             - false_positive_rate * 0.45
         )
 
@@ -583,7 +734,8 @@ class LearningEngine:
             if family in {
                 "process_storm",
                 "file_replication",
-                "ransomware_like_file_rename"
+                "ransomware_like_file_rename",
+                "correlated_worm_behavior"
             } and confidence >= 0.82:
                 entry[
                     "recommended_stage"

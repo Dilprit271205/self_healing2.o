@@ -242,3 +242,29 @@ def test_12_legitimate_developer_workload_is_not_terminated():
 
     assert result["stage"] in {"observe", "protected"}
     assert result["action_taken"] is False
+
+
+def test_13_trust_anomaly_pattern_promotes_worm_like_response():
+    result = classify(
+        {
+            "f_proc_tree": 14,
+            "f_repeated_child_count": 9,
+            "f_child_similarity": 0.82,
+            "file_events": 64,
+            "f_connection_velocity": 11,
+            "f_remote_ips": 11,
+            "worm_score": 78,
+        },
+        aggregate=0.48,
+        trust={
+            "static_trust": 0.84,
+            "dynamic_trust": 0.50,
+            "final_trust": 0.56,
+            "trust_anomaly_pressure": 0.70,
+        },
+    )
+
+    assert result["signals"]["trust_anomaly_pattern"] is True
+    assert result["signals"]["worm_like_behavior"] is True
+    assert result["signals"]["correlated_signals"]["trust_anomaly_pattern"] is True
+    assert result["label"] == "worm"

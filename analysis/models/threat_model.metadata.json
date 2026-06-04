@@ -17,21 +17,23 @@
     "sensitive_file_access": 17,
     "short_lived_recursive_children": 41,
     "suspicious_rename": 17,
-    "thread_explosion": 3
+    "thread_explosion": 3,
+    "trust_anomaly_pattern": 0,
+    "worm_like_behavior": 0
   },
   "classification_report": {
-    "accuracy": 0.9838709677419355,
+    "accuracy": 0.9927007299270073,
     "forkbomb": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 29.0
+      "support": 32.0
     },
     "macro avg": {
-      "f1-score": 0.986904761904762,
-      "precision": 0.9827586206896551,
-      "recall": 0.9918032786885246,
-      "support": 124.0
+      "f1-score": 0.9939378943461586,
+      "precision": 0.9916666666666667,
+      "recall": 0.9963768115942029,
+      "support": 137.0
     },
     "normal": {
       "f1-score": 1.0,
@@ -40,22 +42,22 @@
       "support": 7.0
     },
     "suspicious": {
-      "f1-score": 0.9642857142857143,
-      "precision": 0.9310344827586207,
+      "f1-score": 0.9830508474576272,
+      "precision": 0.9666666666666667,
       "recall": 1.0,
-      "support": 27.0
+      "support": 29.0
     },
     "weighted avg": {
-      "f1-score": 0.9840245775729646,
-      "precision": 0.9849833147942159,
-      "recall": 0.9838709677419355,
-      "support": 124.0
+      "f1-score": 0.9927359484761656,
+      "precision": 0.9929440389294404,
+      "recall": 0.9927007299270073,
+      "support": 137.0
     },
     "worm": {
-      "f1-score": 0.9833333333333333,
+      "f1-score": 0.9927007299270073,
       "precision": 1.0,
-      "recall": 0.9672131147540983,
-      "support": 61.0
+      "recall": 0.9855072463768116,
+      "support": 69.0
     }
   },
   "feature_names": [
@@ -102,72 +104,79 @@
     "remote_ips_anomaly",
     "child_similarity_anomaly",
     "aggregate_anomaly",
+    "process_anomaly",
+    "network_anomaly",
+    "worm_pattern_anomaly",
+    "behavior_correlation_score",
+    "trust_anomaly_pressure",
+    "trust_drop_risk",
     "dynamic_trust",
     "final_trust",
     "static_trust"
   ],
   "labels": {
-    "forkbomb": 116,
+    "forkbomb": 125,
     "normal": 28,
-    "suspicious": 108,
-    "worm": 243
+    "suspicious": 117,
+    "worm": 276
   },
   "log_signature": {
-    "mtime": 1780464698.5610063,
+    "mtime": 1780545657.5944946,
     "path": "logs/system_log.json",
-    "size": 181623
+    "size": 242502
   },
   "model_path": "C:\\Users\\user\\Desktop\\HEALING\\self_healing2.o\\analysis\\models\\threat_model.joblib",
-  "rows": 495,
+  "rows": 546,
+  "sklearn_version": "1.9.0",
   "top_features": [
     {
       "feature": "source_worm_score",
-      "importance": 0.15172
+      "importance": 0.1307
     },
     {
       "feature": "dynamic_trust",
-      "importance": 0.13113
+      "importance": 0.10227
+    },
+    {
+      "feature": "trust_anomaly_pressure",
+      "importance": 0.09672
     },
     {
       "feature": "final_trust",
-      "importance": 0.12395
+      "importance": 0.08669
     },
     {
       "feature": "f_proc_tree",
-      "importance": 0.08531
+      "importance": 0.07844
     },
     {
-      "feature": "f_repeated_child_count",
-      "importance": 0.07411
+      "feature": "trust_drop_risk",
+      "importance": 0.06936
     },
     {
       "feature": "static_trust",
-      "importance": 0.06775
+      "importance": 0.05686
     },
     {
-      "feature": "f_child_similarity",
-      "importance": 0.05961
+      "feature": "f_repeated_child_count",
+      "importance": 0.05659
     },
     {
       "feature": "f_short_lived_child_ratio",
-      "importance": 0.04991
+      "importance": 0.05465
     },
     {
-      "feature": "file_events",
-      "importance": 0.03646
-    },
-    {
-      "feature": "threads",
-      "importance": 0.0347
+      "feature": "f_child_similarity",
+      "importance": 0.04948
     },
     {
       "feature": "memory",
-      "importance": 0.03106
+      "importance": 0.02164
     },
     {
-      "feature": "aggregate_anomaly",
-      "importance": 0.02052
+      "feature": "threads",
+      "importance": 0.02104
     }
   ],
-  "trained_at": 1780475612.222199
+  "trained_at": 1780545712.3021824
 }

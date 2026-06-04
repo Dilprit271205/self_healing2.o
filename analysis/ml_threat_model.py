@@ -73,6 +73,12 @@ FEATURE_NAMES = [
     "remote_ips_anomaly",
     "child_similarity_anomaly",
     "aggregate_anomaly",
+    "process_anomaly",
+    "network_anomaly",
+    "worm_pattern_anomaly",
+    "behavior_correlation_score",
+    "trust_anomaly_pressure",
+    "trust_drop_risk",
     "dynamic_trust",
     "final_trust",
     "static_trust",
@@ -104,6 +110,8 @@ BEHAVIOR_LABELS = [
     "persistence_artifact",
     "sensitive_file_access",
     "localhost_beaconing",
+    "trust_anomaly_pattern",
+    "worm_like_behavior",
     "catastrophic_behavior",
 ]
 
@@ -210,7 +218,24 @@ def _flatten_runtime_row(row):
     merged["remote_ips_anomaly"] = anomalies.get("remote_ips", 0)
     merged["child_similarity_anomaly"] = anomalies.get("child_similarity", 0)
     merged["aggregate_anomaly"] = anomalies.get("aggregate", 0)
+    merged["process_anomaly"] = anomalies.get("process", 0)
+    merged["network_anomaly"] = anomalies.get("network", 0)
+    merged["worm_pattern_anomaly"] = anomalies.get("worm_pattern", 0)
     merged.update(trust_state)
+    merged["behavior_correlation_score"] = max(
+        _safe_float(merged.get("worm_pattern_anomaly", 0)),
+        _safe_float(merged.get("aggregate_anomaly", 0)),
+    )
+    merged["trust_anomaly_pressure"] = max(
+        _safe_float(merged.get("trust_anomaly_pressure", 0)),
+        1.0 - _safe_float(merged.get("dynamic_trust", 1.0)),
+        _safe_float(merged.get("worm_pattern_anomaly", 0)),
+    )
+    merged["trust_drop_risk"] = max(
+        0.0,
+        _safe_float(merged.get("static_trust", 1.0))
+        - _safe_float(merged.get("dynamic_trust", 1.0))
+    )
     return merged
 
 
@@ -234,9 +259,26 @@ def vectorize(features, anomaly_data=None, trust_state=None):
     merged["remote_ips_anomaly"] = anomalies.get("remote_ips", 0)
     merged["child_similarity_anomaly"] = anomalies.get("child_similarity", 0)
     merged["aggregate_anomaly"] = anomalies.get("aggregate", 0)
+    merged["process_anomaly"] = anomalies.get("process", 0)
+    merged["network_anomaly"] = anomalies.get("network", 0)
+    merged["worm_pattern_anomaly"] = anomalies.get("worm_pattern", 0)
     merged["dynamic_trust"] = trust_state.get("dynamic_trust", 1.0)
     merged["final_trust"] = trust_state.get("final_trust", 1.0)
     merged["static_trust"] = trust_state.get("static_trust", 1.0)
+    merged["behavior_correlation_score"] = max(
+        _safe_float(merged.get("worm_pattern_anomaly", 0)),
+        _safe_float(merged.get("aggregate_anomaly", 0)),
+    )
+    merged["trust_anomaly_pressure"] = max(
+        _safe_float(trust_state.get("trust_anomaly_pressure", 0)),
+        1.0 - _safe_float(merged.get("dynamic_trust", 1.0)),
+        _safe_float(merged.get("worm_pattern_anomaly", 0)),
+    )
+    merged["trust_drop_risk"] = max(
+        0.0,
+        _safe_float(merged.get("static_trust", 1.0))
+        - _safe_float(merged.get("dynamic_trust", 1.0))
+    )
 
     return [_safe_float(merged.get(name, 0)) for name in FEATURE_NAMES]
 
@@ -269,6 +311,9 @@ def _synthetic_profiles():
             row["dynamic_trust"] = 0.95
             row["final_trust"] = 0.94
             row["static_trust"] = 0.9
+            row["trust_anomaly_pressure"] = 0.05
+            row["trust_drop_risk"] = 0.0
+            row["behavior_correlation_score"] = 0.0
             row["source_worm_score"] = 0
             rows.append(row)
 
@@ -290,6 +335,9 @@ def _synthetic_profiles():
             row["dynamic_trust"] = 0.75 - scale * 0.03
             row["final_trust"] = 0.78 - scale * 0.03
             row["static_trust"] = 0.82
+            row["trust_anomaly_pressure"] = min(0.30 + scale * 0.06, 0.75)
+            row["trust_drop_risk"] = max(0.0, row["static_trust"] - row["dynamic_trust"])
+            row["behavior_correlation_score"] = row["aggregate_anomaly"]
             row["source_worm_score"] = 35 + scale * 5
             rows.append(row)
 
@@ -305,6 +353,9 @@ def _synthetic_profiles():
                 "dynamic_trust": 0.72,
                 "final_trust": 0.76,
                 "static_trust": 0.82,
+                "trust_anomaly_pressure": 0.35,
+                "trust_drop_risk": 0.10,
+                "behavior_correlation_score": 0.35,
                 "source_worm_score": 20,
             }
         )
@@ -322,6 +373,9 @@ def _synthetic_profiles():
                 "dynamic_trust": 0.72,
                 "final_trust": 0.76,
                 "static_trust": 0.82,
+                "trust_anomaly_pressure": 0.35,
+                "trust_drop_risk": 0.10,
+                "behavior_correlation_score": 0.35,
                 "source_worm_score": 20,
             }
         )
@@ -341,6 +395,9 @@ def _synthetic_profiles():
                 "dynamic_trust": 0.70,
                 "final_trust": 0.72,
                 "static_trust": 0.82,
+                "trust_anomaly_pressure": 0.45,
+                "trust_drop_risk": 0.12,
+                "behavior_correlation_score": 0.45,
                 "source_worm_score": 55,
             }
         )
@@ -382,6 +439,10 @@ def _synthetic_profiles():
             row["dynamic_trust"] = max(0.25, 0.62 - scale * 0.06)
             row["final_trust"] = max(0.25, 0.64 - scale * 0.06)
             row["static_trust"] = 0.78
+            row["trust_anomaly_pressure"] = min(0.55 + scale * 0.06, 1.0)
+            row["trust_drop_risk"] = max(0.0, row["static_trust"] - row["dynamic_trust"])
+            row["behavior_correlation_score"] = row["trust_anomaly_pressure"]
+            row["worm_pattern_anomaly"] = row["behavior_correlation_score"]
             row["source_worm_score"] = 80 + scale * 3
             rows.append(row)
 
@@ -424,6 +485,10 @@ def _synthetic_profiles():
             row["dynamic_trust"] = max(0.30, 0.72 - scale * 0.05)
             row["final_trust"] = max(0.30, 0.76 - scale * 0.05)
             row["static_trust"] = 0.78
+            row["trust_anomaly_pressure"] = min(0.45 + scale * 0.05, 0.95)
+            row["trust_drop_risk"] = max(0.0, row["static_trust"] - row["dynamic_trust"])
+            row["behavior_correlation_score"] = row["trust_anomaly_pressure"]
+            row["worm_pattern_anomaly"] = row["behavior_correlation_score"]
             row["source_worm_score"] = 70 + scale * 5
             rows.append(row)
 
@@ -445,6 +510,10 @@ def _synthetic_profiles():
             row["dynamic_trust"] = max(0.30, 0.70 - scale * 0.05)
             row["final_trust"] = max(0.30, 0.74 - scale * 0.05)
             row["static_trust"] = 0.78
+            row["trust_anomaly_pressure"] = min(0.45 + scale * 0.05, 0.95)
+            row["trust_drop_risk"] = max(0.0, row["static_trust"] - row["dynamic_trust"])
+            row["behavior_correlation_score"] = row["trust_anomaly_pressure"]
+            row["worm_pattern_anomaly"] = row["behavior_correlation_score"]
             row["source_worm_score"] = 55 + scale * 5
             rows.append(row)
 
@@ -476,6 +545,10 @@ def _synthetic_profiles():
                 "dynamic_trust": max(0.2, 0.58 - scale * 0.035),
                 "final_trust": max(0.2, 0.60 - scale * 0.035),
                 "static_trust": 0.78,
+                "trust_anomaly_pressure": min(0.55 + scale * 0.04, 1.0),
+                "trust_drop_risk": 0.25,
+                "behavior_correlation_score": min(0.55 + scale * 0.04, 1.0),
+                "worm_pattern_anomaly": min(0.55 + scale * 0.04, 1.0),
                 "source_worm_score": 90 + scale,
                 "label": "forkbomb",
             }
@@ -505,6 +578,10 @@ def _synthetic_profiles():
                     "dynamic_trust": 0.76,
                     "final_trust": 0.80,
                     "static_trust": 0.78,
+                    "trust_anomaly_pressure": 0.82,
+                    "trust_drop_risk": 0.02,
+                    "behavior_correlation_score": 0.82,
+                    "worm_pattern_anomaly": 0.82,
                     "source_worm_score": 95,
                 }
             )
@@ -531,6 +608,10 @@ def _synthetic_profiles():
                 "dynamic_trust": 0.76,
                 "final_trust": 0.80,
                 "static_trust": 0.78,
+                "trust_anomaly_pressure": 0.82,
+                "trust_drop_risk": 0.02,
+                "behavior_correlation_score": 0.82,
+                "worm_pattern_anomaly": 0.82,
                 "source_worm_score": 95,
             }
         )
@@ -831,14 +912,45 @@ class MLThreatModel:
                 _safe_float(row.get("f_short_lived_child_ratio", 0)) >= 0.65
             ),
             "process_storm_burst": (
-                _safe_float(row.get("f_proc_tree", 0)) >= 20
+                _safe_float(row.get("f_proc_tree", 0)) >= 12
                 and _safe_float(row.get("f_repeated_child_count", 0)) >= 8
+            ),
+            "trust_anomaly_pattern": (
+                _safe_float(row.get("trust_anomaly_pressure", 0)) >= 0.45
+                or _safe_float(row.get("trust_drop_risk", 0)) >= 0.18
+                or (
+                    _safe_float(row.get("worm_pattern_anomaly", 0)) >= 0.45
+                    and _safe_float(row.get("dynamic_trust", 1.0)) <= 0.78
+                )
             ),
         }
         direct_rules["catastrophic_behavior"] = (
             direct_rules["process_storm_burst"]
             and direct_rules["repeated_similar_children"]
             and direct_rules["short_lived_recursive_children"]
+        )
+        correlated_worm_domains = sum(
+            1
+            for tag in (
+                "rapid_child_spawning",
+                "large_or_growing_tree",
+                "repeated_similar_children",
+                "file_replication",
+                "network_fanout",
+                "persistence_artifact",
+                "sensitive_file_access",
+                "thread_explosion",
+                "resource_pressure",
+                "trust_anomaly_pattern",
+            )
+            if direct_rules.get(tag)
+        )
+        direct_rules["worm_like_behavior"] = (
+            correlated_worm_domains >= 3
+            or (
+                _safe_float(row.get("behavior_correlation_score", 0)) >= 0.62
+                and direct_rules["trust_anomaly_pattern"]
+            )
         )
 
         for tag, active in direct_rules.items():
@@ -867,7 +979,8 @@ class MLThreatModel:
                 "network_fanout",
                 "persistence_artifact",
                 "sensitive_file_access",
-                "thread_explosion"
+                "thread_explosion",
+                "worm_like_behavior"
             )
         ):
             probabilities["worm"] = max(
@@ -877,6 +990,16 @@ class MLThreatModel:
             probabilities["normal"] = min(
                 probabilities.get("normal", 0.0),
                 0.08
+            )
+
+        if direct_rules["trust_anomaly_pattern"]:
+            probabilities["suspicious"] = max(
+                probabilities.get("suspicious", 0.0),
+                0.55
+            )
+            probabilities["normal"] = min(
+                probabilities.get("normal", 0.0),
+                0.30
             )
 
         worm_score = min(

@@ -6,7 +6,7 @@ import signal
 # Safe forkbomb simulator for testing. Spawns processes quickly but bounded.
 MAX_CHILDREN = int(os.getenv("FORKBOMB_MAX_CHILDREN", "80"))
 SPAWN_DELAY = float(os.getenv("FORKBOMB_SPAWN_DELAY", "0.05"))
-RUN_TIME = int(os.getenv("FORKBOMB_RUN_TIME", "10"))
+RUN_TIME = int(os.getenv("FORKBOMB_RUN_TIME", "60"))
 
 children = []
 
