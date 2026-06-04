@@ -455,6 +455,67 @@ def test_file_preflight_detects_low_and_slow_replication_memory(monkeypatch):
     assert calls[-1]["persistence_state"]["force_terminate"] is True
 
 
+def test_file_preflight_terminates_suspicious_rename_burst_early(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
+        "true",
+    )
+
+    processes = [
+        {
+            "pid": 50008,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python n.py",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "age_seconds": 3,
+        }
+    ]
+
+    handled = main_mod.emergency_file_activity_preflight(
+        processes,
+        {
+            "__paths__": {
+                (
+                    "/home/kali/Downloads/self_healing2.o-main/"
+                    f"p7_file_rename_lab/document_{index}.locked"
+                ): 1
+                for index in range(7)
+            },
+            "__event_types__": {
+                "rename": 7,
+            },
+        },
+    )
+
+    assert handled == {50008}
+    assert calls
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["features"]["f_suspicious_rename"] == 1
+    assert calls[0]["features"]["rename_events"] == 7
+    assert (
+        calls[0]["classification"]["signals"]["correlated_signals"][
+            "suspicious_rename"
+        ]
+        is True
+    )
+
+
 def test_file_preflight_can_contain_in_explicit_lab_mode(monkeypatch):
     calls = []
 

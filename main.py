@@ -1930,6 +1930,26 @@ def emergency_file_activity_preflight(
         duplicate_file_hash_count >= 8
         or duplicate_memory_count >= 8
     )
+    rename_event_count = int(
+        event_type_counts.get(
+            "rename",
+            0
+        )
+        or 0
+    )
+    rename_memory_count = sum(
+        int(
+            summary.get(
+                "rename",
+                0
+            )
+        )
+        for summary in memory_summary.values()
+    )
+    suspicious_rename_burst = (
+        rename_event_count >= 6
+        or rename_memory_count >= 6
+    )
     low_slow_replication_memory = (
         memory_total_events >= 30
         and memory_fanout >= 8
@@ -1938,6 +1958,7 @@ def emergency_file_activity_preflight(
     if (
         total_events < 25
         and not duplicate_replication_burst
+        and not suspicious_rename_burst
         and not low_slow_replication_memory
     ):
         return set()
@@ -1949,6 +1970,10 @@ def emergency_file_activity_preflight(
             count >= 20
             or (
                 duplicate_replication_burst
+                and count >= 2
+            )
+            or (
+                suspicious_rename_burst
                 and count >= 2
             )
             or (
@@ -2040,6 +2065,7 @@ def emergency_file_activity_preflight(
         if (
             matched_events < 20
             and not duplicate_replication_burst
+            and not suspicious_rename_burst
         ):
             continue
 
@@ -2052,6 +2078,10 @@ def emergency_file_activity_preflight(
                     count >= 20
                     or (
                         low_slow_replication_memory
+                        and count >= 2
+                    )
+                    or (
+                        suspicious_rename_burst
                         and count >= 2
                     )
                 )
@@ -2078,6 +2108,7 @@ def emergency_file_activity_preflight(
         strong_file_replication = (
             matched_events >= 25
             or duplicate_replication_burst
+            or suspicious_rename_burst
             or low_slow_file_replication
         )
         file_containment_enabled = os.getenv(
@@ -2094,12 +2125,14 @@ def emergency_file_activity_preflight(
             and (
                 matched_events >= 60
                 or duplicate_replication_burst
+                or suspicious_rename_burst
                 or low_slow_file_replication
             )
             and (
                 subtree_fanout >= 2
                 or matched_events >= 45
                 or duplicate_replication_burst
+                or suspicious_rename_burst
                 or low_slow_file_replication
             )
             and not process.get(
@@ -2111,6 +2144,7 @@ def emergency_file_activity_preflight(
             (
                 matched_events >= 25
                 or duplicate_replication_burst
+                or suspicious_rename_burst
                 or low_slow_file_replication
             )
             and not _is_broad_file_root(
@@ -2213,16 +2247,20 @@ def emergency_file_activity_preflight(
             "duplicate_file_hash_memory": duplicate_memory_count,
             "f_mass_file_modification": (
                 1
-                if matched_events >= 45
+                if (
+                    matched_events >= 45
+                    and not suspicious_rename_burst
+                )
                 else 0
             ),
             "f_suspicious_rename": (
                 1
-                if event_type_counts.get(
-                    "rename",
-                    0
-                ) >= 8
+                if suspicious_rename_burst
                 else 0
+            ),
+            "rename_events": max(
+                rename_event_count,
+                rename_memory_count
             ),
             "worm_score": 90,
             "emergency_preflight": True,
@@ -2260,6 +2298,7 @@ def emergency_file_activity_preflight(
                         or duplicate_replication_burst
                     ),
                     "mass_file_modification": matched_events >= 45,
+                    "suspicious_rename": suspicious_rename_burst,
                     "duplicate_payload_replication": duplicate_replication_burst,
                     "low_slow_file_replication": low_slow_file_replication,
                     "baseline_anomaly": True
