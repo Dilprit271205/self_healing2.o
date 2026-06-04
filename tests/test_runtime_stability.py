@@ -214,3 +214,45 @@ def test_incompatible_sklearn_model_metadata_retrains(tmp_path, monkeypatch):
 
     assert model is fake_model
     assert calls
+
+
+def test_ml_training_uses_bounded_parallelism_and_behavior_labels(monkeypatch):
+    from analysis import ml_threat_model
+
+    monkeypatch.delenv("SELF_HEALING_ML_N_JOBS", raising=False)
+
+    model = ml_threat_model.MLThreatModel.train([])
+
+    assert model.report["training_n_jobs"] == 1
+    assert model.report["behavior_labels"]["worm_like_behavior"] > 0
+    assert model.report["behavior_labels"]["trust_anomaly_pattern"] > 0
+
+
+def test_ml_detects_correlated_concurrent_worm_behavior():
+    from analysis import ml_threat_model
+
+    model = ml_threat_model.MLThreatModel.train([])
+    prediction = model.predict(
+        features={
+            "f_connection_velocity": 9,
+            "f_persistence_artifact": 1,
+            "persistence_events": 2,
+            "f_thread": 50,
+            "threads": 50,
+            "worm_score": 72,
+        },
+        anomaly_data={
+            "anomalies": {
+                "aggregate": 0.48,
+                "worm_pattern": 0.5,
+            }
+        },
+        trust_state={
+            "dynamic_trust": 0.62,
+            "final_trust": 0.65,
+            "static_trust": 0.78,
+        },
+    )
+
+    assert prediction.label == "worm"
+    assert prediction.behavior_signals["worm_like_behavior"] is True

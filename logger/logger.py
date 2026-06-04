@@ -17,15 +17,18 @@ os.makedirs(
     exist_ok=True
 )
 
-PROCESS_LOG = (
+PROCESS_LOG = os.getenv(
+    "SELF_HEALING_SYSTEM_LOG",
     "logs/system_log.json"
 )
 
-ENTITY_LOG = (
+ENTITY_LOG = os.getenv(
+    "SELF_HEALING_ENTITY_LOG",
     "logs/entity_log.json"
 )
 
-HEALING_LOG = (
+HEALING_LOG = os.getenv(
+    "SELF_HEALING_HEALING_LOG",
     "logs/healing_log.json"
 )
 

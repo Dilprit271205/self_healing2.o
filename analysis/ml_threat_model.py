@@ -35,6 +35,27 @@ AUTO_RETRAIN_MIN_SECONDS = int(
 )
 DEFAULT_LOG_PATH = "logs/system_log.json"
 
+
+def _training_n_jobs():
+    try:
+        configured = int(
+            os.getenv(
+                "SELF_HEALING_ML_N_JOBS",
+                "1"
+            )
+        )
+        if configured == -1:
+            return max(
+                1,
+                (os.cpu_count() or 2) - 1
+            )
+        return max(
+            1,
+            configured
+        )
+    except Exception:
+        return 1
+
 FEATURE_NAMES = [
     "cpu",
     "memory",
@@ -194,6 +215,12 @@ def _write_metadata(metadata, path=None):
 def _flatten_runtime_row(row):
     features = row.get("features") or {}
     anomalies = row.get("anomalies") or {}
+    signals = row.get("signals") or {}
+    if not isinstance(signals, dict):
+        signals = {}
+    correlated_signals = signals.get("correlated_signals") or {}
+    if not isinstance(correlated_signals, dict):
+        correlated_signals = {}
     trust_state = {
         "dynamic_trust": row.get("dynamic_trust", 1.0),
         "final_trust": row.get("final_trust", 1.0),
@@ -248,6 +275,33 @@ def _flatten_runtime_row(row):
         _safe_float(merged.get("static_trust", 1.0))
         - _safe_float(merged.get("dynamic_trust", 1.0))
     )
+
+    for tag in BEHAVIOR_LABELS:
+        if bool(correlated_signals.get(tag)) or bool(signals.get(tag)):
+            merged[tag] = 1
+
+    if bool(signals.get("replication_detected")):
+        merged["file_replication"] = 1
+    if bool(signals.get("fanout_detected")):
+        merged["network_fanout"] = 1
+    if bool(signals.get("artifact_abuse_detected")):
+        merged["persistence_artifact"] = max(
+            _safe_float(merged.get("persistence_artifact", 0)),
+            _safe_float(correlated_signals.get("persistence_artifact", 0))
+        )
+        merged["sensitive_file_access"] = max(
+            _safe_float(merged.get("sensitive_file_access", 0)),
+            _safe_float(correlated_signals.get("sensitive_file_access", 0))
+        )
+    if bool(signals.get("thread_storm_detected")):
+        merged["thread_explosion"] = 1
+    if bool(signals.get("catastrophic_behavior")):
+        merged["catastrophic_behavior"] = 1
+    if bool(signals.get("trust_anomaly_pattern")):
+        merged["trust_anomaly_pattern"] = 1
+    if bool(signals.get("worm_like_behavior")):
+        merged["worm_like_behavior"] = 1
+
     return merged
 
 
@@ -436,15 +490,29 @@ def _synthetic_profiles():
     ]
     for template in worm_templates:
         for scale in range(1, 7):
-            tags = ["file_replication", "high_file_velocity"]
+            tags = [
+                "file_replication",
+                "high_file_velocity",
+                "trust_anomaly_pattern",
+                "worm_like_behavior",
+            ]
             if template.get("f_mass_file_modification"):
                 tags.extend(["mass_file_modification", "extreme_file_velocity"])
             if template.get("f_persistence_artifact"):
                 tags.append("persistence_artifact")
             if template.get("f_localhost_beaconing"):
-                tags = ["network_fanout", "localhost_beaconing"]
+                tags = [
+                    "network_fanout",
+                    "localhost_beaconing",
+                    "trust_anomaly_pattern",
+                    "worm_like_behavior",
+                ]
             if template.get("f_scanning_detected"):
-                tags = ["network_fanout"]
+                tags = [
+                    "network_fanout",
+                    "trust_anomaly_pattern",
+                    "worm_like_behavior",
+                ]
             row = base_row("worm", tags)
             row.update(template)
             row["aggregate_anomaly"] = min(0.45 + scale * 0.06, 1.0)
@@ -491,7 +559,10 @@ def _synthetic_profiles():
     ]
     for template, tags in file_templates:
         for scale in range(1, 18):
-            row = base_row("worm", tags)
+            row = base_row(
+                "worm",
+                tags + ["trust_anomaly_pattern", "worm_like_behavior"]
+            )
             row.update(template)
             row["aggregate_anomaly"] = min(0.30 + scale * 0.08, 0.85)
             row["dynamic_trust"] = max(0.30, 0.72 - scale * 0.05)
@@ -516,7 +587,10 @@ def _synthetic_profiles():
     ]
     for template, tags in network_templates:
         for scale in range(1, 12):
-            row = base_row("worm", tags)
+            row = base_row(
+                "worm",
+                tags + ["trust_anomaly_pattern", "worm_like_behavior"]
+            )
             row.update(template)
             row["aggregate_anomaly"] = min(0.35 + scale * 0.08, 0.9)
             row["dynamic_trust"] = max(0.30, 0.70 - scale * 0.05)
@@ -629,6 +703,70 @@ def _synthetic_profiles():
         )
         rows.append(row)
 
+    concurrent_worm_templates = [
+        (
+            {
+                "file_events": 18,
+                "f_connection_velocity": 10,
+                "f_loopback_connections": 8,
+                "f_localhost_beaconing": 1,
+            },
+            [
+                "file_replication",
+                "network_fanout",
+                "localhost_beaconing",
+            ],
+        ),
+        (
+            {
+                "f_connection_velocity": 8,
+                "f_persistence_artifact": 1,
+                "persistence_events": 2,
+                "f_thread": 45,
+                "threads": 45,
+            },
+            [
+                "network_fanout",
+                "persistence_artifact",
+                "resource_pressure",
+            ],
+        ),
+        (
+            {
+                "f_sensitive_file_access": 1,
+                "sensitive_file_events": 2,
+                "f_thread": 90,
+                "threads": 90,
+                "f_thread_velocity": 45,
+            },
+            [
+                "sensitive_file_access",
+                "thread_explosion",
+                "resource_pressure",
+            ],
+        ),
+    ]
+    for template, tags in concurrent_worm_templates:
+        for scale in range(1, 8):
+            row = base_row(
+                "worm",
+                tags + [
+                    "trust_anomaly_pattern",
+                    "worm_like_behavior",
+                ]
+            )
+            row.update(template)
+            row["aggregate_anomaly"] = min(0.48 + scale * 0.05, 0.9)
+            row["dynamic_trust"] = max(0.28, 0.68 - scale * 0.05)
+            row["final_trust"] = max(0.28, 0.70 - scale * 0.05)
+            row["static_trust"] = 0.78
+            row["trust_anomaly_pressure"] = min(0.50 + scale * 0.06, 0.95)
+            row["trust_drop_risk"] = max(0.0, row["static_trust"] - row["dynamic_trust"])
+            row["behavior_correlation_score"] = row["trust_anomaly_pressure"]
+            row["worm_pattern_anomaly"] = row["behavior_correlation_score"]
+            row["source_worm_score"] = 72 + scale * 4
+            rows.append(row)
+
     return rows
 
 
@@ -701,25 +839,26 @@ class MLThreatModel:
 
         x = frame[FEATURE_NAMES]
         y = frame["label"]
+        n_jobs = _training_n_jobs()
 
         classifier = RandomForestClassifier(
-            n_estimators=240,
+            n_estimators=120,
             max_depth=14,
             min_samples_leaf=2,
             class_weight="balanced",
             random_state=42,
-            n_jobs=-1,
+            n_jobs=n_jobs,
         )
         classifier.fit(x, y)
 
         behavior_model = MultiOutputClassifier(
             RandomForestClassifier(
-                n_estimators=180,
+                n_estimators=90,
                 max_depth=12,
                 min_samples_leaf=2,
                 class_weight="balanced",
                 random_state=11,
-                n_jobs=-1,
+                n_jobs=n_jobs,
             )
         )
         behavior_x = x[behavior_known]
@@ -738,9 +877,10 @@ class MLThreatModel:
             normal_x = x
 
         isolation_model = IsolationForest(
-            n_estimators=160,
+            n_estimators=80,
             contamination="auto",
             random_state=42,
+            n_jobs=n_jobs,
         )
         isolation_model.fit(normal_x)
 
@@ -753,6 +893,12 @@ class MLThreatModel:
             },
             "feature_names": FEATURE_NAMES,
             "sklearn_version": sklearn.__version__,
+            "training_n_jobs": n_jobs,
+            "estimators": {
+                "classifier": 120,
+                "behavior_model": 90,
+                "isolation_model": 80,
+            },
         }
 
         if hasattr(classifier, "feature_importances_"):
@@ -782,12 +928,12 @@ class MLThreatModel:
                     stratify=y,
                 )
                 eval_model = RandomForestClassifier(
-                    n_estimators=180,
+                    n_estimators=100,
                     max_depth=14,
                     min_samples_leaf=2,
                     class_weight="balanced",
                     random_state=7,
-                    n_jobs=-1,
+                    n_jobs=n_jobs,
                 )
                 eval_model.fit(x_train, y_train)
                 predicted = eval_model.predict(x_test)
@@ -1007,11 +1153,37 @@ class MLThreatModel:
             )
             if direct_rules.get(tag)
         )
+        concrete_worm_domains = sum(
+            1
+            for tag in (
+                "rapid_child_spawning",
+                "large_or_growing_tree",
+                "repeated_similar_children",
+                "file_replication",
+                "low_slow_file_replication",
+                "network_fanout",
+                "persistence_artifact",
+                "sensitive_file_access",
+                "thread_explosion",
+                "resource_pressure",
+            )
+            if direct_rules.get(tag)
+        )
         direct_rules["worm_like_behavior"] = (
             correlated_worm_domains >= 3
+            and concrete_worm_domains >= 2
             or (
                 _safe_float(row.get("behavior_correlation_score", 0)) >= 0.62
                 and direct_rules["trust_anomaly_pattern"]
+                and concrete_worm_domains >= 1
+            )
+            or (
+                concrete_worm_domains >= 2
+                and (
+                    direct_rules["trust_anomaly_pattern"]
+                    or _safe_float(row.get("source_worm_score", 0)) >= 60
+                    or _safe_float(row.get("aggregate_anomaly", 0)) >= 0.45
+                )
             )
         )
 

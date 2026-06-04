@@ -287,6 +287,29 @@ class WormClassifier:
                 or source_worm_score >= 70
             )
         )
+        correlated_direct_domains = sum(
+            1
+            for active in (
+                direct_behavior["file_replication"],
+                direct_behavior["network_fanout"],
+                direct_behavior["persistence_artifact"],
+                direct_behavior["sensitive_file_access"],
+                direct_behavior["thread_explosion"],
+                direct_behavior["resource_pressure"],
+            )
+            if active
+        )
+        direct_behavior["worm_like_behavior"] = (
+            direct_behavior["worm_like_behavior"]
+            or (
+                correlated_direct_domains >= 2
+                and source_worm_score >= 55
+            )
+            or (
+                correlated_direct_domains >= 3
+                and final_trust <= 0.75
+            )
+        )
 
         for name, active in direct_behavior.items():
             if active:

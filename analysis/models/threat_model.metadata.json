@@ -1,40 +1,40 @@
 {
   "behavior_labels": {
-    "catastrophic_behavior": 41,
-    "cpu_memory_escalation": 6,
-    "extreme_file_velocity": 40,
-    "file_replication": 57,
-    "high_file_velocity": 57,
-    "large_or_growing_tree": 46,
-    "localhost_beaconing": 17,
+    "catastrophic_behavior": 644,
+    "cpu_memory_escalation": 54,
+    "extreme_file_velocity": 163,
+    "file_replication": 214,
+    "high_file_velocity": 183,
+    "large_or_growing_tree": 649,
+    "localhost_beaconing": 72,
     "low_slow_file_replication": 0,
-    "mass_file_modification": 23,
-    "network_fanout": 39,
-    "persistence_artifact": 23,
-    "process_storm_burst": 41,
-    "rapid_child_spawning": 18,
-    "repeated_similar_children": 41,
-    "resource_pressure": 14,
-    "sensitive_file_access": 17,
-    "short_lived_recursive_children": 41,
-    "suspicious_rename": 17,
-    "thread_explosion": 3,
-    "trust_anomaly_pattern": 0,
-    "worm_like_behavior": 0
+    "mass_file_modification": 132,
+    "network_fanout": 101,
+    "persistence_artifact": 78,
+    "process_storm_burst": 644,
+    "rapid_child_spawning": 621,
+    "repeated_similar_children": 644,
+    "resource_pressure": 100,
+    "sensitive_file_access": 72,
+    "short_lived_recursive_children": 644,
+    "suspicious_rename": 20,
+    "thread_explosion": 34,
+    "trust_anomaly_pattern": 146,
+    "worm_like_behavior": 146
   },
   "classification_report": {
-    "accuracy": 0.9940828402366864,
+    "accuracy": 1.0,
     "forkbomb": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 164.0
+      "support": 180.0
     },
     "macro avg": {
-      "f1-score": 0.9898418491484186,
-      "precision": 0.9838709677419355,
-      "recall": 0.9963768115942029,
-      "support": 338.0
+      "f1-score": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 367.0
     },
     "normal": {
       "f1-score": 1.0,
@@ -43,23 +43,28 @@
       "support": 7.0
     },
     "suspicious": {
-      "f1-score": 0.9666666666666667,
-      "precision": 0.9354838709677419,
+      "f1-score": 1.0,
+      "precision": 1.0,
       "recall": 1.0,
-      "support": 29.0
+      "support": 28.0
     },
     "weighted avg": {
-      "f1-score": 0.9941598640924862,
-      "precision": 0.9944645924794808,
-      "recall": 0.9940828402366864,
-      "support": 338.0
+      "f1-score": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 367.0
     },
     "worm": {
-      "f1-score": 0.9927007299270073,
+      "f1-score": 1.0,
       "precision": 1.0,
-      "recall": 0.9855072463768116,
-      "support": 138.0
+      "recall": 1.0,
+      "support": 152.0
     }
+  },
+  "estimators": {
+    "behavior_model": 90,
+    "classifier": 120,
+    "isolation_model": 80
   },
   "feature_names": [
     "cpu",
@@ -121,68 +126,69 @@
     "static_trust"
   ],
   "labels": {
-    "forkbomb": 655,
+    "forkbomb": 719,
     "normal": 28,
     "suspicious": 114,
-    "worm": 553
+    "worm": 606
   },
   "log_signature": {
-    "mtime": 1780586244.2972665,
-    "path": "logs/system_log.json",
-    "size": 1301514
+    "mtime": 1780591506.1661465,
+    "path": "logs\\system_log.json",
+    "size": 1361216
   },
   "model_path": "C:\\Users\\user\\Desktop\\HEALING\\self_healing2.o\\analysis\\models\\threat_model.joblib",
-  "rows": 1350,
+  "rows": 1467,
   "sklearn_version": "1.9.0",
   "top_features": [
     {
       "feature": "source_worm_score",
-      "importance": 0.12274
+      "importance": 0.12981
     },
     {
       "feature": "trust_anomaly_pressure",
-      "importance": 0.11686
-    },
-    {
-      "feature": "dynamic_trust",
-      "importance": 0.10093
-    },
-    {
-      "feature": "trust_drop_risk",
-      "importance": 0.09526
+      "importance": 0.12156
     },
     {
       "feature": "final_trust",
-      "importance": 0.08864
+      "importance": 0.10206
+    },
+    {
+      "feature": "dynamic_trust",
+      "importance": 0.09643
+    },
+    {
+      "feature": "trust_drop_risk",
+      "importance": 0.08846
     },
     {
       "feature": "f_short_lived_child_ratio",
-      "importance": 0.06077
-    },
-    {
-      "feature": "f_child_similarity",
-      "importance": 0.05391
+      "importance": 0.07244
     },
     {
       "feature": "f_repeated_child_count",
-      "importance": 0.04639
+      "importance": 0.05007
     },
     {
-      "feature": "static_trust",
-      "importance": 0.04219
-    },
-    {
-      "feature": "f_young_process",
-      "importance": 0.03365
-    },
-    {
-      "feature": "f_repeated_descendant_count",
-      "importance": 0.03094
+      "feature": "f_child_similarity",
+      "importance": 0.03671
     },
     {
       "feature": "f_recursive_depth",
-      "importance": 0.03074
+      "importance": 0.03117
+    },
+    {
+      "feature": "f_young_process",
+      "importance": 0.0311
+    },
+    {
+      "feature": "f_proc_tree",
+      "importance": 0.02904
+    },
+    {
+      "feature": "f_repeated_descendant_count",
+      "importance": 0.02895
     }
   ],
-  "trained_at": 1780586246.5988066
+  "trained_at": 1780591597.3879352,
+  "training_n_jobs": 1
 }
