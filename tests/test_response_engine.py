@@ -380,6 +380,79 @@ def test_shell_process_requires_forced_evidence_to_terminate():
     assert result["action_taken"] is False
 
 
+def test_terminal_launched_simple_program_is_not_terminated(monkeypatch):
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    monkeypatch.setattr(
+        resp,
+        "_has_operator_ancestor",
+        lambda pid: pid == process.pid,
+    )
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "program",
+                "cmdline": "./program",
+                "exe": "/home/kali/Downloads/self_healing2.o-main/program",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            },
+            persistence_state={
+                "stage": "terminate",
+                "termination_ready": True,
+                "force_terminate": True,
+            },
+        )
+
+        assert result["stage"] == "observe"
+        assert result["action_taken"] is False
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
+def test_terminal_launched_catastrophic_process_can_still_terminate(monkeypatch):
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    monkeypatch.setattr(
+        resp,
+        "_has_operator_ancestor",
+        lambda pid: pid == process.pid,
+    )
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "python",
+                "cmdline": "python forkbomb_sim.py",
+                "exe": sys.executable,
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            },
+            persistence_state={
+                "stage": "terminate",
+                "termination_ready": True,
+                "catastrophic_ready": True,
+                "force_terminate": True,
+            },
+        )
+
+        assert result["stage"] == "terminate"
+        assert result["action_taken"] is True
+        process.wait(timeout=5)
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
 def test_force_terminate_cannot_kill_hard_protected_pid():
     resp = ResponseEngine(safe_mode=False)
 
@@ -451,7 +524,7 @@ def test_missing_process_text_fields_do_not_crash_response():
     assert "error:" not in result["status"]
 
 
-def test_execute_healing_preserves_termination_ready(monkeypatch):
+def test_execute_healing_gates_termination_ready_without_evidence(monkeypatch):
     process = spawn_sleep_process()
 
     try:
@@ -485,11 +558,12 @@ def test_execute_healing_preserves_termination_ready(monkeypatch):
             trust_state={"dynamic_trust": 0.78, "final_trust": 0.82},
         )
 
-        assert result["response"]["stage"] == "terminate"
-        assert result["response"]["action_taken"] is True
+        assert result["response"]["stage"] == "observe"
+        assert result["response"]["action_taken"] is False
+        assert process.poll() is None
     finally:
         if process.poll() is None:
-            process.kill()
+            process.terminate()
             process.wait(timeout=5)
 
 

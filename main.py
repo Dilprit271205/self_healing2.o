@@ -3761,6 +3761,9 @@ def monitor_loop():
 from analysis.learning_engine import (
     LearningEngine
 )
+from analysis.self_healing_policy import (
+    apply_self_healing_policy
+)
 
 from analysis.response_engine import (
     ResponseEngine
@@ -4028,6 +4031,14 @@ def execute_healing(
 
         if persistence_state.get("catastrophic_ready"):
             persistence_state["force_terminate"] = True
+
+        persistence_state = apply_self_healing_policy(
+            process_info=process,
+            classification=classification,
+            persistence_state=persistence_state,
+            features=features,
+            trust_state=trust_state
+        )
 
         # --------------------------------
         # RESPONSE ENGINE

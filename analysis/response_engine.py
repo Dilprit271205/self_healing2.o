@@ -159,6 +159,68 @@ class ResponseEngine:
             for token in operator_tokens
         )
 
+    def _has_operator_ancestor(self, pid):
+        try:
+            current = psutil.Process(
+                int(pid)
+            )
+        except Exception:
+            return False
+
+        linux_operator_tokens = (
+            "qterminal",
+            "gnome-terminal",
+            "xfce4-terminal",
+            "konsole",
+            "xterm",
+            "bash",
+            "zsh",
+            "fish",
+        )
+
+        for parent in current.parents():
+            try:
+                identity = " ".join([
+                    self._normalize_text(parent.name()),
+                    self._normalize_text(" ".join(parent.cmdline())),
+                    self._normalize_text(parent.exe()),
+                ])
+            except Exception:
+                continue
+
+            if any(token in identity for token in linux_operator_tokens):
+                return True
+
+        return False
+
+    def _cap_interactive_user_workload_stage(
+        self,
+        pid,
+        stage,
+        persistence_state
+    ):
+        if stage == "observe":
+            return stage
+
+        if persistence_state.get(
+            "catastrophic_ready",
+            False
+        ):
+            return stage
+
+        if not self._has_operator_ancestor(
+            pid
+        ):
+            return stage
+
+        if stage == "terminate":
+            return "observe"
+
+        return self._cap_stage(
+            stage,
+            "throttle"
+        )
+
     def _is_non_overridable_process(
         self,
         process_name="",
@@ -484,6 +546,11 @@ class ResponseEngine:
             stage = self._apply_false_positive_suppression(
                 stage,
                 process_info,
+                persistence_state
+            )
+            stage = self._cap_interactive_user_workload_stage(
+                pid,
+                stage,
                 persistence_state
             )
             result[
