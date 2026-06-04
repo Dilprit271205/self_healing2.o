@@ -359,3 +359,74 @@ def test_learning_engine_reuses_similar_pattern_with_overlapping_evidence(tmp_pa
         similar_classification,
         "throttle",
     ) == "terminate"
+
+
+def test_learning_engine_reuses_similar_false_positive_pattern(tmp_path, monkeypatch):
+    kb_path = tmp_path / "learning_kb.json"
+    monkeypatch.setenv("SELF_HEALING_KB_PATH", str(kb_path))
+
+    engine = LearningEngine()
+    learned_process = {
+        "pid": 2001,
+        "name": "streamlit",
+        "cmdline": "streamlit run dashboard.py",
+        "exe": "/usr/bin/streamlit",
+        "process_category": "dashboard",
+    }
+    learned_classification = {
+        "label": "suspicious",
+        "severity": "medium",
+        "worm_score": 0.35,
+        "confidence": 35,
+        "signals": {
+            "correlated_signals": {
+                "resource_pressure": True,
+                "baseline_anomaly": True,
+                "trust_anomaly_pattern": True,
+            },
+        },
+    }
+
+    for _ in range(3):
+        engine.update(
+            pid=2001,
+            process_info=learned_process,
+            classification=learned_classification,
+            response_result={
+                "stage": "observe",
+                "action_taken": False,
+            },
+            trust_state={
+                "dynamic_trust": 0.78,
+                "final_trust": 0.82,
+            },
+            features={
+                "process_category": "dashboard",
+            },
+        )
+
+    similar_process = {
+        "pid": 2002,
+        "name": "python",
+        "cmdline": "streamlit run dashboard.py --server.port 8501",
+        "exe": "/usr/bin/python",
+        "process_category": "dashboard",
+    }
+    similar_classification = {
+        "label": "suspicious",
+        "severity": "high",
+        "worm_score": 0.48,
+        "confidence": 48,
+        "signals": {
+            "correlated_signals": {
+                "resource_pressure": True,
+                "baseline_anomaly": True,
+            },
+        },
+    }
+
+    assert engine.recommend_from_knowledge(
+        similar_process,
+        similar_classification,
+        "terminate",
+    ) == "observe"

@@ -276,6 +276,28 @@ def _latest_by_pid(frame):
     return ordered.groupby("pid", as_index=False).tail(1)
 
 
+def _recent_rows(frame, seconds=45):
+    if frame.empty or "timestamp" not in frame.columns:
+        return frame
+
+    timestamps = pd.to_datetime(
+        frame["timestamp"],
+        errors="coerce"
+    )
+
+    if timestamps.dropna().empty:
+        return frame
+
+    cutoff = timestamps.max() - pd.Timedelta(
+        seconds=seconds
+    )
+    recent = frame[
+        timestamps >= cutoff
+    ]
+
+    return recent if not recent.empty else frame.tail(100)
+
+
 def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
     if process_rows is None or process_rows.empty:
         return fallback_rows if fallback_rows is not None else pd.DataFrame()
@@ -713,7 +735,7 @@ def run_dashboard():
         layout="wide",
     )
     st_autorefresh(
-        interval=int(os.getenv("SELF_HEALING_DASHBOARD_REFRESH_MS", "4000")),
+        interval=int(os.getenv("SELF_HEALING_DASHBOARD_REFRESH_MS", "2000")),
         key="refresh",
     )
 
@@ -896,7 +918,18 @@ def run_dashboard():
     kb = load_learning_kb(kb_signature)
 
     process_rows = _normalize_process_rows(process_rows)
-    latest = _latest_by_pid(process_rows)
+    recent_process_rows = _recent_rows(
+        process_rows,
+        seconds=int(
+            os.getenv(
+                "SELF_HEALING_DASHBOARD_LIVE_WINDOW_SECONDS",
+                "45"
+            )
+        )
+    )
+    latest = _latest_by_pid(recent_process_rows)
+    if latest.empty:
+        latest = _latest_by_pid(process_rows)
     latest = _overlay_healing_status(latest, healing_rows, latest)
     flags = _active_flag_rows(latest)
 
@@ -914,8 +947,8 @@ def run_dashboard():
         terminate_ready = int(kb["recommended_stage"].astype(str).str.lower().eq("terminate").sum())
 
     anomaly_peak = (
-        float(process_rows["worm_pattern_anomaly"].max())
-        if not process_rows.empty
+        float(recent_process_rows["worm_pattern_anomaly"].max())
+        if not recent_process_rows.empty
         else 0.0
     )
     action_count = 0
@@ -1007,7 +1040,7 @@ def run_dashboard():
         main_chart, score_card = st.columns([0.74, 0.26])
         with main_chart:
             _card_header("Anomalies Over Time", "aggregate, worm pattern, and trust pressure")
-            anomaly_fig = _draw_anomaly_timeline(process_rows)
+            anomaly_fig = _draw_anomaly_timeline(recent_process_rows)
             if anomaly_fig:
                 st.plotly_chart(anomaly_fig, width="stretch")
             else:

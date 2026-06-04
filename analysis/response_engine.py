@@ -90,6 +90,42 @@ class ResponseEngine:
             "exe": exe_path,
         })
 
+    def _is_runtime_controller_process(
+        self,
+        process_name="",
+        cmdline="",
+        exe_path="",
+        cwd=""
+    ):
+        text = " ".join([
+            self._normalize_text(process_name),
+            self._normalize_text(cmdline),
+            self._normalize_text(exe_path),
+            self._normalize_text(cwd),
+        ])
+
+        if (
+            "streamlit" in text
+            or "dashboard.py" in text
+        ):
+            return True
+
+        if "main.py" not in text:
+            return False
+
+        controller_context = (
+            "self_healing",
+            "self-healing",
+            "self_healing2",
+            "healing\\self_healing",
+            "healing/self_healing",
+        )
+
+        return any(
+            token in text
+            for token in controller_context
+        )
+
     def _is_non_overridable_process(
         self,
         process_name="",
@@ -104,6 +140,14 @@ class ResponseEngine:
         ):
             return True
 
+        if self._is_runtime_controller_process(
+            process_name,
+            cmdline,
+            exe_path,
+            cwd
+        ):
+            return True
+
         category = policy_engine.infer_category({
             "name": process_name,
             "cmdline": cmdline,
@@ -115,12 +159,21 @@ class ResponseEngine:
             category
         )
 
-    def is_protected_process(self, pid, process_name="", cmdline="", exe_path=""):
+    def is_protected_process(self, pid, process_name="", cmdline="", exe_path="", cwd=""):
         process_name = self._normalize_text(process_name)
         cmdline = self._normalize_text(cmdline)
         exe_path = self._normalize_text(exe_path)
+        cwd = self._normalize_text(cwd)
 
         if self._is_hard_protected_pid(pid):
+            return True
+
+        if self._is_runtime_controller_process(
+            process_name,
+            cmdline,
+            exe_path,
+            cwd
+        ):
             return True
 
         if self._is_critical_process_hint(

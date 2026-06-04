@@ -814,6 +814,67 @@ def _count_descendants(
     return total
 
 
+def is_runtime_protected_process(
+    process
+):
+    try:
+        engine = globals().get(
+            "response_engine",
+            None
+        )
+
+        pid = process.get(
+            "pid"
+        )
+
+        if (
+            pid in SYSTEM_SAFE_PIDS
+            or (
+                pid is not None
+                and int(pid) <= 10
+            )
+        ):
+            return True
+
+        if engine is not None and engine.is_protected_process(
+            pid,
+            process.get(
+                "name",
+                ""
+            ),
+            process.get(
+                "cmdline",
+                ""
+            ),
+            process.get(
+                "exe",
+                ""
+            ),
+            process.get(
+                "cwd",
+                ""
+            )
+        ):
+            return True
+
+        category = policy_engine.infer_category(
+            process
+        )
+
+        return (
+            policy_engine.is_hard_protected_category(
+                category
+            )
+            or
+            policy_engine.is_critical_process_hint(
+                process
+            )
+        )
+
+    except Exception:
+        return True
+
+
 def emergency_process_storm_preflight(
     processes,
     entity_map,
@@ -841,19 +902,8 @@ def emergency_process_storm_preflight(
         )
 
         if (
-            pid in SYSTEM_SAFE_PIDS
-            or (
-                pid is not None
-                and
-                int(pid) <= 10
-            )
-            or pid in getattr(
-                globals().get(
-                    "response_engine",
-                    None
-                ),
-                "protected_pids",
-                set()
+            is_runtime_protected_process(
+                process
             )
             or pid in handled_pids
         ):
@@ -1393,28 +1443,7 @@ def _behavior_containment_enabled():
 def _is_safe_to_behavior_terminate(
     process
 ):
-    pid = process.get(
-        "pid"
-    )
-
-    if (
-        pid in SYSTEM_SAFE_PIDS
-        or (
-            pid is not None
-            and int(pid) <= 10
-        )
-        or pid in getattr(
-            globals().get(
-                "response_engine",
-                None
-            ),
-            "protected_pids",
-            set()
-        )
-    ):
-        return False
-
-    if policy_engine.is_critical_process_hint(
+    if is_runtime_protected_process(
         process
     ):
         return False
@@ -1631,16 +1660,8 @@ def emergency_file_activity_preflight(
             "pid"
         )
 
-        if pid in SYSTEM_SAFE_PIDS:
-            continue
-
-        if pid in getattr(
-            globals().get(
-                "response_engine",
-                None
-            ),
-            "protected_pids",
-            set()
+        if is_runtime_protected_process(
+            process
         ):
             continue
 
@@ -1648,11 +1669,6 @@ def emergency_file_activity_preflight(
             "age_seconds",
             9999
         ) > 240:
-            continue
-
-        if policy_engine.is_critical_process_hint(
-            process
-        ):
             continue
 
         category = policy_engine.infer_category(
@@ -2448,25 +2464,9 @@ def emergency_resource_preflight(
         )
 
         if (
-            pid in SYSTEM_SAFE_PIDS
-            or (
-                pid is not None
-                and
-                int(pid) <= 10
+            is_runtime_protected_process(
+                process
             )
-            or pid in getattr(
-                globals().get(
-                    "response_engine",
-                    None
-                ),
-                "protected_pids",
-                set()
-            )
-        ):
-            continue
-
-        if policy_engine.is_critical_process_hint(
-            process
         ):
             continue
 
@@ -3005,6 +3005,10 @@ def monitor_loop():
                             ),
                             process.get(
                                 "exe",
+                                ""
+                            ),
+                            process.get(
+                                "cwd",
                                 ""
                             )
                         )

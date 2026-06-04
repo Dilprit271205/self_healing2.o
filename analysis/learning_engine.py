@@ -327,7 +327,8 @@ class LearningEngine:
             entry = self._best_similar_pattern(
                 family=family,
                 active_signals=active,
-                category=category
+                category=category,
+                disposition=None
             )
 
         if not entry:
@@ -368,7 +369,8 @@ class LearningEngine:
         self,
         family,
         active_signals,
-        category
+        category,
+        disposition="malicious"
     ):
         active = set(
             active_signals
@@ -384,9 +386,14 @@ class LearningEngine:
             ):
                 continue
 
-            if entry.get(
+            entry_disposition = entry.get(
                 "disposition"
-            ) != "malicious":
+            )
+
+            if (
+                disposition is not None
+                and entry_disposition != disposition
+            ):
                 continue
 
             if entry.get(
@@ -455,8 +462,14 @@ class LearningEngine:
                 + observations * 0.10
             )
 
+            min_overlap = (
+                0.35
+                if entry_disposition == "false_positive"
+                else 0.45
+            )
+
             if (
-                overlap >= 0.45
+                overlap >= min_overlap
                 and score > best_score
             ):
                 best_score = score

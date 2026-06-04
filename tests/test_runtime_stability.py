@@ -58,6 +58,55 @@ def test_dashboard_healing_status_overlays_process_stage():
     assert merged.iloc[0]["action_taken"] is True
 
 
+def test_dashboard_normalizes_missing_dict_columns():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp("2026-06-04T01:00:00"),
+            "pid": 8501,
+            "name": "streamlit",
+            "label": "suspicious",
+            "severity": "medium",
+            "signals": {"category_suppressed": True},
+        }
+    ])
+
+    normalized = dashboard._normalize_process_rows(rows)
+
+    assert "signals" in normalized.columns
+    assert "anomalies" in normalized.columns
+    assert "features" in normalized.columns
+    assert normalized.iloc[0]["signals"] == {"category_suppressed": True}
+    assert bool(normalized.iloc[0]["flagged"]) is False
+
+
+def test_dashboard_prefers_recent_live_rows_for_metrics():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp("2026-06-04T01:00:00"),
+            "pid": 1,
+            "final_trust": 0.10,
+        },
+        {
+            "timestamp": pd.Timestamp("2026-06-04T01:10:00"),
+            "pid": 2,
+            "final_trust": 0.92,
+        },
+    ])
+
+    recent = dashboard._recent_rows(
+        rows,
+        seconds=45,
+    )
+
+    assert set(recent["pid"]) == {2}
+
+
 def test_dashboard_acceptance_coverage_tracks_behavior_flags():
     import pandas as pd
     import dashboard

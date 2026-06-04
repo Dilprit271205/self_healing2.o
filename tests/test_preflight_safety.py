@@ -403,6 +403,57 @@ def test_process_storm_preflight_skips_terminal_parent(monkeypatch):
     assert calls == []
 
 
+def test_process_storm_preflight_skips_dashboard_controller(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    now = time.time()
+    parent = {
+        "pid": 60500,
+        "ppid": 100,
+        "name": "streamlit",
+        "cmdline": "streamlit run dashboard.py",
+        "exe": "/usr/bin/streamlit",
+        "cwd": "/home/kali/Downloads/self_healing2.o-main",
+        "create_time": now - 6,
+        "age_seconds": 6,
+    }
+    children = [
+        {
+            "pid": 60501 + index,
+            "ppid": 60500,
+            "name": "python",
+            "cmdline": "python streamlit worker",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "create_time": now - 1,
+            "age_seconds": 1,
+        }
+        for index in range(25)
+    ]
+
+    handled = main_mod.emergency_process_storm_preflight(
+        [parent] + children,
+        {},
+        {},
+    )
+
+    assert handled == set()
+    assert calls == []
+
+
 def test_deep_recursive_process_tree_triggers_emergency(monkeypatch):
     calls = []
 

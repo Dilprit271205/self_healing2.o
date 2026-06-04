@@ -190,6 +190,49 @@ def test_force_terminate_cannot_kill_streamlit_dashboard_process():
             process.wait(timeout=5)
 
 
+def test_force_terminate_cannot_kill_main_controller_process():
+    resp = ResponseEngine(safe_mode=False)
+    process = spawn_sleep_process()
+
+    try:
+        result = resp.execute(
+            pid=process.pid,
+            process_info={
+                "pid": process.pid,
+                "name": "python",
+                "cmdline": "python main.py",
+                "exe": sys.executable,
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            },
+            persistence_state={
+                "stage": "terminate",
+                "termination_ready": True,
+                "catastrophic_ready": True,
+                "force_terminate": True,
+                "kill_family": True,
+            },
+        )
+
+        assert result["stage"] == "protected"
+        assert result["action_taken"] is False
+        assert process.poll() is None
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=5)
+
+
+def test_generic_main_py_outside_controller_path_is_not_blanket_protected():
+    resp = ResponseEngine(safe_mode=True)
+
+    assert not resp._is_runtime_controller_process(
+        "python",
+        "python main.py",
+        sys.executable,
+        "/tmp/random_lab",
+    )
+
+
 def test_force_terminate_cannot_kill_operator_checking_script():
     resp = ResponseEngine(safe_mode=False)
     process = spawn_sleep_process()
