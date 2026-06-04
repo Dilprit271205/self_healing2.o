@@ -53,6 +53,218 @@ class WormClassifier:
         )
 
         behavior = prediction.behavior_signals
+        file_events = float(
+            features.get(
+                "file_events",
+                0
+            )
+            or 0
+        )
+        connection_velocity = float(
+            features.get(
+                "f_connection_velocity",
+                0
+            )
+            or 0
+        )
+        remote_ips = float(
+            features.get(
+                "f_remote_ips",
+                0
+            )
+            or 0
+        )
+        loopback_connections = float(
+            features.get(
+                "f_loopback_connections",
+                0
+            )
+            or 0
+        )
+        thread_count = float(
+            features.get(
+                "f_thread",
+                features.get(
+                    "threads",
+                    0
+                )
+            )
+            or 0
+        )
+        source_worm_score = float(
+            features.get(
+                "worm_score",
+                0
+            )
+            or 0
+        )
+
+        direct_behavior = {
+            "file_replication":
+                file_events >= 25
+                or bool(
+                    features.get(
+                        "file_replication_preflight",
+                        False
+                    )
+                ),
+            "high_file_velocity":
+                file_events >= 25,
+            "extreme_file_velocity":
+                file_events >= 60,
+            "mass_file_modification":
+                file_events >= 45
+                or bool(
+                    features.get(
+                        "f_mass_file_modification",
+                        0
+                    )
+                ),
+            "suspicious_rename":
+                bool(
+                    features.get(
+                        "f_suspicious_rename",
+                        0
+                    )
+                )
+                or float(
+                    features.get(
+                        "rename_events",
+                        0
+                    )
+                    or 0
+                ) >= 8,
+            "network_fanout":
+                connection_velocity >= 10
+                or remote_ips >= 10
+                or loopback_connections >= 8,
+            "localhost_beaconing":
+                bool(
+                    features.get(
+                        "f_localhost_beaconing",
+                        0
+                    )
+                )
+                or (
+                    loopback_connections >= 8
+                    and connection_velocity >= 8
+                ),
+            "thread_explosion":
+                thread_count >= 80
+                or float(
+                    features.get(
+                        "f_thread_velocity",
+                        0
+                    )
+                    or 0
+                ) >= 50,
+            "persistence_artifact":
+                bool(
+                    features.get(
+                        "f_persistence_artifact",
+                        0
+                    )
+                )
+                or float(
+                    features.get(
+                        "persistence_events",
+                        0
+                    )
+                    or 0
+                ) > 0,
+            "sensitive_file_access":
+                bool(
+                    features.get(
+                        "f_sensitive_file_access",
+                        0
+                    )
+                )
+                or float(
+                    features.get(
+                        "sensitive_file_events",
+                        0
+                    )
+                    or 0
+                ) > 0,
+            "rapid_child_spawning":
+                float(
+                    features.get(
+                        "f_proc_spawn",
+                        0
+                    )
+                    or 0
+                ) >= 4,
+            "large_or_growing_tree":
+                float(
+                    features.get(
+                        "f_proc_tree",
+                        0
+                    )
+                    or 0
+                ) >= 8,
+            "repeated_similar_children":
+                float(
+                    features.get(
+                        "f_repeated_child_count",
+                        0
+                    )
+                    or 0
+                ) >= 4,
+            "short_lived_recursive_children":
+                float(
+                    features.get(
+                        "f_short_lived_child_ratio",
+                        0
+                    )
+                    or 0
+                ) >= 0.40,
+        }
+
+        direct_behavior[
+            "process_storm_burst"
+        ] = (
+            direct_behavior["rapid_child_spawning"]
+            and direct_behavior["large_or_growing_tree"]
+        )
+        direct_behavior[
+            "resource_pressure"
+        ] = (
+            float(
+                features.get(
+                    "cpu",
+                    0
+                )
+                or 0
+            ) >= 85
+            or float(
+                features.get(
+                    "memory",
+                    0
+                )
+                or 0
+            ) >= 35
+            or direct_behavior["thread_explosion"]
+        )
+        direct_behavior[
+            "cpu_memory_escalation"
+        ] = direct_behavior["resource_pressure"]
+        direct_behavior[
+            "worm_like_behavior"
+        ] = (
+            direct_behavior["file_replication"]
+            and (
+                direct_behavior["network_fanout"]
+                or direct_behavior["resource_pressure"]
+                or source_worm_score >= 70
+            )
+        )
+
+        for name, active in direct_behavior.items():
+            if active:
+                behavior[
+                    name
+                ] = True
+
         correlated_signals = {
             "rapid_child_spawning":
                 behavior.get("rapid_child_spawning", False),
@@ -166,6 +378,62 @@ class WormClassifier:
         severity = prediction.severity
         worm_score = prediction.worm_score
         confidence = prediction.confidence
+
+        direct_replication_worm = (
+            replication_detected
+            and (
+                bool(
+                    features.get(
+                        "file_replication_preflight",
+                        False
+                    )
+                )
+                or file_events >= 45
+                or source_worm_score >= 60
+            )
+        )
+        direct_network_worm = (
+            fanout_detected
+            and (
+                source_worm_score >= 55
+                or connection_velocity >= 10
+                or remote_ips >= 10
+            )
+        )
+        direct_correlated_worm = (
+            worm_like_behavior
+            or (
+                confirmed_worm_behavior
+                and correlated_signal_count >= 2
+                and source_worm_score >= 65
+            )
+        )
+
+        if (
+            label not in {
+                "worm",
+                "forkbomb"
+            }
+            and (
+                direct_replication_worm
+                or direct_network_worm
+                or direct_correlated_worm
+            )
+        ):
+            label = "worm"
+            severity = "critical"
+            worm_score = max(
+                float(
+                    worm_score
+                ),
+                0.82
+            )
+            confidence = max(
+                float(
+                    confidence
+                ),
+                82.0
+            )
 
         if (
             label in {"worm", "forkbomb"}

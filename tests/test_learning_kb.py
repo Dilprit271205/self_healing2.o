@@ -487,3 +487,120 @@ def test_learning_engine_uses_family_fallback_for_learned_process_storm(tmp_path
         },
         classification,
     ) is True
+
+
+def test_learning_engine_reuses_legacy_process_storm_entry_without_strength_totals(tmp_path, monkeypatch):
+    kb_path = tmp_path / "learning_kb.json"
+    monkeypatch.setenv("SELF_HEALING_KB_PATH", str(kb_path))
+
+    engine = LearningEngine()
+    engine.knowledge_base["legacy-storm"] = {
+        "pattern_id": "legacy-storm",
+        "attack_family": "process_storm",
+        "process_category": "unknown",
+        "observations": 25,
+        "action_count": 25,
+        "false_positive_count": 0,
+        "confidence": 0.91,
+        "recommended_stage": "terminate",
+        "disposition": "malicious",
+        "evidence": [
+            "rapid_child_spawning",
+            "large_or_growing_tree",
+            "repeated_similar_children",
+            "short_lived_recursive_children",
+            "process_storm_burst",
+        ],
+    }
+
+    classification = {
+        "label": "forkbomb",
+        "severity": "critical",
+        "worm_score": 0.88,
+        "confidence": 88,
+        "signals": {
+            "forkbomb_detected": True,
+            "correlated_signals": {
+                "rapid_child_spawning": True,
+                "large_or_growing_tree": True,
+                "repeated_similar_children": True,
+                "short_lived_recursive_children": True,
+                "process_storm_burst": True,
+            },
+        },
+    }
+
+    assert engine.is_learned_terminate_pattern(
+        {
+            "pid": 3002,
+            "name": "python",
+            "cmdline": "python forkbomb_sim.py",
+            "exe": "/usr/bin/python",
+            "process_category": "unknown",
+        },
+        classification,
+    ) is True
+
+
+def test_catastrophic_process_storm_learns_from_exited_root(tmp_path, monkeypatch):
+    kb_path = tmp_path / "learning_kb.json"
+    monkeypatch.setenv("SELF_HEALING_KB_PATH", str(kb_path))
+
+    engine = LearningEngine()
+    process = {
+        "pid": 4001,
+        "name": "python",
+        "cmdline": "python forkbomb_sim.py",
+        "exe": "/usr/bin/python",
+        "process_category": "unknown",
+    }
+    classification = {
+        "label": "forkbomb",
+        "severity": "critical",
+        "worm_score": 0.96,
+        "confidence": 96,
+        "signals": {
+            "catastrophic_behavior": True,
+            "forkbomb_detected": True,
+            "correlated_signals": {
+                "rapid_child_spawning": True,
+                "large_or_growing_tree": True,
+                "repeated_similar_children": True,
+                "short_lived_recursive_children": True,
+                "process_storm_burst": True,
+                "deep_recursive_tree": True,
+            },
+        },
+    }
+
+    entry = engine.update(
+        pid=4001,
+        process_info=process,
+        classification=classification,
+        response_result={
+            "stage": "terminate",
+            "action_taken": False,
+            "status": "No such process",
+        },
+        trust_state={
+            "static_trust": 0.78,
+            "dynamic_trust": 0.25,
+            "final_trust": 0.25,
+        },
+        features={
+            "process_category": "unknown",
+            "emergency_preflight": True,
+            "f_proc_spawn": 61,
+            "f_proc_tree": 61,
+            "f_repeated_child_count": 61,
+            "f_child_similarity": 1.0,
+            "f_short_lived_child_ratio": 1.0,
+        },
+    )
+
+    assert entry["action_count"] == 1
+    assert entry["recommended_stage"] == "terminate"
+    assert engine.is_learned_terminate_pattern(
+        process,
+        classification,
+    ) is True

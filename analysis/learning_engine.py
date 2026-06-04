@@ -402,19 +402,37 @@ class LearningEngine:
         min_evidence=2,
         min_strength=0.45
     ):
+        strength = float(
+            entry.get(
+                "avg_pattern_strength",
+                0
+            )
+            or 0
+        )
+
+        if (
+            strength <= 0
+            and self._entry_evidence_count(
+                entry
+            )
+            >= min_evidence
+        ):
+            strength = min(
+                1.0,
+                self._entry_evidence_count(
+                    entry
+                )
+                /
+                6
+            )
+
         return (
             self._entry_evidence_count(
                 entry
             )
             >= min_evidence
             and
-            float(
-                entry.get(
-                    "avg_pattern_strength",
-                    0
-                )
-                or 0
-            )
+            strength
             >= min_strength
         )
 
@@ -428,7 +446,40 @@ class LearningEngine:
         ) != "terminate":
             return False
 
-        return (
+        observations = self._entry_observations(
+            entry
+        )
+        confidence = self._entry_confidence(
+            entry
+        )
+        action_rate = self._action_rate(
+            entry
+        )
+        false_positive_rate = self._false_positive_rate(
+            entry
+        )
+        family = entry.get(
+            "attack_family",
+            ""
+        )
+
+        one_shot_process_storm = (
+            family == "process_storm"
+            and observations >= 1
+            and confidence >= max(
+                min_confidence,
+                0.88
+            )
+            and action_rate >= 0.50
+            and false_positive_rate < 0.25
+            and self._has_strong_evidence(
+                entry,
+                min_evidence=4,
+                min_strength=0.80
+            )
+        )
+
+        repeated_confirmed_pattern = (
             self._entry_confidence(
                 entry
             )
@@ -452,6 +503,11 @@ class LearningEngine:
             self._has_strong_evidence(
                 entry
             )
+        )
+
+        return (
+            one_shot_process_storm
+            or repeated_confirmed_pattern
         )
 
     def _recommendation_ready(
@@ -974,6 +1030,48 @@ class LearningEngine:
             {}
         ) or {}
 
+        response_status = str(
+            response_result.get(
+                "status",
+                ""
+            )
+            or ""
+        ).lower()
+
+        emergency_terminate_attempt = (
+            stage == "terminate"
+            and
+            bool(
+                features.get(
+                    "emergency_preflight",
+                    False
+                )
+            )
+            and
+            (
+                signals.get(
+                    "catastrophic_behavior"
+                )
+                or
+                signals.get(
+                    "forkbomb_detected"
+                )
+                or
+                signals.get(
+                    "replication_detected"
+                )
+            )
+            and
+            "protected" not in response_status
+            and
+            "safe mode" not in response_status
+        )
+
+        effective_action_taken = (
+            action_taken
+            or emergency_terminate_attempt
+        )
+
         pattern_strength = max(
             float(
                 features.get(
@@ -1121,7 +1219,7 @@ class LearningEngine:
             active_signals
         )
 
-        if action_taken:
+        if effective_action_taken:
             entry[
                 "action_count"
             ] += 1
@@ -1262,7 +1360,7 @@ class LearningEngine:
                 "disposition"
             ] = "malicious"
 
-            terminate_ready = (
+            repeated_terminate_ready = (
                 family in {
                 "process_storm",
                 "file_replication",
@@ -1281,6 +1379,47 @@ class LearningEngine:
                     or []
                 ) >= 2
                 and entry["avg_pattern_strength"] >= 0.45
+            )
+
+            one_shot_process_storm_ready = (
+                family == "process_storm"
+                and confidence >= 0.88
+                and observations >= 1
+                and action_rate >= 0.50
+                and false_positive_rate < 0.25
+                and len(
+                    entry.get(
+                        "evidence",
+                        []
+                    )
+                    or []
+                ) >= 4
+                and entry["avg_pattern_strength"] >= 0.80
+            )
+
+            one_shot_file_replication_ready = (
+                family in {
+                    "file_replication",
+                    "ransomware_like_file_rename"
+                }
+                and confidence >= 0.88
+                and observations >= 1
+                and action_rate >= 0.50
+                and false_positive_rate < 0.25
+                and len(
+                    entry.get(
+                        "evidence",
+                        []
+                    )
+                    or []
+                ) >= 3
+                and entry["avg_pattern_strength"] >= 0.70
+            )
+
+            terminate_ready = (
+                one_shot_process_storm_ready
+                or one_shot_file_replication_ready
+                or repeated_terminate_ready
             )
 
             if terminate_ready:

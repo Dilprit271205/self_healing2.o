@@ -208,17 +208,25 @@ def test_file_preflight_observes_specific_subdirectory_by_default(monkeypatch):
     )
 
     assert handled == {50002}
-    assert calls == []
+    assert len(calls) == 1
+    assert calls[0]["classification"]["label"] == "worm"
+    assert calls[0]["persistence_state"]["stage"] == "observe"
 
 
-def test_file_preflight_does_not_let_learning_upgrade_default_observe(monkeypatch):
-    def fail_healing(**kwargs):
-        raise AssertionError("file-only observe mode must not call healing")
+def test_file_preflight_detects_default_observe_without_terminating(monkeypatch):
+    calls = []
 
     monkeypatch.setattr(
         main_mod,
         "execute_healing",
-        fail_healing,
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "monitoring",
+                "action_taken": False,
+            },
+            "learning": {},
+        },
     )
     monkeypatch.delenv(
         "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
@@ -253,6 +261,9 @@ def test_file_preflight_does_not_let_learning_upgrade_default_observe(monkeypatc
     )
 
     assert handled == {50003}
+    assert len(calls) == 1
+    assert calls[0]["classification"]["label"] == "worm"
+    assert calls[0]["persistence_state"]["stage"] == "observe"
 
 
 def test_file_preflight_terminates_behavioral_file_burst(monkeypatch):
@@ -359,7 +370,9 @@ def test_file_preflight_uses_recent_exited_process_for_attribution(monkeypatch):
     )
 
     assert handled == {50005}
-    assert calls == []
+    assert len(calls) == 1
+    assert calls[0]["classification"]["label"] == "worm"
+    assert calls[0]["persistence_state"]["stage"] == "observe"
 
 
 def test_file_preflight_can_contain_in_explicit_lab_mode(monkeypatch):

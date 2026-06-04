@@ -1705,13 +1705,26 @@ def emergency_file_activity_preflight(
         rolling_totals.values()
     )
 
-    if total_events < 60:
+    duplicate_replication_burst = (
+        duplicate_file_hash_count >= 8
+    )
+
+    if (
+        total_events < 25
+        and not duplicate_replication_burst
+    ):
         return set()
 
     active_directories = [
         directory
         for directory, count in rolling_totals.items()
-        if count >= 35
+        if (
+            count >= 20
+            or (
+                duplicate_replication_burst
+                and count >= 5
+            )
+        )
     ]
 
     if not active_directories:
@@ -1793,7 +1806,10 @@ def emergency_file_activity_preflight(
                 "unknown"
             )
 
-        if matched_events < 60:
+        if (
+            matched_events < 20
+            and not duplicate_replication_burst
+        ):
             continue
 
         candidate_seen = True
@@ -1817,6 +1833,10 @@ def emergency_file_activity_preflight(
         subtree_fanout = len(
             matched_directories
         )
+        strong_file_replication = (
+            matched_events >= 25
+            or duplicate_replication_burst
+        )
         file_containment_enabled = os.getenv(
             "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
             "false"
@@ -1829,13 +1849,13 @@ def emergency_file_activity_preflight(
         behavior_file_containment = (
             _behavior_containment_enabled()
             and (
-                matched_events >= 160
-                or duplicate_file_hash_count >= 12
+                matched_events >= 60
+                or duplicate_replication_burst
             )
             and (
                 subtree_fanout >= 2
-                or matched_events >= 240
-                or duplicate_file_hash_count >= 12
+                or matched_events >= 45
+                or duplicate_replication_burst
             )
             and not process.get(
                 "_exited",
@@ -1843,7 +1863,10 @@ def emergency_file_activity_preflight(
             )
         )
         confirmed_file_owner = (
-            matched_events >= 120
+            (
+                matched_events >= 25
+                or duplicate_replication_burst
+            )
             and not _is_broad_file_root(
                 cwd_abs
             )
@@ -1854,6 +1877,7 @@ def emergency_file_activity_preflight(
         if (
             not file_containment_enabled
             and not behavior_file_containment
+            and not strong_file_replication
         ):
             rate_limited_print(
                 "file_replication_observed",
@@ -1940,6 +1964,19 @@ def emergency_file_activity_preflight(
                 0
             ),
             "duplicate_file_hash_count": duplicate_file_hash_count,
+            "f_mass_file_modification": (
+                1
+                if matched_events >= 45
+                else 0
+            ),
+            "f_suspicious_rename": (
+                1
+                if event_type_counts.get(
+                    "rename",
+                    0
+                ) >= 8
+                else 0
+            ),
             "worm_score": 90,
             "emergency_preflight": True,
             "file_replication_preflight": True,
@@ -1968,7 +2005,12 @@ def emergency_file_activity_preflight(
                 "correlated_signals": {
                     "file_replication": True,
                     "high_file_velocity": True,
-                    "extreme_file_velocity": matched_events >= 75,
+                    "extreme_file_velocity": (
+                        matched_events >= 60
+                        or duplicate_replication_burst
+                    ),
+                    "mass_file_modification": matched_events >= 45,
+                    "duplicate_payload_replication": duplicate_replication_burst,
                     "baseline_anomaly": True
                 }
             }
@@ -2064,10 +2106,20 @@ def emergency_file_activity_preflight(
         if response_result.get(
             "action_taken",
             False
+        ) or (
+            strong_file_replication
+            and classification.get(
+                "label"
+            ) == "worm"
         ):
             handled_pids.add(
                 pid
             )
+
+        if response_result.get(
+            "action_taken",
+            False
+        ):
             break
 
     if (

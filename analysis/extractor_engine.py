@@ -198,6 +198,10 @@ class ExtractorEngine:
                 {}
             )
         )
+        event_type_counts = file_map.get(
+            "__event_types__",
+            {}
+        )
 
         # -----------------------------------------
         # NETWORK FEATURES
@@ -558,6 +562,38 @@ class ExtractorEngine:
 
             "sensitive_file_events":
                 file_behavior["sensitive_file_events"],
+
+            "f_mass_file_modification":
+                (
+                    1
+                    if max(
+                        file_events,
+                        file_behavior["file_events"]
+                    ) >= 45
+                    else 0
+                ),
+
+            "f_suspicious_rename":
+                (
+                    1
+                    if int(
+                        event_type_counts.get(
+                            "rename",
+                            0
+                        )
+                        or 0
+                    ) >= 8
+                    else 0
+                ),
+
+            "rename_events":
+                int(
+                    event_type_counts.get(
+                        "rename",
+                        0
+                    )
+                    or 0
+                ),
 
             # heuristics
             "worm_score":
