@@ -314,22 +314,10 @@ class LearningEngine:
         classification,
         persistence_stage
     ):
-        key, family, active, category = self._pattern_key(
+        entry = self.match_knowledge_entry(
             process_info,
             classification
         )
-
-        entry = self.knowledge_base.get(
-            key
-        )
-
-        if not entry:
-            entry = self._best_similar_pattern(
-                family=family,
-                active_signals=active,
-                category=category,
-                disposition=None
-            )
 
         if not entry:
             return persistence_stage
@@ -364,6 +352,165 @@ class LearningEngine:
             )
 
         return persistence_stage
+
+    def match_knowledge_entry(
+        self,
+        process_info,
+        classification,
+        disposition=None
+    ):
+        key, family, active, category = self._pattern_key(
+            process_info,
+            classification
+        )
+
+        entry = self.knowledge_base.get(
+            key
+        )
+
+        if (
+            entry
+            and disposition is not None
+            and entry.get(
+                "disposition"
+            ) != disposition
+        ):
+            entry = None
+
+        if not entry:
+            entry = self._best_similar_pattern(
+                family=family,
+                active_signals=active,
+                category=category,
+                disposition=disposition
+            )
+
+        return entry
+
+    def is_learned_terminate_pattern(
+        self,
+        process_info,
+        classification,
+        min_confidence=0.50
+    ):
+        entry = self.match_knowledge_entry(
+            process_info,
+            classification,
+            disposition="malicious"
+        )
+
+        if (
+            not entry
+            or entry.get(
+                "recommended_stage"
+            ) != "terminate"
+        ):
+            key, family, active, category = self._pattern_key(
+                process_info,
+                classification
+            )
+            family_entry = self._best_family_terminate_pattern(
+                family=family,
+                category=category,
+                min_confidence=min_confidence
+            )
+            if family_entry:
+                entry = family_entry
+
+        if not entry:
+            return False
+
+        return (
+            entry.get(
+                "recommended_stage"
+            ) == "terminate"
+            and
+            float(
+                entry.get(
+                    "confidence",
+                    0
+                )
+                or 0
+            ) >= min_confidence
+        )
+
+    def _best_family_terminate_pattern(
+        self,
+        family,
+        category,
+        min_confidence=0.50
+    ):
+        best_entry = None
+        best_score = 0.0
+
+        for entry in self.knowledge_base.values():
+            if not isinstance(
+                entry,
+                dict
+            ):
+                continue
+
+            if entry.get(
+                "attack_family"
+            ) != family:
+                continue
+
+            if entry.get(
+                "disposition"
+            ) != "malicious":
+                continue
+
+            if entry.get(
+                "recommended_stage"
+            ) != "terminate":
+                continue
+
+            confidence = float(
+                entry.get(
+                    "confidence",
+                    0
+                )
+                or 0
+            )
+
+            if confidence < min_confidence:
+                continue
+
+            entry_category = entry.get(
+                "process_category",
+                "unknown"
+            )
+            category_score = (
+                1.0
+                if entry_category in {
+                    category,
+                    "unknown",
+                    ""
+                }
+                else 0.55
+            )
+            observations = min(
+                float(
+                    entry.get(
+                        "observations",
+                        0
+                    )
+                    or 0
+                )
+                / 4,
+                1.0
+            )
+            score = (
+                confidence * 0.70
+                + category_score * 0.15
+                + observations * 0.15
+            )
+
+            if score > best_score:
+                best_score = score
+                best_entry = entry
+
+        return best_entry
 
     def _best_similar_pattern(
         self,

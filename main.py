@@ -931,6 +931,46 @@ def emergency_process_storm_preflight(
             children_by_parent
         )
 
+        learned_preflight_classification = {
+            "label": "forkbomb",
+            "severity": "critical",
+            "worm_score": 0.88,
+            "confidence": 88,
+            "signals": {
+                "combined_risk": 0.88,
+                "correlated_signal_count": 5,
+                "catastrophic_behavior": False,
+                "forkbomb_detected": True,
+                "replication_detected": False,
+                "fanout_detected": False,
+                "correlated_signals": {
+                    "rapid_child_spawning": profile["direct_children"] >= 3,
+                    "large_or_growing_tree": descendants >= 4,
+                    "repeated_similar_children": profile["repeated_child_count"] >= 3,
+                    "short_lived_recursive_children": profile["young_child_ratio"] >= 0.40,
+                    "process_storm_burst": profile["direct_children"] >= 3,
+                    "deep_recursive_tree": tree_profile["max_depth"] >= 3
+                }
+            }
+        }
+
+        learned_repeat_storm = (
+            profile["direct_children"] >= 4
+            and profile["repeated_child_count"] >= 3
+            and profile["child_similarity"] >= 0.55
+            and profile["young_child_ratio"] >= 0.40
+            and descendants >= 4
+            and learning_engine.is_learned_terminate_pattern(
+                {
+                    **process,
+                    "process_category": policy_engine.infer_category(
+                        process
+                    )
+                },
+                learned_preflight_classification
+            )
+        )
+
         catastrophic_storm = (
             profile["direct_children"] >= 12
             and profile["repeated_child_count"] >= 8
@@ -960,6 +1000,7 @@ def emergency_process_storm_preflight(
             catastrophic_storm
             or emergency_storm
             or deep_recursive_storm
+            or learned_repeat_storm
         ):
             continue
 
@@ -1000,7 +1041,8 @@ def emergency_process_storm_preflight(
             ],
             "file_events": 0,
             "worm_score": 95,
-            "emergency_preflight": True
+            "emergency_preflight": True,
+            "learned_pattern_fast_path": learned_repeat_storm
         }
 
         classification = {
@@ -1021,7 +1063,8 @@ def emergency_process_storm_preflight(
                     "repeated_similar_children": True,
                     "short_lived_recursive_children": True,
                     "process_storm_burst": True,
-                    "deep_recursive_tree": deep_recursive_storm
+                    "deep_recursive_tree": deep_recursive_storm,
+                    "learned_pattern_fast_path": learned_repeat_storm
                 }
             }
         }
@@ -1053,6 +1096,7 @@ def emergency_process_storm_preflight(
             f"[EMERGENCY] process storm pid={pid} "
             f"children={profile['direct_children']} "
             f"repeated={profile['repeated_child_count']} "
+            f"learned={int(learned_repeat_storm)} "
             f"similarity={profile['child_similarity']} "
             f"young_ratio={profile['young_child_ratio']} "
             f"tree={descendants} "

@@ -519,6 +519,121 @@ def test_process_storm_preflight_skips_dashboard_controller(monkeypatch):
     assert calls == []
 
 
+def test_process_storm_preflight_uses_learned_fast_path(monkeypatch):
+    calls = []
+
+    class FakeLearningEngine:
+        def is_learned_terminate_pattern(self, process_info, classification):
+            return True
+
+    monkeypatch.setattr(
+        main_mod,
+        "learning_engine",
+        FakeLearningEngine(),
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    now = time.time()
+    parent = {
+        "pid": 60600,
+        "ppid": 100,
+        "name": "python",
+        "cmdline": "python worm_sim.py",
+        "exe": "/usr/bin/python",
+        "cwd": "/home/kali/Downloads/self_healing2.o-main",
+        "create_time": now - 4,
+        "age_seconds": 4,
+    }
+    children = [
+        {
+            "pid": 60601 + index,
+            "ppid": 60600,
+            "name": "python",
+            "cmdline": "python worm_sim.py worker",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "create_time": now - 1,
+            "age_seconds": 1,
+        }
+        for index in range(4)
+    ]
+
+    handled = main_mod.emergency_process_storm_preflight(
+        [parent] + children,
+        {},
+        {},
+    )
+
+    assert handled == {60600}
+    assert calls
+    assert calls[0]["features"]["learned_pattern_fast_path"] is True
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+
+
+def test_process_storm_preflight_keeps_unknown_small_storm_below_threshold(monkeypatch):
+    calls = []
+
+    class FakeLearningEngine:
+        def is_learned_terminate_pattern(self, process_info, classification):
+            return False
+
+    monkeypatch.setattr(
+        main_mod,
+        "learning_engine",
+        FakeLearningEngine(),
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    now = time.time()
+    parent = {
+        "pid": 60700,
+        "ppid": 100,
+        "name": "python",
+        "cmdline": "python unknown_worker.py",
+        "exe": "/usr/bin/python",
+        "cwd": "/home/kali/Downloads/self_healing2.o-main",
+        "create_time": now - 4,
+        "age_seconds": 4,
+    }
+    children = [
+        {
+            "pid": 60701 + index,
+            "ppid": 60700,
+            "name": "python",
+            "cmdline": "python unknown_worker.py child",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "create_time": now - 1,
+            "age_seconds": 1,
+        }
+        for index in range(4)
+    ]
+
+    handled = main_mod.emergency_process_storm_preflight(
+        [parent] + children,
+        {},
+        {},
+    )
+
+    assert handled == set()
+    assert calls == []
+
+
 def test_deep_recursive_process_tree_triggers_emergency(monkeypatch):
     calls = []
 

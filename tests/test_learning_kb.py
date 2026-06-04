@@ -360,6 +360,11 @@ def test_learning_engine_reuses_similar_pattern_with_overlapping_evidence(tmp_pa
         "throttle",
     ) == "terminate"
 
+    assert engine.is_learned_terminate_pattern(
+        similar_process,
+        similar_classification,
+    ) is True
+
 
 def test_learning_engine_reuses_similar_false_positive_pattern(tmp_path, monkeypatch):
     kb_path = tmp_path / "learning_kb.json"
@@ -430,3 +435,47 @@ def test_learning_engine_reuses_similar_false_positive_pattern(tmp_path, monkeyp
         similar_classification,
         "terminate",
     ) == "observe"
+
+
+def test_learning_engine_uses_family_fallback_for_learned_process_storm(tmp_path, monkeypatch):
+    kb_path = tmp_path / "learning_kb.json"
+    monkeypatch.setenv("SELF_HEALING_KB_PATH", str(kb_path))
+
+    engine = LearningEngine()
+    engine.knowledge_base["learned-storm"] = {
+        "pattern_id": "learned-storm",
+        "attack_family": "process_storm",
+        "process_category": "unknown",
+        "observations": 5,
+        "confidence": 0.91,
+        "recommended_stage": "terminate",
+        "disposition": "malicious",
+        "evidence": [
+            "rapid_child_spawning",
+        ],
+    }
+
+    classification = {
+        "label": "forkbomb",
+        "severity": "critical",
+        "worm_score": 0.88,
+        "confidence": 88,
+        "signals": {
+            "forkbomb_detected": True,
+            "correlated_signals": {
+                "repeated_similar_children": True,
+                "process_storm_burst": True,
+            },
+        },
+    }
+
+    assert engine.is_learned_terminate_pattern(
+        {
+            "pid": 3001,
+            "name": "python",
+            "cmdline": "python worm_sim.py",
+            "exe": "/usr/bin/python",
+            "process_category": "unknown",
+        },
+        classification,
+    ) is True

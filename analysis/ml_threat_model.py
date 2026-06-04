@@ -5,6 +5,7 @@ import math
 import os
 import threading
 import time
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +17,11 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.multioutput import MultiOutputClassifier
 
+warnings.filterwarnings(
+    "ignore",
+    message=".*sklearn\\.utils\\.parallel\\.delayed.*",
+    category=UserWarning,
+)
 
 MODEL_DIR = Path(__file__).resolve().parent / "models"
 MODEL_PATH = MODEL_DIR / "threat_model.joblib"
@@ -793,7 +799,7 @@ class MLThreatModel:
             isolation_model=isolation_model,
             behavior_model=behavior_model,
             report=report,
-        )
+        )._normalize_parallelism()
 
     def save(self, path=MODEL_PATH):
         path = Path(path)
@@ -802,7 +808,45 @@ class MLThreatModel:
 
     @classmethod
     def load(cls, path=MODEL_PATH):
-        return joblib.load(path)
+        model = joblib.load(path)
+        model._normalize_parallelism()
+        return model
+
+    def _normalize_parallelism(self):
+        for estimator in (
+            self.classifier,
+            self.isolation_model,
+        ):
+            if hasattr(
+                estimator,
+                "n_jobs"
+            ):
+                estimator.n_jobs = 1
+
+        if self.behavior_model is not None:
+            base_estimator = getattr(
+                self.behavior_model,
+                "estimator",
+                None
+            )
+            if hasattr(
+                base_estimator,
+                "n_jobs"
+            ):
+                base_estimator.n_jobs = 1
+
+            for estimator in getattr(
+                self.behavior_model,
+                "estimators_",
+                []
+            ):
+                if hasattr(
+                    estimator,
+                    "n_jobs"
+                ):
+                    estimator.n_jobs = 1
+
+        return self
 
     def predict(self, features, anomaly_data=None, trust_state=None):
         x = pd.DataFrame(
