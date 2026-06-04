@@ -814,6 +814,44 @@ def _count_descendants(
     return total
 
 
+def _descendant_pids(
+    pid,
+    children_by_parent
+):
+    descendants = []
+    stack = list(
+        children_by_parent.get(
+            pid,
+            []
+        )
+    )
+    seen = set()
+
+    while stack:
+        child = stack.pop()
+        child_pid = child.get(
+            "pid"
+        )
+
+        if child_pid in seen:
+            continue
+
+        seen.add(
+            child_pid
+        )
+        descendants.append(
+            child_pid
+        )
+        stack.extend(
+            children_by_parent.get(
+                child_pid,
+                []
+            )
+        )
+
+    return descendants
+
+
 def is_runtime_protected_process(
     process
 ):
@@ -927,6 +965,10 @@ def emergency_process_storm_preflight(
         )
 
         tree_profile = _descendant_tree_profile(
+            pid,
+            children_by_parent
+        )
+        observed_family_pids = _descendant_pids(
             pid,
             children_by_parent
         )
@@ -1107,7 +1149,10 @@ def emergency_process_storm_preflight(
 
         healing_result = execute_healing(
             pid=pid,
-            process=process,
+            process={
+                **process,
+                "observed_family_pids": observed_family_pids
+            },
             features=features,
             classification=classification,
             persistence_state=persistence_state,

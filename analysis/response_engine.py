@@ -918,7 +918,12 @@ class ResponseEngine:
                     pid
                 )
             except psutil.NoSuchProcess:
-                related = self._find_related_family_processes(
+                related = self._processes_from_observed_pids(
+                    process_info,
+                    force=force
+                )
+                related.extend(
+                    self._find_related_family_processes(
                     pid,
                     self._normalize_text(
                         process_info.get(
@@ -941,6 +946,7 @@ class ResponseEngine:
                     process_info,
                     force=force,
                     enabled=kill_family
+                    )
                 )
 
                 return self._terminate_targets(
@@ -1063,6 +1069,14 @@ class ResponseEngine:
                 )
                 kill_targets.append(
                     target
+                )
+
+            for observed in self._processes_from_observed_pids(
+                process_info,
+                force=force
+            ):
+                add_target(
+                    observed
                 )
 
             for related in self._find_related_family_processes(
@@ -1194,6 +1208,101 @@ class ResponseEngine:
                 "status":
                     str(e)
             }
+
+    def _processes_from_observed_pids(
+        self,
+        process_info,
+        force=False
+    ):
+        observed = []
+
+        for observed_pid in (
+            process_info.get(
+                "observed_family_pids",
+                []
+            )
+            or []
+        ):
+            try:
+                observed_pid = int(
+                    observed_pid
+                )
+
+                if self._is_hard_protected_pid(
+                    observed_pid
+                ):
+                    continue
+
+                candidate = psutil.Process(
+                    observed_pid
+                )
+
+                try:
+                    name = self._normalize_text(
+                        candidate.name()
+                    )
+                except Exception:
+                    name = ""
+
+                try:
+                    cmdline = self._normalize_text(
+                        " ".join(
+                            candidate.cmdline()
+                        )
+                    )
+                except Exception:
+                    cmdline = ""
+
+                try:
+                    exe = self._normalize_text(
+                        candidate.exe()
+                    )
+                except Exception:
+                    exe = ""
+
+                try:
+                    cwd = self._normalize_text(
+                        candidate.cwd()
+                    )
+                except Exception:
+                    cwd = ""
+
+                if self._is_non_overridable_process(
+                    name,
+                    cmdline,
+                    exe,
+                    cwd
+                ):
+                    continue
+
+                if (
+                    self.is_protected_process(
+                        observed_pid,
+                        name,
+                        cmdline,
+                        exe,
+                        cwd
+                    )
+                    and not self._can_override_name_protection(
+                        force
+                    )
+                ):
+                    continue
+
+                observed.append(
+                    candidate
+                )
+
+            except (
+                psutil.NoSuchProcess,
+                psutil.AccessDenied,
+                psutil.ZombieProcess
+            ):
+                continue
+            except Exception:
+                continue
+
+        return observed
 
     def _terminate_targets(
         self,

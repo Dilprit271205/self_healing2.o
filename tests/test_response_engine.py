@@ -38,6 +38,9 @@ def test_terminate_stale_root_kills_related_forced_family_process():
                 "cmdline": "python worm_sim.py",
                 "exe": sys.executable,
                 "cwd": os.getcwd(),
+                "observed_family_pids": [
+                    process.pid
+                ],
             },
         )
 

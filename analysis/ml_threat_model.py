@@ -19,7 +19,7 @@ from sklearn.multioutput import MultiOutputClassifier
 
 warnings.filterwarnings(
     "ignore",
-    message=".*sklearn\\.utils\\.parallel\\.delayed.*",
+    message=".*delayed.*Parallel.*",
     category=UserWarning,
 )
 
