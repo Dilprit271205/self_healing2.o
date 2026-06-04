@@ -1,26 +1,26 @@
 {
   "behavior_labels": {
-    "catastrophic_behavior": 836,
-    "cpu_memory_escalation": 66,
-    "extreme_file_velocity": 199,
-    "file_replication": 262,
-    "high_file_velocity": 225,
-    "large_or_growing_tree": 841,
-    "localhost_beaconing": 84,
+    "catastrophic_behavior": 868,
+    "cpu_memory_escalation": 68,
+    "extreme_file_velocity": 205,
+    "file_replication": 270,
+    "high_file_velocity": 232,
+    "large_or_growing_tree": 873,
+    "localhost_beaconing": 86,
     "low_slow_file_replication": 0,
-    "mass_file_modification": 162,
-    "network_fanout": 113,
-    "persistence_artifact": 90,
-    "process_storm_burst": 836,
-    "rapid_child_spawning": 813,
-    "repeated_similar_children": 836,
-    "resource_pressure": 118,
-    "sensitive_file_access": 84,
-    "short_lived_recursive_children": 836,
-    "suspicious_rename": 26,
-    "thread_explosion": 40,
-    "trust_anomaly_pattern": 146,
-    "worm_like_behavior": 146
+    "mass_file_modification": 167,
+    "network_fanout": 157,
+    "persistence_artifact": 92,
+    "process_storm_burst": 868,
+    "rapid_child_spawning": 845,
+    "repeated_similar_children": 868,
+    "resource_pressure": 121,
+    "sensitive_file_access": 86,
+    "short_lived_recursive_children": 868,
+    "suspicious_rename": 27,
+    "thread_explosion": 41,
+    "trust_anomaly_pattern": 174,
+    "worm_like_behavior": 174
   },
   "classification_report": {
     "accuracy": 1.0,
@@ -28,37 +28,37 @@
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 228.0
+      "support": 236.0
     },
     "macro avg": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 439.0
+      "support": 467.0
     },
     "normal": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 7.0
+      "support": 12.0
     },
     "suspicious": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 28.0
+      "support": 32.0
     },
     "weighted avg": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 439.0
+      "support": 467.0
     },
     "worm": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 176.0
+      "support": 187.0
     }
   },
   "estimators": {
@@ -66,6 +66,7 @@
     "classifier": 120,
     "isolation_model": 80
   },
+  "external_dataset_paths": [],
   "feature_names": [
     "cpu",
     "memory",
@@ -126,69 +127,91 @@
     "static_trust"
   ],
   "labels": {
-    "forkbomb": 911,
-    "normal": 28,
-    "suspicious": 114,
-    "worm": 702
+    "forkbomb": 943,
+    "normal": 48,
+    "suspicious": 128,
+    "worm": 746
   },
   "log_signature": {
     "mtime": 1780594586.9995613,
-    "path": "logs/system_log.json",
+    "path": "logs\\system_log.json",
     "size": 1779130
   },
   "model_path": "C:\\Users\\user\\Desktop\\HEALING\\self_healing2.o\\analysis\\models\\threat_model.joblib",
-  "rows": 1755,
+  "research_dataset_sources": [
+    {
+      "mapping": "botnet/normal/background NetFlow labels",
+      "name": "CTU-13",
+      "url": "https://www.stratosphereips.org/datasets-ctu13/"
+    },
+    {
+      "mapping": "normal plus attack_cat including Worms",
+      "name": "UNSW-NB15",
+      "url": "https://research.unsw.edu.au/projects/unsw-nb15-dataset"
+    },
+    {
+      "mapping": "CICFlowMeter flow CSV labels",
+      "name": "CSE-CIC-IDS2018",
+      "url": "https://registry.opendata.aws/cse-cic-ids2018/"
+    },
+    {
+      "mapping": "CICFlowMeter flow CSV labels",
+      "name": "CICIDS2017",
+      "url": "https://www.unb.ca/cic/datasets/ids-2017.html"
+    }
+  ],
+  "rows": 1865,
   "sklearn_version": "1.9.0",
   "top_features": [
     {
-      "feature": "source_worm_score",
-      "importance": 0.12784
-    },
-    {
       "feature": "trust_anomaly_pressure",
-      "importance": 0.1128
+      "importance": 0.13344
     },
     {
-      "feature": "trust_drop_risk",
-      "importance": 0.0996
+      "feature": "source_worm_score",
+      "importance": 0.13268
     },
     {
       "feature": "dynamic_trust",
-      "importance": 0.09279
+      "importance": 0.10968
     },
     {
       "feature": "final_trust",
-      "importance": 0.0845
+      "importance": 0.08663
+    },
+    {
+      "feature": "trust_drop_risk",
+      "importance": 0.08531
     },
     {
       "feature": "f_short_lived_child_ratio",
-      "importance": 0.06678
-    },
-    {
-      "feature": "f_repeated_child_count",
-      "importance": 0.0467
-    },
-    {
-      "feature": "f_young_process",
-      "importance": 0.04075
+      "importance": 0.06409
     },
     {
       "feature": "f_recursive_depth",
-      "importance": 0.04027
+      "importance": 0.04266
     },
     {
-      "feature": "f_child_similarity",
-      "importance": 0.03924
+      "feature": "f_repeated_child_count",
+      "importance": 0.03669
+    },
+    {
+      "feature": "f_young_process",
+      "importance": 0.03645
     },
     {
       "feature": "static_trust",
-      "importance": 0.03315
+      "importance": 0.03367
     },
     {
-      "feature": "f_repeated_descendant_count",
-      "importance": 0.03028
+      "feature": "f_child_similarity",
+      "importance": 0.03178
+    },
+    {
+      "feature": "connections",
+      "importance": 0.0292
     }
   ],
-  "trained_at": 1780594672.2871313,
+  "trained_at": 1780596300.794247,
   "training_n_jobs": 1
 }

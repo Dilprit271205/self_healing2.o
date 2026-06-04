@@ -25,11 +25,21 @@ def main():
         default=str(MODEL_PATH),
         help="Destination joblib model path."
     )
+    parser.add_argument(
+        "--dataset",
+        action="append",
+        default=[],
+        help=(
+            "Optional research dataset CSV path. Can be repeated for "
+            "CICIDS2017, CSE-CIC-IDS2018, UNSW-NB15, CTU-13 NetFlow CSVs."
+        )
+    )
     args = parser.parse_args()
 
     model = train_and_save(
         log_path=args.log,
-        model_path=args.model
+        model_path=args.model,
+        dataset_paths=args.dataset,
     )
 
     print(

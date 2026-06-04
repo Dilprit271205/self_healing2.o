@@ -256,3 +256,49 @@ def test_ml_detects_correlated_concurrent_worm_behavior():
 
     assert prediction.label == "worm"
     assert prediction.behavior_signals["worm_like_behavior"] is True
+
+
+def test_research_dataset_profiles_include_benign_and_worm_rows():
+    from analysis import ml_threat_model
+
+    rows = ml_threat_model.load_training_rows(log_path="missing-log.json")
+    labels = {
+        row["label"]
+        for row in rows
+        if row.get("external_dataset")
+    }
+
+    assert {"normal", "worm", "suspicious"}.issubset(labels)
+
+
+def test_external_research_csv_import_maps_cic_and_unsw_rows(tmp_path):
+    from analysis import ml_threat_model
+
+    cic = tmp_path / "cic.csv"
+    cic.write_text(
+        (
+            "Label,Tot Fwd Pkts,Flow Pkts/s,Dst Port\n"
+            "BENIGN,4,0.5,443\n"
+            "Botnet,220,200,4444\n"
+        ),
+        encoding="utf-8",
+    )
+    unsw = tmp_path / "unsw.csv"
+    unsw.write_text(
+        (
+            "attack_cat,spkts,dpkts,rate,ct_dst_src_ltm\n"
+            "Normal,10,8,2,1\n"
+            "Worms,120,130,80,20\n"
+        ),
+        encoding="utf-8",
+    )
+
+    rows = ml_threat_model.load_external_dataset_rows(
+        [cic, unsw],
+        max_rows_per_dataset=10,
+    )
+
+    labels = [row["label"] for row in rows]
+    assert labels.count("normal") == 2
+    assert labels.count("worm") == 2
+    assert any(row["network_fanout"] == 1 for row in rows if row["label"] == "worm")

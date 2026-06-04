@@ -81,6 +81,46 @@ def test_multi_domain_worm_can_terminate_when_trust_collapses():
     )
 
 
+def test_low_slow_file_and_beacon_pattern_reaches_middle_line_termination():
+    state = apply_self_healing_policy(
+        process_info={
+            "pid": 12,
+            "name": "python",
+            "cmdline": "python edr_12_tests_runner.py",
+            "cwd": "/home/kali/self_healing2.o-main",
+        },
+        classification={
+            "label": "worm",
+            "worm_score": 0.91,
+            "confidence": 91,
+            "signals": {
+                "replication_detected": True,
+                "fanout_detected": True,
+                "worm_like_behavior": True,
+                "correlated_signals": {
+                    "low_slow_file_replication": True,
+                    "network_fanout": True,
+                    "localhost_beaconing": True,
+                    "resource_pressure": True,
+                    "trust_anomaly_pattern": True,
+                },
+            },
+        },
+        persistence_state={
+            "stage": "terminate",
+            "termination_ready": True,
+            "avg_combined_risk": 0.91,
+        },
+        trust_state={
+            "dynamic_trust": 0.42,
+            "final_trust": 0.48,
+        },
+    )
+
+    assert state["stage"] == "terminate"
+    assert state["termination_allowed"] is True
+
+
 def test_evidence_domains_tracks_recovery_inputs():
     domains = evidence_domains(
         classification={
