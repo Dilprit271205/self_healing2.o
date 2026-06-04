@@ -42,11 +42,11 @@ class NetworkMonitor:
             self.scan_interval = float(
                 __import__("os").getenv(
                     "SELF_HEALING_NETWORK_SCAN_INTERVAL",
-                    "1"
+                    "0.25"
                 )
             )
         except Exception:
-            self.scan_interval = 1
+            self.scan_interval = 0.25
 
         try:
             self.event_window_seconds = float(

@@ -604,3 +604,64 @@ def test_catastrophic_process_storm_learns_from_exited_root(tmp_path, monkeypatc
         process,
         classification,
     ) is True
+
+
+def test_strong_file_replication_is_recommended_after_one_action(tmp_path, monkeypatch):
+    kb_path = tmp_path / "learning_kb.json"
+    monkeypatch.setenv("SELF_HEALING_KB_PATH", str(kb_path))
+
+    engine = LearningEngine()
+    process = {
+        "pid": 4010,
+        "name": "python",
+        "cmdline": "python edr_12_tests_runner.py",
+        "exe": "/usr/bin/python",
+        "process_category": "unknown",
+    }
+    classification = {
+        "label": "worm",
+        "severity": "critical",
+        "worm_score": 0.92,
+        "confidence": 92,
+        "signals": {
+            "replication_detected": True,
+            "correlated_signals": {
+                "file_replication": True,
+                "high_file_velocity": True,
+                "duplicate_payload_replication": True,
+                "baseline_anomaly": True,
+            },
+        },
+    }
+
+    entry = engine.update(
+        pid=4010,
+        process_info=process,
+        classification=classification,
+        response_result={
+            "stage": "terminate",
+            "action_taken": True,
+            "status": "terminated targets=1",
+        },
+        trust_state={
+            "static_trust": 0.78,
+            "dynamic_trust": 0.35,
+            "final_trust": 0.35,
+        },
+        features={
+            "process_category": "unknown",
+            "emergency_preflight": True,
+            "file_replication_preflight": True,
+            "file_events": 120,
+            "duplicate_file_hash_count": 12,
+            "subtree_fanout": 12,
+            "worm_score": 90,
+        },
+    )
+
+    assert entry["recommended_stage"] == "terminate"
+    assert engine.recommend_from_knowledge(
+        process,
+        classification,
+        "observe",
+    ) == "terminate"

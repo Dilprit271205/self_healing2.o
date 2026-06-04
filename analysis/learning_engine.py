@@ -479,6 +479,26 @@ class LearningEngine:
             )
         )
 
+        one_shot_propagation_pattern = (
+            family in {
+                "file_replication",
+                "ransomware_like_file_rename",
+                "correlated_worm_behavior"
+            }
+            and observations >= 1
+            and confidence >= max(
+                min_confidence,
+                0.75
+            )
+            and action_rate >= 0.50
+            and false_positive_rate < 0.25
+            and self._has_strong_evidence(
+                entry,
+                min_evidence=3,
+                min_strength=0.55
+            )
+        )
+
         repeated_confirmed_pattern = (
             self._entry_confidence(
                 entry
@@ -507,6 +527,7 @@ class LearningEngine:
 
         return (
             one_shot_process_storm
+            or one_shot_propagation_pattern
             or repeated_confirmed_pattern
         )
 
@@ -1402,7 +1423,7 @@ class LearningEngine:
                     "file_replication",
                     "ransomware_like_file_rename"
                 }
-                and confidence >= 0.88
+                and confidence >= 0.75
                 and observations >= 1
                 and action_rate >= 0.50
                 and false_positive_rate < 0.25
@@ -1413,7 +1434,7 @@ class LearningEngine:
                     )
                     or []
                 ) >= 3
-                and entry["avg_pattern_strength"] >= 0.70
+                and entry["avg_pattern_strength"] >= 0.55
             )
 
             terminate_ready = (

@@ -7,11 +7,40 @@ def test_monitor_defaults_are_stability_oriented(monkeypatch):
 
     import main
     from monitor.network_monitor import NetworkMonitor
+    from monitor import process_monitor
 
     main = importlib.reload(main)
+    process_monitor = importlib.reload(process_monitor)
 
-    assert main.MONITOR_INTERVAL >= 3.0
-    assert 1.0 <= NetworkMonitor().scan_interval <= 4.0
+    assert 0.25 <= main.MONITOR_INTERVAL <= 0.75
+    assert 0.10 <= NetworkMonitor().scan_interval <= 0.50
+
+
+def test_process_sampling_default_is_low_latency(monkeypatch):
+    monkeypatch.delenv("SELF_HEALING_PROCESS_SAMPLE_SECONDS", raising=False)
+
+    from monitor import process_monitor
+
+    slept = []
+    monkeypatch.setattr(
+        process_monitor,
+        "init_cpu",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        process_monitor.time,
+        "sleep",
+        lambda seconds: slept.append(seconds),
+    )
+    monkeypatch.setattr(
+        process_monitor.psutil,
+        "process_iter",
+        lambda attrs=None: [],
+    )
+
+    assert process_monitor.get_process_data() == []
+    assert slept
+    assert slept[0] <= 0.10
 
 
 def test_dashboard_log_window_is_bounded():

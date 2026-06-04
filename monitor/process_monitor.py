@@ -1,6 +1,7 @@
 # monitor/process_monitor.py
 
 import psutil
+import os
 import time
 
 _initialized = False
@@ -36,8 +37,24 @@ def get_process_data():
 
     init_cpu()
 
-    # stable sampling window
-    time.sleep(0.35)
+    try:
+        sample_window = float(
+            os.getenv(
+                "SELF_HEALING_PROCESS_SAMPLE_SECONDS",
+                "0.10"
+            )
+        )
+    except Exception:
+        sample_window = 0.10
+
+    # short sampling window keeps response latency low
+    # while preserving non-blocking cpu_percent readings.
+    time.sleep(
+        max(
+            sample_window,
+            0.02
+        )
+    )
 
     processes = []
 

@@ -109,11 +109,11 @@ try:
     MONITOR_INTERVAL = float(
         os.getenv(
             "SELF_HEALING_MONITOR_INTERVAL",
-            "3"
+            "0.5"
         )
     )
 except Exception:
-    MONITOR_INTERVAL = 3.0
+    MONITOR_INTERVAL = 0.5
 
 VERBOSE_RUNTIME_LOGS = os.getenv(
     "SELF_HEALING_VERBOSE",
@@ -370,11 +370,11 @@ def rapid_lineage_monitor_loop():
         interval = float(
             os.getenv(
                 "SELF_HEALING_RAPID_LINEAGE_INTERVAL",
-                "0.10"
+                "0.025"
             )
         )
     except Exception:
-        interval = 0.10
+        interval = 0.025
 
     while not rapid_lineage_stop.is_set():
         try:
@@ -422,7 +422,7 @@ def rapid_lineage_monitor_loop():
         rapid_lineage_stop.wait(
             max(
                 interval,
-                0.1
+                0.025
             )
         )
 

@@ -1156,7 +1156,33 @@ class ResponseEngine:
                 except Exception:
                     pass
 
-            gone, alive = psutil.wait_procs(kill_targets, timeout=3)
+            try:
+                graceful_timeout = float(
+                    os.getenv(
+                        "SELF_HEALING_TERMINATE_GRACE_SECONDS",
+                        "0.35"
+                    )
+                )
+            except Exception:
+                graceful_timeout = 0.35
+
+            try:
+                kill_timeout = float(
+                    os.getenv(
+                        "SELF_HEALING_KILL_GRACE_SECONDS",
+                        "0.15"
+                    )
+                )
+            except Exception:
+                kill_timeout = 0.15
+
+            gone, alive = psutil.wait_procs(
+                kill_targets,
+                timeout=max(
+                    graceful_timeout,
+                    0.1
+                )
+            )
 
             if alive:
                 for p in alive:
@@ -1167,7 +1193,13 @@ class ResponseEngine:
                     except:
                         pass
 
-                gone2, alive2 = psutil.wait_procs(alive, timeout=2)
+                gone2, alive2 = psutil.wait_procs(
+                    alive,
+                    timeout=max(
+                        kill_timeout,
+                        0.1
+                    )
+                )
                 gone = gone + gone2
 
                 if alive2:
@@ -1250,11 +1282,11 @@ class ResponseEngine:
             drain_seconds = float(
                 os.getenv(
                     "SELF_HEALING_FAMILY_DRAIN_SECONDS",
-                    "1.25"
+                    "0.30"
                 )
             )
         except Exception:
-            drain_seconds = 1.25
+            drain_seconds = 0.30
 
         deadline = (
             time.time()
@@ -1282,7 +1314,7 @@ class ResponseEngine:
             )
 
             if not related:
-                time.sleep(0.05)
+                time.sleep(0.025)
                 continue
 
             result = self._terminate_targets(
@@ -1307,7 +1339,7 @@ class ResponseEngine:
                     or 0
                 )
 
-            time.sleep(0.05)
+            time.sleep(0.025)
 
         return {
             "pid": pid,
@@ -1462,9 +1494,38 @@ class ResponseEngine:
             except Exception:
                 pass
 
+        try:
+            graceful_timeout = float(
+                os.getenv(
+                    "SELF_HEALING_RELATED_TERMINATE_GRACE_SECONDS",
+                    os.getenv(
+                        "SELF_HEALING_TERMINATE_GRACE_SECONDS",
+                        "0.35"
+                    )
+                )
+            )
+        except Exception:
+            graceful_timeout = 0.35
+
+        try:
+            kill_timeout = float(
+                os.getenv(
+                    "SELF_HEALING_RELATED_KILL_GRACE_SECONDS",
+                    os.getenv(
+                        "SELF_HEALING_KILL_GRACE_SECONDS",
+                        "0.15"
+                    )
+                )
+            )
+        except Exception:
+            kill_timeout = 0.15
+
         gone, alive = psutil.wait_procs(
             kill_targets,
-            timeout=1.5
+            timeout=max(
+                graceful_timeout,
+                0.1
+            )
         )
 
         if alive:
@@ -1478,7 +1539,10 @@ class ResponseEngine:
 
             gone2, alive2 = psutil.wait_procs(
                 alive,
-                timeout=1
+                timeout=max(
+                    kill_timeout,
+                    0.1
+                )
             )
             gone = gone + gone2
         else:
