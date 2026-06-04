@@ -308,6 +308,186 @@ class LearningEngine:
             evidence
         )
 
+    def _entry_observations(
+        self,
+        entry
+    ):
+        try:
+            return int(
+                entry.get(
+                    "observations",
+                    0
+                )
+                or 0
+            )
+        except Exception:
+            return 0
+
+    def _entry_confidence(
+        self,
+        entry
+    ):
+        try:
+            return float(
+                entry.get(
+                    "confidence",
+                    0
+                )
+                or 0
+            )
+        except Exception:
+            return 0.0
+
+    def _entry_evidence_count(
+        self,
+        entry
+    ):
+        return len(
+            entry.get(
+                "evidence",
+                []
+            )
+            or []
+        )
+
+    def _action_rate(
+        self,
+        entry
+    ):
+        observations = max(
+            self._entry_observations(
+                entry
+            ),
+            1
+        )
+
+        return (
+            float(
+                entry.get(
+                    "action_count",
+                    0
+                )
+                or 0
+            )
+            /
+            observations
+        )
+
+    def _false_positive_rate(
+        self,
+        entry
+    ):
+        observations = max(
+            self._entry_observations(
+                entry
+            ),
+            1
+        )
+
+        return (
+            float(
+                entry.get(
+                    "false_positive_count",
+                    0
+                )
+                or 0
+            )
+            /
+            observations
+        )
+
+    def _has_strong_evidence(
+        self,
+        entry,
+        min_evidence=2,
+        min_strength=0.45
+    ):
+        return (
+            self._entry_evidence_count(
+                entry
+            )
+            >= min_evidence
+            and
+            float(
+                entry.get(
+                    "avg_pattern_strength",
+                    0
+                )
+                or 0
+            )
+            >= min_strength
+        )
+
+    def _terminate_recommendation_ready(
+        self,
+        entry,
+        min_confidence=0.70
+    ):
+        if entry.get(
+            "recommended_stage"
+        ) != "terminate":
+            return False
+
+        return (
+            self._entry_confidence(
+                entry
+            )
+            >= min_confidence
+            and
+            self._entry_observations(
+                entry
+            )
+            >= 2
+            and
+            self._action_rate(
+                entry
+            )
+            >= 0.50
+            and
+            self._false_positive_rate(
+                entry
+            )
+            < 0.25
+            and
+            self._has_strong_evidence(
+                entry
+            )
+        )
+
+    def _recommendation_ready(
+        self,
+        entry,
+        recommended
+    ):
+        if recommended == "terminate":
+            return self._terminate_recommendation_ready(
+                entry
+            )
+
+        if recommended in {
+            "quarantine",
+            "isolate",
+            "block_resources"
+        }:
+            return (
+                self._entry_confidence(
+                    entry
+                )
+                >= 0.55
+                and
+                self._entry_observations(
+                    entry
+                )
+                >= 1
+            )
+
+        return (
+            self._entry_confidence(
+                entry
+            )
+            >= 0.45
+        )
+
     def recommend_from_knowledge(
         self,
         process_info,
@@ -345,6 +525,10 @@ class LearningEngine:
         if (
             disposition == "malicious"
             and confidence >= 0.50
+            and self._recommendation_ready(
+                entry,
+                recommended
+            )
         ):
             return self._more_severe_stage(
                 persistence_stage,
@@ -391,7 +575,7 @@ class LearningEngine:
         self,
         process_info,
         classification,
-        min_confidence=0.50
+        min_confidence=0.70
     ):
         entry = self.match_knowledge_entry(
             process_info,
@@ -420,25 +604,16 @@ class LearningEngine:
         if not entry:
             return False
 
-        return (
-            entry.get(
-                "recommended_stage"
-            ) == "terminate"
-            and
-            float(
-                entry.get(
-                    "confidence",
-                    0
-                )
-                or 0
-            ) >= min_confidence
+        return self._terminate_recommendation_ready(
+            entry,
+            min_confidence=min_confidence
         )
 
     def _best_family_terminate_pattern(
         self,
         family,
         category,
-        min_confidence=0.50
+        min_confidence=0.70
     ):
         best_entry = None
         best_score = 0.0
@@ -474,6 +649,12 @@ class LearningEngine:
             )
 
             if confidence < min_confidence:
+                continue
+
+            if not self._terminate_recommendation_ready(
+                entry,
+                min_confidence=min_confidence
+            ):
                 continue
 
             entry_category = entry.get(
@@ -609,11 +790,21 @@ class LearningEngine:
                 + observations * 0.10
             )
 
-            min_overlap = (
-                0.35
-                if entry_disposition == "false_positive"
-                else 0.45
+            recommended_stage = entry.get(
+                "recommended_stage",
+                "observe"
             )
+
+            if recommended_stage == "terminate":
+                min_overlap = 0.60
+                if not self._terminate_recommendation_ready(
+                    entry
+                ):
+                    continue
+            elif entry_disposition == "false_positive":
+                min_overlap = 0.35
+            else:
+                min_overlap = 0.45
 
             if (
                 overlap >= min_overlap
@@ -667,12 +858,17 @@ class LearningEngine:
             "process_category",
             ""
         )
+        pattern_process_info = dict(
+            process_info
+        )
+
+        if feature_category:
+            pattern_process_info[
+                "process_category"
+            ] = feature_category
 
         key, family, active_signals, category = self._pattern_key(
-            {
-                **process_info,
-                "process_category": feature_category
-            },
+            pattern_process_info,
             classification
         )
 
@@ -700,6 +896,55 @@ class LearningEngine:
                 "avg_trust_anomaly_pressure": 0.0,
                 "avg_trust_drop_risk": 0.0
             }
+        )
+
+        previous_observations = max(
+            self._entry_observations(
+                entry
+            ),
+            0
+        )
+
+        for avg_key, total_key in (
+            (
+                "avg_pattern_strength",
+                "pattern_strength_total"
+            ),
+            (
+                "avg_trust_anomaly_pressure",
+                "trust_anomaly_pressure_total"
+            ),
+            (
+                "avg_trust_drop_risk",
+                "trust_drop_risk_total"
+            )
+        ):
+            if total_key not in entry:
+                entry[
+                    total_key
+                ] = round(
+                    float(
+                        entry.get(
+                            avg_key,
+                            0
+                        )
+                        or 0
+                    )
+                    * previous_observations,
+                    4
+                )
+
+        entry.setdefault(
+            "action_count",
+            0
+        )
+        entry.setdefault(
+            "false_positive_count",
+            0
+        )
+        entry.setdefault(
+            "evidence",
+            []
         )
 
         action_taken = bool(
@@ -799,6 +1044,34 @@ class LearningEngine:
             )
         )
 
+        worm_score_value = float(
+            classification.get(
+                "worm_score",
+                0
+            )
+            or 0
+        )
+
+        if worm_score_value > 1:
+            worm_score_value = (
+                worm_score_value
+                /
+                100
+            )
+
+        risk_for_learning = max(
+            worm_score_value,
+            float(
+                classification.get(
+                    "confidence",
+                    0
+                )
+                or 0
+            )
+            /
+            100
+        )
+
         suppressed_or_protected = (
             stage in {
                 "observe",
@@ -808,6 +1081,11 @@ class LearningEngine:
                 "normal",
                 "suspicious"
             }
+            and severity not in {
+                "high",
+                "critical"
+            }
+            and risk_for_learning < 0.60
         )
 
         entry[
@@ -936,32 +1214,17 @@ class LearningEngine:
             observations
         )
 
-        risk_signal = max(
-            float(
-                classification.get(
-                    "worm_score",
-                    0
-                )
-            ),
-            float(
-                classification.get(
-                    "confidence",
-                    0
-                )
-            )
-            /
-            100
-        )
+        risk_signal = risk_for_learning
 
         confidence = (
-            risk_signal * 0.50
-            + action_rate * 0.25
+            risk_signal * 0.45
+            + action_rate * 0.20
             + min(
                 observations / 4,
                 1
-            ) * 0.15
-            + entry["avg_pattern_strength"] * 0.25
-            + entry["avg_trust_anomaly_pressure"] * 0.20
+            ) * 0.10
+            + entry["avg_pattern_strength"] * 0.20
+            + entry["avg_trust_anomaly_pressure"] * 0.15
             + entry["avg_trust_drop_risk"] * 0.10
             - false_positive_rate * 0.45
         )
@@ -999,12 +1262,28 @@ class LearningEngine:
                 "disposition"
             ] = "malicious"
 
-            if family in {
+            terminate_ready = (
+                family in {
                 "process_storm",
                 "file_replication",
                 "ransomware_like_file_rename",
                 "correlated_worm_behavior"
-            } and confidence >= 0.62:
+                }
+                and confidence >= 0.70
+                and observations >= 2
+                and action_rate >= 0.50
+                and false_positive_rate < 0.25
+                and len(
+                    entry.get(
+                        "evidence",
+                        []
+                    )
+                    or []
+                ) >= 2
+                and entry["avg_pattern_strength"] >= 0.45
+            )
+
+            if terminate_ready:
                 entry[
                     "recommended_stage"
                 ] = "terminate"

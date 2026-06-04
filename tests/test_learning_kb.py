@@ -224,7 +224,7 @@ def test_learning_engine_learns_trust_score_anomaly_pattern(tmp_path, monkeypatc
     ) in {"quarantine", "terminate"}
 
 
-def test_learning_engine_terminates_repeated_strong_pattern_after_one_observation(tmp_path, monkeypatch):
+def test_learning_engine_terminates_repeated_strong_pattern_after_repeated_observations(tmp_path, monkeypatch):
     kb_path = tmp_path / "learning_kb.json"
     monkeypatch.setenv("SELF_HEALING_KB_PATH", str(kb_path))
 
@@ -253,26 +253,29 @@ def test_learning_engine_terminates_repeated_strong_pattern_after_one_observatio
         },
     }
 
-    entry = engine.update(
-        pid=789,
-        process_info=process,
-        classification=classification,
-        response_result={
-            "stage": "quarantine",
-            "action_taken": True,
-        },
-        trust_state={
-            "static_trust": 0.84,
-            "dynamic_trust": 0.35,
-            "final_trust": 0.42,
-            "trust_anomaly_pressure": 0.88,
-        },
-        features={
-            "process_category": "unknown",
-            "behavior_correlation_score": 0.9,
-            "worm_pattern_anomaly": 0.9,
-        },
-    )
+    entry = None
+
+    for _ in range(2):
+        entry = engine.update(
+            pid=789,
+            process_info=process,
+            classification=classification,
+            response_result={
+                "stage": "quarantine",
+                "action_taken": True,
+            },
+            trust_state={
+                "static_trust": 0.84,
+                "dynamic_trust": 0.35,
+                "final_trust": 0.42,
+                "trust_anomaly_pressure": 0.88,
+            },
+            features={
+                "process_category": "unknown",
+                "behavior_correlation_score": 0.9,
+                "worm_pattern_anomaly": 0.9,
+            },
+        )
 
     assert entry["recommended_stage"] == "terminate"
 
@@ -311,26 +314,27 @@ def test_learning_engine_reuses_similar_pattern_with_overlapping_evidence(tmp_pa
         },
     }
 
-    engine.update(
-        pid=1001,
-        process_info=learned_process,
-        classification=learned_classification,
-        response_result={
-            "stage": "quarantine",
-            "action_taken": True,
-        },
-        trust_state={
-            "static_trust": 0.84,
-            "dynamic_trust": 0.34,
-            "final_trust": 0.40,
-            "trust_anomaly_pressure": 0.9,
-        },
-        features={
-            "process_category": "unknown",
-            "behavior_correlation_score": 0.9,
-            "worm_pattern_anomaly": 0.9,
-        },
-    )
+    for _ in range(2):
+        engine.update(
+            pid=1001,
+            process_info=learned_process,
+            classification=learned_classification,
+            response_result={
+                "stage": "quarantine",
+                "action_taken": True,
+            },
+            trust_state={
+                "static_trust": 0.84,
+                "dynamic_trust": 0.34,
+                "final_trust": 0.40,
+                "trust_anomaly_pressure": 0.9,
+            },
+            features={
+                "process_category": "unknown",
+                "behavior_correlation_score": 0.9,
+                "worm_pattern_anomaly": 0.9,
+            },
+        )
 
     similar_process = {
         "pid": 1002,
@@ -447,11 +451,15 @@ def test_learning_engine_uses_family_fallback_for_learned_process_storm(tmp_path
         "attack_family": "process_storm",
         "process_category": "unknown",
         "observations": 5,
+        "action_count": 5,
+        "false_positive_count": 0,
         "confidence": 0.91,
         "recommended_stage": "terminate",
         "disposition": "malicious",
+        "avg_pattern_strength": 0.8,
         "evidence": [
             "rapid_child_spawning",
+            "process_storm_burst",
         ],
     }
 
