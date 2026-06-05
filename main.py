@@ -1486,6 +1486,130 @@ def _update_file_behavior_memory(
     }
 
 
+def _summarize_file_memory(
+    since=None
+):
+    summary = {}
+
+    for directory, samples in file_behavior_memory.items():
+        scoped_samples = [
+            sample
+            for sample in samples
+            if (
+                since is None
+                or sample.get(
+                    "timestamp",
+                    0
+                ) >= since
+            )
+        ]
+
+        if not scoped_samples:
+            continue
+
+        summary[
+            directory
+        ] = {
+            "events": sum(
+                int(
+                    sample.get(
+                        "count",
+                        0
+                    )
+                )
+                for sample in scoped_samples
+            ),
+            "duplicate": sum(
+                int(
+                    sample.get(
+                        "duplicate",
+                        0
+                    )
+                )
+                for sample in scoped_samples
+            ),
+            "create": sum(
+                int(
+                    sample.get(
+                        "create",
+                        0
+                    )
+                )
+                for sample in scoped_samples
+            ),
+            "modify": sum(
+                int(
+                    sample.get(
+                        "modify",
+                        0
+                    )
+                )
+                for sample in scoped_samples
+            ),
+            "rename": sum(
+                int(
+                    sample.get(
+                        "rename",
+                        0
+                    )
+                )
+                for sample in scoped_samples
+            )
+        }
+
+    return summary
+
+
+def _file_burst_totals_since(
+    since=None
+):
+    return {
+        directory: sum(
+            count
+            for timestamp, count in samples
+            if (
+                since is None
+                or timestamp >= since
+            )
+        )
+        for directory, samples in file_burst_window.items()
+    }
+
+
+def _process_event_since(
+    process,
+    now
+):
+    if process.get(
+        "_exited",
+        False
+    ):
+        return None
+
+    create_time = process.get(
+        "create_time"
+    )
+
+    try:
+        if create_time:
+            return max(
+                float(create_time) - 0.5,
+                0
+            )
+    except Exception:
+        pass
+
+    try:
+        return now - float(
+            process.get(
+                "age_seconds",
+                0
+            )
+        ) - 0.5
+    except Exception:
+        return now - 0.5
+
+
 def _is_ignored_file_activity_path(
     path
 ):
@@ -2151,6 +2275,88 @@ def emergency_file_activity_preflight(
         ):
             continue
 
+        event_since = _process_event_since(
+            process,
+            now
+        )
+        scoped_rolling_totals = _file_burst_totals_since(
+            event_since
+        )
+        scoped_memory_summary = _summarize_file_memory(
+            event_since
+        )
+        scoped_memory_totals = {
+            directory: int(
+                summary.get(
+                    "events",
+                    0
+                )
+            )
+            for directory, summary in scoped_memory_summary.items()
+        }
+        scoped_combined_totals = dict(
+            scoped_rolling_totals
+        )
+
+        for directory, count in scoped_memory_totals.items():
+            scoped_combined_totals[
+                directory
+            ] = max(
+                scoped_combined_totals.get(
+                    directory,
+                    0
+                ),
+                count
+            )
+
+        scoped_memory_total_events = sum(
+            scoped_memory_totals.values()
+        )
+        scoped_memory_fanout = sum(
+            1
+            for count in scoped_memory_totals.values()
+            if count >= 2
+        )
+        scoped_duplicate_memory_count = sum(
+            int(
+                summary.get(
+                    "duplicate",
+                    0
+                )
+            )
+            for summary in scoped_memory_summary.values()
+        )
+        scoped_rename_memory_count = sum(
+            int(
+                summary.get(
+                    "rename",
+                    0
+                )
+            )
+            for summary in scoped_memory_summary.values()
+        )
+        scoped_modify_memory_count = sum(
+            int(
+                summary.get(
+                    "modify",
+                    0
+                )
+            )
+            for summary in scoped_memory_summary.values()
+        )
+        scoped_duplicate_replication_burst = (
+            duplicate_file_hash_count >= 8
+            or scoped_duplicate_memory_count >= 8
+        )
+        scoped_suspicious_rename_burst = (
+            rename_event_count >= 6
+            or scoped_rename_memory_count >= 6
+        )
+        scoped_low_slow_replication_memory = (
+            scoped_memory_total_events >= 30
+            and scoped_memory_fanout >= 8
+        )
+
         cwd = process.get(
             "cwd",
             ""
@@ -2168,7 +2374,7 @@ def emergency_file_activity_preflight(
                 cwd_abs = ""
 
         if cwd_abs:
-            for directory, count in combined_totals.items():
+            for directory, count in scoped_combined_totals.items():
                 if (
                     not _is_broad_file_root(
                         cwd_abs
@@ -2193,24 +2399,24 @@ def emergency_file_activity_preflight(
 
         if (
             matched_events < 20
-            and not duplicate_replication_burst
-            and not suspicious_rename_burst
+            and not scoped_duplicate_replication_burst
+            and not scoped_suspicious_rename_burst
         ):
             continue
 
         candidate_seen = True
         matched_directories = [
             directory
-            for directory, count in combined_totals.items()
+            for directory, count in scoped_combined_totals.items()
             if (
                 (
                     count >= 20
                     or (
-                        low_slow_replication_memory
+                        scoped_low_slow_replication_memory
                         and count >= 2
                     )
                     or (
-                        suspicious_rename_burst
+                        scoped_suspicious_rename_burst
                         and count >= 2
                     )
                 )
@@ -2230,14 +2436,14 @@ def emergency_file_activity_preflight(
             matched_directories
         )
         low_slow_file_replication = (
-            low_slow_replication_memory
+            scoped_low_slow_replication_memory
             and matched_events >= 30
             and subtree_fanout >= 8
         )
         strong_file_replication = (
             matched_events >= 25
-            or duplicate_replication_burst
-            or suspicious_rename_burst
+            or scoped_duplicate_replication_burst
+            or scoped_suspicious_rename_burst
             or low_slow_file_replication
         )
         operator_launched = _has_operator_ancestor(
@@ -2245,13 +2451,7 @@ def emergency_file_activity_preflight(
         )
         mass_modification_burst = (
             matched_events >= 75
-            or int(
-                event_type_counts.get(
-                    "modify",
-                    0
-                )
-                or 0
-            ) >= 50
+            or scoped_modify_memory_count >= 50
         )
         mass_file_modification_detected = (
             (
@@ -2261,8 +2461,8 @@ def emergency_file_activity_preflight(
             or mass_modification_burst
         ) and not suspicious_rename_burst
         terminal_file_termination_evidence = (
-            duplicate_replication_burst
-            or suspicious_rename_burst
+            scoped_duplicate_replication_burst
+            or scoped_suspicious_rename_burst
             or low_slow_file_replication
             or subtree_fanout >= 2
             or mass_modification_burst
@@ -2280,15 +2480,15 @@ def emergency_file_activity_preflight(
             _behavior_containment_enabled()
             and (
                 matched_events >= 60
-                or duplicate_replication_burst
-                or suspicious_rename_burst
+                or scoped_duplicate_replication_burst
+                or scoped_suspicious_rename_burst
                 or low_slow_file_replication
             )
             and (
                 subtree_fanout >= 2
                 or matched_events >= 45
-                or duplicate_replication_burst
-                or suspicious_rename_burst
+                or scoped_duplicate_replication_burst
+                or scoped_suspicious_rename_burst
                 or low_slow_file_replication
             )
             and (
@@ -2303,8 +2503,8 @@ def emergency_file_activity_preflight(
         confirmed_file_owner = (
             (
                 matched_events >= 25
-                or duplicate_replication_burst
-                or suspicious_rename_burst
+                or scoped_duplicate_replication_burst
+                or scoped_suspicious_rename_burst
                 or low_slow_file_replication
             )
             and not _is_broad_file_root(
@@ -2404,7 +2604,7 @@ def emergency_file_activity_preflight(
                 0
             ),
             "duplicate_file_hash_count": duplicate_file_hash_count,
-            "duplicate_file_hash_memory": duplicate_memory_count,
+            "duplicate_file_hash_memory": scoped_duplicate_memory_count,
             "f_mass_file_modification": (
                 1
                 if mass_file_modification_detected
@@ -2412,12 +2612,12 @@ def emergency_file_activity_preflight(
             ),
             "f_suspicious_rename": (
                 1
-                if suspicious_rename_burst
+                if scoped_suspicious_rename_burst
                 else 0
             ),
             "rename_events": max(
                 rename_event_count,
-                rename_memory_count
+                scoped_rename_memory_count
             ),
             "worm_score": 90,
             "emergency_preflight": True,
@@ -2425,8 +2625,8 @@ def emergency_file_activity_preflight(
             "behavior_file_containment": behavior_file_containment,
             "subtree_fanout": subtree_fanout,
             "low_slow_file_replication": low_slow_file_replication,
-            "file_memory_events": memory_total_events,
-            "file_memory_fanout": memory_fanout,
+            "file_memory_events": scoped_memory_total_events,
+            "file_memory_fanout": scoped_memory_fanout,
             "post_event_attribution": bool(
                 process.get(
                     "_exited",
@@ -2452,11 +2652,11 @@ def emergency_file_activity_preflight(
                     "high_file_velocity": True,
                     "extreme_file_velocity": (
                         matched_events >= 60
-                        or duplicate_replication_burst
+                        or scoped_duplicate_replication_burst
                     ),
                     "mass_file_modification": mass_file_modification_detected,
-                    "suspicious_rename": suspicious_rename_burst,
-                    "duplicate_payload_replication": duplicate_replication_burst,
+                    "suspicious_rename": scoped_suspicious_rename_burst,
+                    "duplicate_payload_replication": scoped_duplicate_replication_burst,
                     "low_slow_file_replication": low_slow_file_replication,
                     "baseline_anomaly": True
                 }

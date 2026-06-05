@@ -784,6 +784,80 @@ def test_file_preflight_terminates_terminal_rename_burst(monkeypatch):
     assert calls[0]["features"]["f_suspicious_rename"] == 1
 
 
+def test_file_preflight_does_not_blame_new_program_for_previous_attack(monkeypatch):
+    calls = []
+    current_time = {
+        "value": 1000.0
+    }
+
+    monkeypatch.setattr(
+        main_mod.time,
+        "time",
+        lambda: current_time["value"],
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "_has_operator_ancestor",
+        lambda pid: pid in {50020, 50021},
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+    monkeypatch.setenv("SELF_HEALING_ENABLE_FILE_CONTAINMENT", "false")
+
+    handled_attack = main_mod.emergency_file_activity_preflight(
+        [
+            {
+                "pid": 50020,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python 5.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 3,
+            }
+        ],
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/p5_file_replication_lab/gen_0/copy_1.txt": 30,
+                "/home/kali/Downloads/self_healing2.o-main/p5_file_replication_lab/gen_1/copy_31.txt": 30,
+            }
+        },
+    )
+
+    current_time["value"] = 1003.0
+
+    handled_program = main_mod.emergency_file_activity_preflight(
+        [
+            {
+                "pid": 50021,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python program.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 1,
+            }
+        ],
+        {},
+    )
+
+    assert handled_attack == {50020}
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert handled_program == set()
+    assert len(calls) == 1
+
+
 def test_process_storm_preflight_targets_terminal_child_storm(monkeypatch):
     calls = []
 
