@@ -858,6 +858,86 @@ def test_file_preflight_does_not_blame_new_program_for_previous_attack(monkeypat
     assert len(calls) == 1
 
 
+def test_file_preflight_does_not_attach_global_duplicate_burst_to_program(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "_has_operator_ancestor",
+        lambda pid: pid == 50022,
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [
+            {
+                "pid": 50022,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python program.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 1,
+            }
+        ],
+        {
+            "__paths__": {
+                "/tmp/unrelated_attack/copy_1.txt": 2,
+            },
+            "__duplicate_hash_count__": 10,
+        },
+    )
+
+    assert handled == set()
+    assert calls == []
+
+
+def test_file_preflight_does_not_attach_global_rename_burst_to_program(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "_has_operator_ancestor",
+        lambda pid: pid == 50023,
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [
+            {
+                "pid": 50023,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python program.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 1,
+            }
+        ],
+        {
+            "__paths__": {
+                "/tmp/unrelated_attack/document.locked": 2,
+            },
+            "__event_types__": {
+                "rename": 10,
+            },
+        },
+    )
+
+    assert handled == set()
+    assert calls == []
+
+
 def test_process_storm_preflight_targets_terminal_child_storm(monkeypatch):
     calls = []
 

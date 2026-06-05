@@ -2344,14 +2344,14 @@ def emergency_file_activity_preflight(
             )
             for summary in scoped_memory_summary.values()
         )
-        scoped_duplicate_replication_burst = (
+        global_duplicate_burst = (
             duplicate_file_hash_count >= 8
-            or scoped_duplicate_memory_count >= 8
         )
-        scoped_suspicious_rename_burst = (
+        global_rename_burst = (
             rename_event_count >= 6
-            or scoped_rename_memory_count >= 6
         )
+        scoped_duplicate_replication_burst = False
+        scoped_suspicious_rename_burst = False
         scoped_low_slow_replication_memory = (
             scoped_memory_total_events >= 30
             and scoped_memory_fanout >= 8
@@ -2386,6 +2386,26 @@ def emergency_file_activity_preflight(
                     )
                 ):
                     matched_events += count
+
+        path_activity_matches_candidate = (
+            matched_events > 0
+        )
+        scoped_duplicate_replication_burst = (
+            path_activity_matches_candidate
+            and (
+                scoped_duplicate_memory_count >= 8
+                or
+                global_duplicate_burst
+            )
+        )
+        scoped_suspicious_rename_burst = (
+            path_activity_matches_candidate
+            and (
+                scoped_rename_memory_count >= 6
+                or
+                global_rename_burst
+            )
+        )
 
         if not cwd_abs:
             cwd_abs = (
