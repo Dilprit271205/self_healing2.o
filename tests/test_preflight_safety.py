@@ -1065,7 +1065,7 @@ def test_process_storm_preflight_uses_learned_fast_path(monkeypatch):
             "create_time": now - 1,
             "age_seconds": 1,
         }
-        for index in range(1)
+        for index in range(3)
     ]
 
     handled = main_mod.emergency_process_storm_preflight(
@@ -1078,6 +1078,59 @@ def test_process_storm_preflight_uses_learned_fast_path(monkeypatch):
     assert calls
     assert calls[0]["features"]["learned_pattern_fast_path"] is True
     assert calls[0]["persistence_state"]["stage"] == "terminate"
+
+
+def test_process_storm_preflight_ignores_tiny_learned_family(monkeypatch):
+    calls = []
+
+    class FakeLearningEngine:
+        def is_learned_terminate_pattern(self, process_info, classification):
+            return True
+
+    monkeypatch.setattr(
+        main_mod,
+        "learning_engine",
+        FakeLearningEngine(),
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    now = time.time()
+    parent = {
+        "pid": 60650,
+        "ppid": 100,
+        "name": "python",
+        "cmdline": "python program.py",
+        "exe": "/usr/bin/python",
+        "cwd": "/home/kali/Downloads/self_healing2.o-main",
+        "create_time": now - 4,
+        "age_seconds": 4,
+    }
+    children = [
+        {
+            "pid": 60651 + index,
+            "ppid": 60650,
+            "name": "python",
+            "cmdline": "python helper.py",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "create_time": now - 1,
+            "age_seconds": 1,
+        }
+        for index in range(2)
+    ]
+
+    handled = main_mod.emergency_process_storm_preflight(
+        [parent] + children,
+        {},
+        {},
+    )
+
+    assert handled == set()
+    assert calls == []
 
 
 def test_process_storm_preflight_keeps_unknown_small_storm_below_threshold(monkeypatch):

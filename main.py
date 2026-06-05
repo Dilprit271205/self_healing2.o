@@ -1051,11 +1051,11 @@ def emergency_process_storm_preflight(
         }
 
         learned_repeat_storm = (
-            profile["direct_children"] >= 1
-            and profile["repeated_child_count"] >= 1
+            profile["direct_children"] >= 3
+            and profile["repeated_child_count"] >= 3
             and profile["child_similarity"] >= 0.90
             and profile["young_child_ratio"] >= 0.80
-            and descendants >= 1
+            and descendants >= 3
             and learning_engine.is_learned_terminate_pattern(
                 {
                     **process,
