@@ -197,6 +197,64 @@ def test_dashboard_flags_confirmed_or_strong_behavior():
     assert bool(normalized.iloc[0]["flagged"]) is True
 
 
+def test_dashboard_trust_score_is_healthy_without_active_risk():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now(),
+            "pid": 444,
+            "name": "python",
+            "label": "normal",
+            "severity": "low",
+            "stage": "observe",
+            "worm_score": 0.20,
+            "dynamic_trust": 0.65,
+            "final_trust": 0.80,
+            "static_trust": 0.85,
+            "signals": {"correlated_signal_count": 0},
+            "features": {},
+            "anomalies": {"aggregate": 0.35},
+        }
+    ])
+
+    normalized = dashboard._normalize_process_rows(rows)
+
+    assert bool(normalized.iloc[0]["flagged"]) is False
+    assert dashboard._dashboard_trust_score(normalized) == 1.0
+    assert dashboard._dashboard_pressure_score(normalized) == 0.0
+
+
+def test_dashboard_trust_score_uses_raw_risk_when_flagged():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now(),
+            "pid": 445,
+            "name": "python",
+            "label": "worm",
+            "severity": "critical",
+            "stage": "terminate",
+            "worm_score": 0.90,
+            "dynamic_trust": 0.45,
+            "final_trust": 0.55,
+            "static_trust": 0.85,
+            "signals": {"replication_detected": True},
+            "features": {},
+            "anomalies": {"aggregate": 0.55},
+        }
+    ])
+
+    normalized = dashboard._normalize_process_rows(rows)
+
+    assert bool(normalized.iloc[0]["flagged"]) is True
+    assert dashboard._dashboard_trust_score(normalized) == 0.55
+    assert dashboard._dashboard_pressure_score(normalized) == 0.55
+
+
 def test_runtime_attention_filter_ignores_weak_suspicious_label():
     import main
 

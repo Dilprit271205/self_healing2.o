@@ -499,6 +499,57 @@ def _risk_band(value):
     return "low"
 
 
+def _has_active_dashboard_risk(frame):
+    if frame is None or frame.empty:
+        return False
+
+    flagged = (
+        frame.get("flagged", pd.Series(dtype=bool))
+        .astype(bool)
+        .any()
+    )
+    critical = (
+        frame.get("severity", pd.Series(dtype=str))
+        .astype(str)
+        .str.lower()
+        .eq("critical")
+        .any()
+    )
+    response_active = (
+        frame.get("stage", pd.Series(dtype=str))
+        .astype(str)
+        .str.lower()
+        .isin(["throttle", "quarantine", "terminate", "block_resources"])
+        .any()
+    )
+
+    return bool(
+        flagged
+        or critical
+        or response_active
+    )
+
+
+def _dashboard_trust_score(latest):
+    if latest is None or latest.empty:
+        return 1.0
+
+    if not _has_active_dashboard_risk(latest):
+        return 1.0
+
+    return float(latest["final_trust"].mean())
+
+
+def _dashboard_pressure_score(latest):
+    if latest is None or latest.empty:
+        return 0.0
+
+    if not _has_active_dashboard_risk(latest):
+        return 0.0
+
+    return float(latest["trust_anomaly_pressure"].mean())
+
+
 def _format_age(signature):
     age = signature.get("age_seconds")
     if age is None:
@@ -707,6 +758,8 @@ def _draw_stage_graph(frame):
 
 def _draw_health_ring(latest, kb):
     if latest.empty:
+        health = 100
+    elif not _has_active_dashboard_risk(latest):
         health = 100
     else:
         trust = float(latest["final_trust"].mean())
@@ -1001,8 +1054,10 @@ def run_dashboard():
         st.warning("No telemetry yet. Start main.py and the dashboard will populate as the agent observes processes.")
         return
 
-    avg_trust = float(latest["final_trust"].mean()) if not latest.empty else 1.0
-    avg_pressure = float(latest["trust_anomaly_pressure"].mean()) if not latest.empty else 0.0
+    raw_avg_trust = float(latest["final_trust"].mean()) if not latest.empty else 1.0
+    raw_avg_pressure = float(latest["trust_anomaly_pressure"].mean()) if not latest.empty else 0.0
+    avg_trust = _dashboard_trust_score(latest)
+    avg_pressure = _dashboard_pressure_score(latest)
     flagged_count = int(latest["flagged"].sum()) if not latest.empty else 0
     critical_count = int(latest["severity"].astype(str).str.lower().eq("critical").sum()) if not latest.empty else 0
     learned_patterns = len(kb)
@@ -1073,7 +1128,7 @@ def run_dashboard():
             _metric_card(
                 "Trust Score",
                 f"{avg_trust * 100:.1f}%",
-                f"pressure {avg_pressure:.3f}",
+                f"raw {raw_avg_trust * 100:.1f}% | pressure {raw_avg_pressure:.3f}",
                 "cyan",
             )
         with kpi2:
@@ -1106,7 +1161,7 @@ def run_dashboard():
             )
         _info_box(
             "Metric guide",
-            "Trust Score is overall process trust. Active Flags are processes needing attention. System Anomaly is recent behavior pressure. Process Details is the number of current rows being summarized.",
+            "Trust Score is operational health: it stays healthy when there are no active flags or critical responses. System Anomaly still shows medium behavior pressure separately.",
         )
 
         main_chart, score_card = st.columns([0.74, 0.26])
