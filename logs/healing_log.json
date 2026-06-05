@@ -207,3 +207,6 @@
 {"timestamp":"2026-06-05T09:14:39","type":"healing","pid":22408,"stage":"observe","action_taken":false,"status":"monitoring"}
 {"timestamp":"2026-06-05T09:16:58","type":"healing","pid":6212,"stage":"terminate","action_taken":true,"status":"terminated targets=19"}
 {"timestamp":"2026-06-05T09:17:09","type":"healing","pid":2872,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-06-05T09:32:31","type":"healing","pid":8868,"stage":"observe","action_taken":false,"status":"monitoring"}
+{"timestamp":"2026-06-05T09:33:21","type":"healing","pid":22204,"stage":"terminate","action_taken":true,"status":"terminated targets=19"}
+{"timestamp":"2026-06-05T09:33:33","type":"healing","pid":16776,"stage":"observe","action_taken":false,"status":"monitoring"}

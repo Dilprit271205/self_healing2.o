@@ -1,40 +1,40 @@
 {
   "behavior_labels": {
-    "catastrophic_behavior": 1108,
-    "cpu_memory_escalation": 84,
-    "extreme_file_velocity": 259,
-    "file_replication": 340,
-    "high_file_velocity": 294,
-    "large_or_growing_tree": 1111,
-    "localhost_beaconing": 102,
+    "catastrophic_behavior": 1228,
+    "cpu_memory_escalation": 90,
+    "extreme_file_velocity": 287,
+    "file_replication": 377,
+    "high_file_velocity": 328,
+    "large_or_growing_tree": 1210,
+    "localhost_beaconing": 108,
     "low_slow_file_replication": 0,
-    "mass_file_modification": 213,
-    "network_fanout": 173,
-    "persistence_artifact": 108,
-    "process_storm_burst": 1106,
-    "rapid_child_spawning": 1083,
-    "repeated_similar_children": 1106,
-    "resource_pressure": 147,
-    "sensitive_file_access": 102,
-    "short_lived_recursive_children": 1106,
-    "suspicious_rename": 35,
-    "thread_explosion": 51,
+    "mass_file_modification": 232,
+    "network_fanout": 179,
+    "persistence_artifact": 114,
+    "process_storm_burst": 1205,
+    "rapid_child_spawning": 1182,
+    "repeated_similar_children": 1205,
+    "resource_pressure": 159,
+    "sensitive_file_access": 108,
+    "short_lived_recursive_children": 1205,
+    "suspicious_rename": 41,
+    "thread_explosion": 57,
     "trust_anomaly_pattern": 174,
     "worm_like_behavior": 174
   },
   "classification_report": {
-    "accuracy": 1.0,
+    "accuracy": 0.9983361064891847,
     "forkbomb": {
       "f1-score": 1.0,
       "precision": 1.0,
       "recall": 1.0,
-      "support": 295.0
+      "support": 320.0
     },
     "macro avg": {
-      "f1-score": 1.0,
-      "precision": 1.0,
-      "recall": 1.0,
-      "support": 560.0
+      "f1-score": 0.9956253049276305,
+      "precision": 0.9924242424242424,
+      "recall": 0.998945147679325,
+      "support": 601.0
     },
     "normal": {
       "f1-score": 1.0,
@@ -43,22 +43,22 @@
       "support": 12.0
     },
     "suspicious": {
-      "f1-score": 1.0,
-      "precision": 1.0,
+      "f1-score": 0.9846153846153847,
+      "precision": 0.9696969696969697,
       "recall": 1.0,
       "support": 32.0
     },
     "weighted avg": {
-      "f1-score": 1.0,
-      "precision": 1.0,
-      "recall": 1.0,
-      "support": 560.0
+      "f1-score": 0.9983471467974041,
+      "precision": 0.998386527504664,
+      "recall": 0.9983361064891847,
+      "support": 601.0
     },
     "worm": {
-      "f1-score": 1.0,
+      "f1-score": 0.9978858350951374,
       "precision": 1.0,
-      "recall": 1.0,
-      "support": 221.0
+      "recall": 0.9957805907172996,
+      "support": 237.0
     }
   },
   "estimators": {
@@ -127,15 +127,15 @@
     "static_trust"
   ],
   "labels": {
-    "forkbomb": 1181,
+    "forkbomb": 1280,
     "normal": 48,
     "suspicious": 128,
-    "worm": 882
+    "worm": 946
   },
   "log_signature": {
-    "mtime": 1780631226.920358,
+    "mtime": 1780632210.5178046,
     "path": "logs/system_log.json",
-    "size": 2317543
+    "size": 2529725
   },
   "model_path": "C:\\Users\\user\\Desktop\\HEALING\\self_healing2.o\\analysis\\models\\threat_model.joblib",
   "research_dataset_sources": [
@@ -160,58 +160,58 @@
       "url": "https://www.unb.ca/cic/datasets/ids-2017.html"
     }
   ],
-  "rows": 2239,
+  "rows": 2402,
   "sklearn_version": "1.9.0",
   "top_features": [
     {
-      "feature": "trust_anomaly_pressure",
-      "importance": 0.12962
+      "feature": "source_worm_score",
+      "importance": 0.12918
     },
     {
-      "feature": "source_worm_score",
-      "importance": 0.12962
+      "feature": "trust_anomaly_pressure",
+      "importance": 0.12474
     },
     {
       "feature": "dynamic_trust",
-      "importance": 0.10707
-    },
-    {
-      "feature": "trust_drop_risk",
-      "importance": 0.08702
+      "importance": 0.1118
     },
     {
       "feature": "final_trust",
-      "importance": 0.07921
+      "importance": 0.09328
+    },
+    {
+      "feature": "trust_drop_risk",
+      "importance": 0.08805
     },
     {
       "feature": "f_short_lived_child_ratio",
-      "importance": 0.05802
-    },
-    {
-      "feature": "f_recursive_depth",
-      "importance": 0.04899
-    },
-    {
-      "feature": "static_trust",
-      "importance": 0.04324
+      "importance": 0.05676
     },
     {
       "feature": "f_repeated_child_count",
-      "importance": 0.04322
+      "importance": 0.04998
+    },
+    {
+      "feature": "f_recursive_depth",
+      "importance": 0.04363
     },
     {
       "feature": "f_young_process",
-      "importance": 0.0357
+      "importance": 0.03911
     },
     {
       "feature": "f_child_similarity",
-      "importance": 0.03122
+      "importance": 0.0368
     },
     {
-      "feature": "f_proc_tree",
-      "importance": 0.03059
+      "feature": "static_trust",
+      "importance": 0.03611
+    },
+    {
+      "feature": "connections",
+      "importance": 0.02974
     }
   ],
-  "trained_at": 1780631316.2758226,
+  "trained_at": 1780632276.0469115,
   "training_n_jobs": 1
 }

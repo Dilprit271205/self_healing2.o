@@ -629,6 +629,161 @@ def test_file_preflight_does_not_terminate_terminal_launched_simple_program(monk
     assert calls[0]["persistence_state"]["force_terminate"] is False
 
 
+def test_file_preflight_terminates_terminal_replication_fanout(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "_has_operator_ancestor",
+        lambda pid: pid == 50010,
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+    monkeypatch.setenv("SELF_HEALING_ENABLE_FILE_CONTAINMENT", "false")
+
+    main_mod.file_burst_window.clear()
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [
+            {
+                "pid": 50010,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python 5.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 3,
+            }
+        ],
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/p5_file_replication_lab/gen_0/copy_1.txt": 30,
+                "/home/kali/Downloads/self_healing2.o-main/p5_file_replication_lab/gen_1/copy_31.txt": 30,
+            }
+        },
+    )
+
+    assert handled == {50010}
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["persistence_state"]["catastrophic_ready"] is True
+    assert calls[0]["features"]["subtree_fanout"] >= 2
+
+
+def test_file_preflight_terminates_terminal_mass_modification(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "_has_operator_ancestor",
+        lambda pid: pid == 50011,
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+    monkeypatch.setenv("SELF_HEALING_ENABLE_FILE_CONTAINMENT", "false")
+
+    main_mod.file_burst_window.clear()
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [
+            {
+                "pid": 50011,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python 6.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 3,
+            }
+        ],
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/p6_file_modification_lab/file_1.txt": 80,
+            },
+            "__event_types__": {
+                "modify": 80,
+            },
+        },
+    )
+
+    assert handled == {50011}
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["features"]["f_mass_file_modification"] == 1
+
+
+def test_file_preflight_terminates_terminal_rename_burst(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "_has_operator_ancestor",
+        lambda pid: pid == 50012,
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+    monkeypatch.setenv("SELF_HEALING_ENABLE_FILE_CONTAINMENT", "false")
+
+    main_mod.file_burst_window.clear()
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [
+            {
+                "pid": 50012,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python 7.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "age_seconds": 3,
+            }
+        ],
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/p7_file_rename_lab/document_1.locked": 10,
+            },
+            "__event_types__": {
+                "rename": 10,
+            },
+        },
+    )
+
+    assert handled == {50012}
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["features"]["f_suspicious_rename"] == 1
+
+
 def test_process_storm_preflight_targets_terminal_child_storm(monkeypatch):
     calls = []
 

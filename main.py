@@ -2243,11 +2243,29 @@ def emergency_file_activity_preflight(
         operator_launched = _has_operator_ancestor(
             pid
         )
+        mass_modification_burst = (
+            matched_events >= 75
+            or int(
+                event_type_counts.get(
+                    "modify",
+                    0
+                )
+                or 0
+            ) >= 50
+        )
+        mass_file_modification_detected = (
+            (
+                matched_events >= 45
+                and not operator_launched
+            )
+            or mass_modification_burst
+        ) and not suspicious_rename_burst
         terminal_file_termination_evidence = (
             duplicate_replication_burst
             or suspicious_rename_burst
             or low_slow_file_replication
             or subtree_fanout >= 2
+            or mass_modification_burst
         )
         file_containment_enabled = os.getenv(
             "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
@@ -2389,10 +2407,7 @@ def emergency_file_activity_preflight(
             "duplicate_file_hash_memory": duplicate_memory_count,
             "f_mass_file_modification": (
                 1
-                if (
-                    matched_events >= 45
-                    and not suspicious_rename_burst
-                )
+                if mass_file_modification_detected
                 else 0
             ),
             "f_suspicious_rename": (
@@ -2428,7 +2443,7 @@ def emergency_file_activity_preflight(
             "signals": {
                 "combined_risk": 0.90,
                 "correlated_signal_count": 4,
-                "catastrophic_behavior": False,
+                "catastrophic_behavior": behavior_file_containment,
                 "forkbomb_detected": False,
                 "replication_detected": True,
                 "fanout_detected": False,
@@ -2439,7 +2454,7 @@ def emergency_file_activity_preflight(
                         matched_events >= 60
                         or duplicate_replication_burst
                     ),
-                    "mass_file_modification": matched_events >= 45,
+                    "mass_file_modification": mass_file_modification_detected,
                     "suspicious_rename": suspicious_rename_burst,
                     "duplicate_payload_replication": duplicate_replication_burst,
                     "low_slow_file_replication": low_slow_file_replication,
@@ -2466,6 +2481,7 @@ def emergency_file_activity_preflight(
             "avg_correlated_signals": 4,
             "termination_ready": behavior_file_containment,
             "force_terminate": behavior_file_containment,
+            "catastrophic_ready": behavior_file_containment,
             "confirmed_behavior": (
                 (
                     file_containment_enabled
