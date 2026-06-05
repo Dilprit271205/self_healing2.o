@@ -1118,7 +1118,7 @@ def run_dashboard():
             )
             anomaly_fig = _draw_anomaly_timeline(recent_process_rows)
             if anomaly_fig:
-                st.plotly_chart(anomaly_fig, use_container_width=True)
+                st.plotly_chart(anomaly_fig, width="stretch")
             else:
                 st.info("No anomaly timeline yet.")
 
@@ -1130,7 +1130,7 @@ def run_dashboard():
             )
             st.plotly_chart(
                 _draw_security_score(avg_trust, avg_pressure),
-                use_container_width=True,
+                width="stretch",
             )
 
         lower_left, lower_right = st.columns([0.49, 0.51])
@@ -1142,7 +1142,7 @@ def run_dashboard():
             )
             learning_fig = _draw_learning_graph(kb)
             if learning_fig:
-                st.plotly_chart(learning_fig, use_container_width=True)
+                st.plotly_chart(learning_fig, width="stretch")
             else:
                 st.info("No learned patterns yet.")
 
@@ -1156,12 +1156,12 @@ def run_dashboard():
             with health_a:
                 st.plotly_chart(
                     _draw_health_ring(latest, kb),
-                    use_container_width=True,
+                    width="stretch",
                 )
             with health_b:
                 stage_fig = _draw_stage_graph(latest)
                 if stage_fig:
-                    st.plotly_chart(stage_fig, use_container_width=True)
+                    st.plotly_chart(stage_fig, width="stretch")
                 else:
                     st.info("No response data yet.")
 
@@ -1194,7 +1194,7 @@ def run_dashboard():
                         ],
                         limit=12,
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 
@@ -1223,7 +1223,7 @@ def run_dashboard():
                         ],
                         limit=12,
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 
@@ -1255,7 +1255,7 @@ def run_dashboard():
                     ],
                     limit=16,
                 ),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
