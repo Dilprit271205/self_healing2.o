@@ -571,6 +571,64 @@ def test_file_preflight_can_contain_in_explicit_lab_mode(monkeypatch):
     assert calls[0]["persistence_state"]["stage"] == "quarantine"
 
 
+def test_file_preflight_does_not_terminate_terminal_launched_simple_program(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "_has_operator_ancestor",
+        lambda pid: pid == 50009,
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": kwargs["persistence_state"]["stage"],
+                "status": "monitoring",
+                "action_taken": False,
+            },
+            "learning": {},
+        },
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
+        "true",
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
+        "false",
+    )
+
+    main_mod.file_burst_window.clear()
+
+    processes = [
+        {
+            "pid": 50009,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python program.py",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/Downloads/self_healing2.o-main",
+            "age_seconds": 3,
+        }
+    ]
+
+    handled = main_mod.emergency_file_activity_preflight(
+        processes,
+        {
+            "__paths__": {
+                "/home/kali/Downloads/self_healing2.o-main/program.log": 66,
+            }
+        },
+    )
+
+    assert handled == {50009}
+    assert calls
+    assert calls[0]["persistence_state"]["stage"] == "observe"
+    assert calls[0]["persistence_state"]["force_terminate"] is False
+
+
 def test_process_storm_preflight_targets_terminal_child_storm(monkeypatch):
     calls = []
 
@@ -628,6 +686,56 @@ def test_process_storm_preflight_targets_terminal_child_storm(monkeypatch):
     ]
     assert calls[0]["features"]["protected_parent_pid"] == 60000
     assert calls[0]["persistence_state"]["stage"] == "terminate"
+
+
+def test_process_storm_preflight_does_not_kill_single_terminal_child_from_learning(monkeypatch):
+    calls = []
+
+    class FakeLearningEngine:
+        def is_learned_terminate_pattern(self, process_info, classification):
+            return True
+
+    monkeypatch.setattr(
+        main_mod,
+        "learning_engine",
+        FakeLearningEngine(),
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+
+    now = time.time()
+    parent = {
+        "pid": 60100,
+        "ppid": 100,
+        "name": "qterminal",
+        "cmdline": "qterminal",
+        "exe": "/usr/bin/qterminal",
+        "cwd": "/home/kali",
+        "create_time": now - 5,
+        "age_seconds": 5,
+    }
+    child = {
+        "pid": 60101,
+        "ppid": 60100,
+        "name": "python",
+        "cmdline": "python program.py",
+        "exe": "/usr/bin/python",
+        "cwd": "/home/kali/Downloads/self_healing2.o-main",
+        "create_time": now - 1,
+        "age_seconds": 1,
+    }
+
+    handled = main_mod.emergency_process_storm_preflight(
+        [parent, child],
+        {},
+        {},
+    )
+
+    assert handled == set()
+    assert calls == []
 
 
 def test_process_storm_preflight_skips_dashboard_controller(monkeypatch):

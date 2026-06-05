@@ -1100,6 +1100,17 @@ def emergency_process_storm_preflight(
         ):
             continue
 
+        if (
+            protected_process
+            and learned_repeat_storm
+            and not (
+                catastrophic_storm
+                or emergency_storm
+                or deep_recursive_storm
+            )
+        ):
+            continue
+
         target_process = process
         target_pid = pid
         protected_parent_pid = None
@@ -1802,6 +1813,27 @@ def _is_safe_to_behavior_terminate(
     return True
 
 
+def _has_operator_ancestor(
+    pid
+):
+    try:
+        engine = globals().get(
+            "response_engine",
+            None
+        )
+
+        if engine is None:
+            return False
+
+        return bool(
+            engine._has_operator_ancestor(
+                pid
+            )
+        )
+    except Exception:
+        return False
+
+
 def update_recent_process_cache(
     processes
 ):
@@ -2208,6 +2240,15 @@ def emergency_file_activity_preflight(
             or suspicious_rename_burst
             or low_slow_file_replication
         )
+        operator_launched = _has_operator_ancestor(
+            pid
+        )
+        terminal_file_termination_evidence = (
+            duplicate_replication_burst
+            or suspicious_rename_burst
+            or low_slow_file_replication
+            or subtree_fanout >= 2
+        )
         file_containment_enabled = os.getenv(
             "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
             "false"
@@ -2231,6 +2272,10 @@ def emergency_file_activity_preflight(
                 or duplicate_replication_burst
                 or suspicious_rename_burst
                 or low_slow_file_replication
+            )
+            and (
+                not operator_launched
+                or terminal_file_termination_evidence
             )
             and not process.get(
                 "_exited",
