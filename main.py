@@ -2508,9 +2508,10 @@ def emergency_file_activity_preflight(
             )
 
         if (
-            matched_events < 20
+            matched_events < 45
             and not scoped_duplicate_replication_burst
             and not scoped_suspicious_rename_burst
+            and not scoped_low_slow_replication_memory
         ):
             continue
 
@@ -2551,7 +2552,7 @@ def emergency_file_activity_preflight(
             and subtree_fanout >= 8
         )
         strong_file_replication = (
-            matched_events >= 25
+            matched_events >= 45
             or scoped_duplicate_replication_burst
             or scoped_suspicious_rename_burst
             or low_slow_file_replication
@@ -2612,7 +2613,7 @@ def emergency_file_activity_preflight(
         )
         confirmed_file_owner = (
             (
-                matched_events >= 25
+                matched_events >= 45
                 or scoped_duplicate_replication_burst
                 or scoped_suspicious_rename_burst
                 or low_slow_file_replication

@@ -99,9 +99,11 @@ class WormClassifier:
             or 0
         )
 
+        plain_file_replication = file_events >= 60
+
         direct_behavior = {
             "file_replication":
-                file_events >= 25
+                plain_file_replication
                 or bool(
                     features.get(
                         "file_replication_preflight",
@@ -115,7 +117,7 @@ class WormClassifier:
                     )
                 ),
             "high_file_velocity":
-                file_events >= 25,
+                file_events >= 45,
             "extreme_file_velocity":
                 file_events >= 60,
             "low_slow_file_replication":

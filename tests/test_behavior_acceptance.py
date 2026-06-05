@@ -117,6 +117,35 @@ def test_5_file_replication_simulation_terminates_after_persistence():
     assert persistent_state(result)["stage"] == "terminate"
 
 
+def test_5a_normal_low_volume_file_activity_is_not_replication():
+    result = classify(
+        {
+            "cmdline": "python normal_behaviour.py",
+            "file_events": 25,
+            "worm_score": 12,
+        },
+        aggregate=0.12,
+        trust={"dynamic_trust": 0.96, "final_trust": 0.96},
+    )
+
+    assert result["signals"]["replication_detected"] is False
+    assert result["signals"]["correlated_signals"]["file_replication"] is False
+    assert result["signals"]["correlated_signals"]["high_file_velocity"] is False
+    assert result["label"] != "worm"
+
+
+def test_5b_plain_file_replication_boundary_still_detects_bursts():
+    result = classify(
+        {
+            "file_events": 60,
+            "worm_score": 70,
+        },
+        aggregate=0.35,
+    )
+
+    assert result["signals"]["replication_detected"] is True
+
+
 def test_6_mass_file_modification_simulation_detects_replication_pressure():
     result = classify(
         {

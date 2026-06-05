@@ -228,6 +228,60 @@ def test_file_preflight_observes_specific_subdirectory_by_default(monkeypatch):
     assert calls[0]["persistence_state"]["stage"] == "observe"
 
 
+def test_file_preflight_ignores_normal_low_volume_file_activity(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs),
+    )
+    monkeypatch.delenv(
+        "SELF_HEALING_ENABLE_FILE_CONTAINMENT",
+        raising=False,
+    )
+    monkeypatch.setenv(
+        "SELF_HEALING_BEHAVIOR_CONTAINMENT",
+        "true",
+    )
+
+    main_mod.file_burst_window.clear()
+    main_mod.file_behavior_memory.clear()
+
+    processes = [
+        {
+            "pid": 50009,
+            "ppid": 100,
+            "name": "python",
+            "cmdline": "python normal_behaviour.py",
+            "exe": "/usr/bin/python",
+            "cwd": "/home/kali/workload",
+            "age_seconds": 12,
+        }
+    ]
+
+    handled = main_mod.emergency_file_activity_preflight(
+        processes,
+        {
+            "__paths__": {
+                "/home/kali/workload/normal_behaviour_lab/normal_file_0.txt": 5,
+                "/home/kali/workload/normal_behaviour_lab/normal_file_1.txt": 5,
+                "/home/kali/workload/normal_behaviour_lab/normal_file_2.txt": 5,
+                "/home/kali/workload/normal_behaviour_lab/normal_file_3.txt": 5,
+                "/home/kali/workload/normal_behaviour_lab/normal_file_4.txt": 5,
+            },
+            "__event_types__": {
+                "create": 5,
+                "modify": 20,
+            },
+            "__duplicate_hash_count__": 4,
+        },
+    )
+
+    assert handled == set()
+    assert calls == []
+
+
 def test_file_preflight_detects_default_observe_without_terminating(monkeypatch):
     calls = []
 
