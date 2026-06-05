@@ -9,7 +9,6 @@ try:
     import plotly.express as px
     import plotly.graph_objects as go
     import streamlit as st
-    from streamlit_autorefresh import st_autorefresh
 except ImportError as exc:
     print(f"Dashboard unavailable: missing dependency {exc}.")
 
@@ -36,6 +35,12 @@ except ImportError as exc:
 
     def st_autorefresh(*_, **__):
         return None
+else:
+    try:
+        from streamlit_autorefresh import st_autorefresh
+    except ImportError:
+        def st_autorefresh(*_, **__):
+            return None
 
 
 DASHBOARD_MAX_ROWS = 1000
@@ -99,6 +104,7 @@ def _read_json_lines(path, signature):
         return pd.DataFrame()
 
     frame = pd.DataFrame(rows).tail(DASHBOARD_MAX_ROWS)
+    frame["_log_index"] = range(len(frame))
     if "timestamp" in frame.columns:
         frame["timestamp"] = pd.to_datetime(frame["timestamp"], errors="coerce")
     return frame
@@ -132,6 +138,16 @@ def load_learning_kb(signature):
 
 
 def _normalize_trust(value, default=1.0):
+    try:
+        number = float(value)
+        if number > 1.0:
+            number = number / 100.0
+        return max(0.0, min(1.0, number))
+    except Exception:
+        return default
+
+
+def _normalize_risk_score(value, default=0.0):
     try:
         number = float(value)
         if number > 1.0:
@@ -252,12 +268,15 @@ def _normalize_process_rows(frame):
         )
         | (frame["correlated_signal_count"] >= 3)
     )
+    frame["strong_worm_score"] = frame["worm_score"].apply(
+        lambda value: _normalize_risk_score(value) >= 0.65
+    )
     frame["flagged"] = (
         (
-            frame["label"].astype(str).str.lower().isin({"worm", "forkbomb", "suspicious"})
+            frame["label"].astype(str).str.lower().isin({"worm", "forkbomb"})
             | frame["severity"].astype(str).str.lower().isin({"high", "critical"})
-            | frame["trust_anomaly_pattern"].astype(bool)
-            | frame["worm_like_behavior"].astype(bool)
+            | frame["confirmed_behavior"].astype(bool)
+            | frame["strong_worm_score"].astype(bool)
             | (frame["final_trust"] < 0.75)
         )
         & (
@@ -272,7 +291,14 @@ def _normalize_process_rows(frame):
 def _latest_by_pid(frame):
     if frame.empty or "pid" not in frame.columns:
         return pd.DataFrame()
-    ordered = frame.sort_values("timestamp") if "timestamp" in frame.columns else frame
+
+    if "_log_index" in frame.columns:
+        ordered = frame.sort_values("_log_index")
+    elif "timestamp" in frame.columns:
+        ordered = frame.sort_values("timestamp")
+    else:
+        ordered = frame
+
     return ordered.groupby("pid", as_index=False).tail(1)
 
 
@@ -288,14 +314,23 @@ def _recent_rows(frame, seconds=45):
     if timestamps.dropna().empty:
         return frame
 
-    cutoff = timestamps.max() - pd.Timedelta(
+    now = pd.Timestamp.now()
+    future_grace = now + pd.Timedelta(
+        seconds=5
+    )
+    cutoff = now - pd.Timedelta(
         seconds=seconds
     )
     recent = frame[
-        timestamps >= cutoff
+        (timestamps >= cutoff)
+        &
+        (timestamps <= future_grace)
     ]
 
-    return recent if not recent.empty else frame.tail(100)
+    if not recent.empty:
+        return recent
+
+    return frame.tail(100)
 
 
 def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
@@ -316,6 +351,14 @@ def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
     for idx, row in output.iterrows():
         state = overlay.get(row.get("pid"))
         if not state:
+            continue
+        process_time = row.get("timestamp")
+        healing_time = state.get("timestamp")
+        if (
+            pd.notna(process_time)
+            and pd.notna(healing_time)
+            and healing_time < process_time - pd.Timedelta(seconds=2)
+        ):
             continue
         for source, target in {
             "stage": "stage",
@@ -478,13 +521,25 @@ def _metric_card(title, value, note, tone="cyan"):
     )
 
 
+def _info_box(title, body):
+    st.markdown(
+        f"""
+        <div class="info-box">
+            <div class="info-title">{title}</div>
+            <div class="info-body">{body}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _plot_theme(fig, height=300, showlegend=True):
     fig.update_layout(
         height=height,
-        paper_bgcolor="#202033",
-        plot_bgcolor="#202033",
+        paper_bgcolor="#151922",
+        plot_bgcolor="#151922",
         font={
-            "color": "#d8d8e8",
+            "color": "#d6dde7",
             "family": "Inter, Segoe UI, Arial, sans-serif",
         },
         margin=dict(l=18, r=18, t=24, b=18),
@@ -492,21 +547,21 @@ def _plot_theme(fig, height=300, showlegend=True):
             "orientation": "h",
             "y": 1.08,
             "x": 0.58,
-            "font": {"color": "#a9a8b8"},
+            "font": {"color": "#9aa7b7"},
         },
         showlegend=showlegend,
     )
     fig.update_xaxes(
-        gridcolor="rgba(255,255,255,0.06)",
-        zerolinecolor="rgba(255,255,255,0.10)",
-        linecolor="rgba(255,255,255,0.14)",
-        tickfont={"color": "#aaa9b8"},
+        gridcolor="rgba(148,163,184,0.12)",
+        zerolinecolor="rgba(148,163,184,0.14)",
+        linecolor="rgba(148,163,184,0.18)",
+        tickfont={"color": "#9aa7b7"},
     )
     fig.update_yaxes(
-        gridcolor="rgba(255,255,255,0.11)",
-        zerolinecolor="rgba(255,255,255,0.10)",
-        linecolor="rgba(255,255,255,0.14)",
-        tickfont={"color": "#aaa9b8"},
+        gridcolor="rgba(148,163,184,0.14)",
+        zerolinecolor="rgba(148,163,184,0.14)",
+        linecolor="rgba(148,163,184,0.18)",
+        tickfont={"color": "#9aa7b7"},
     )
     return fig
 
@@ -533,16 +588,16 @@ def _draw_security_score(avg_trust, trust_pressure):
         number={"suffix": "%"},
         gauge={
             "axis": {"range": [0, 100]},
-            "bgcolor": "#2a2a40",
-            "bar": {"color": "#6ef8a3"},
+            "bgcolor": "#1f2937",
+            "bar": {"color": "#34d399"},
             "borderwidth": 0,
             "steps": [
-                {"range": [0, 40], "color": "#ff5f6d"},
-                {"range": [40, 70], "color": "#ffd15c"},
-                {"range": [70, 100], "color": "#70f28d"},
+                {"range": [0, 40], "color": "#ef4444"},
+                {"range": [40, 70], "color": "#f59e0b"},
+                {"range": [70, 100], "color": "#22c55e"},
             ],
             "threshold": {
-                "line": {"color": "#35ffd0", "width": 5},
+                "line": {"color": "#06b6d4", "width": 5},
                 "thickness": 0.65,
                 "value": score,
             },
@@ -579,7 +634,7 @@ def _draw_anomaly_timeline(frame):
         x="time_bucket",
         y=["aggregate_anomaly", "worm_pattern_anomaly", "trust_anomaly_pressure"],
         labels={"value": "score", "time_bucket": "", "variable": ""},
-        color_discrete_sequence=["#2e8bff", "#25d7f7", "#39f39b"],
+        color_discrete_sequence=["#38bdf8", "#06b6d4", "#34d399"],
     )
     fig.update_traces(mode="lines+markers", line={"width": 2.2})
     return _plot_theme(fig, height=320)
@@ -609,14 +664,14 @@ def _draw_learning_graph(kb):
         names="attack_family",
         values="count",
         hole=0.72,
-        color_discrete_sequence=["#26f3d1", "#25d7f7", "#6747ff", "#ffcf4d", "#ff4f73"],
+        color_discrete_sequence=["#14b8a6", "#38bdf8", "#a3e635", "#f59e0b", "#f43f5e"],
     )
     fig.add_annotation(
-        text=f"{len(graph)}<br><span style='font-size:14px;color:#aaa9b8'>Total</span>",
+        text=f"{len(graph)}<br><span style='font-size:14px;color:#9aa7b7'>Total</span>",
         x=0.5,
         y=0.5,
         showarrow=False,
-        font={"size": 34, "color": "#f7f7fb"},
+        font={"size": 34, "color": "#f8fafc"},
     )
     return _plot_theme(fig, height=300)
 
@@ -638,14 +693,14 @@ def _draw_stage_graph(frame):
         values="count",
         hole=0.72,
         color="stage",
-        color_discrete_sequence=["#64d84d", "#ffe35c", "#ff9f38", "#ff4f73", "#25d7f7"],
+        color_discrete_sequence=["#22c55e", "#f59e0b", "#fb923c", "#f43f5e", "#38bdf8"],
     )
     fig.add_annotation(
-        text=f"{int(counts['count'].sum())}<br><span style='font-size:14px;color:#aaa9b8'>Total</span>",
+        text=f"{int(counts['count'].sum())}<br><span style='font-size:14px;color:#9aa7b7'>Total</span>",
         x=0.5,
         y=0.5,
         showarrow=False,
-        font={"size": 34, "color": "#f7f7fb"},
+        font={"size": 34, "color": "#f8fafc"},
     )
     return _plot_theme(fig, height=300)
 
@@ -688,23 +743,23 @@ def _draw_health_ring(latest, kb):
     fig.add_trace(go.Pie(
         values=[health, max(0, 100 - health)],
         hole=0.76,
-        marker={"colors": ["#6ef8a3", "#303044"]},
+        marker={"colors": ["#34d399", "#243041"]},
         textinfo="none",
         sort=False,
     ))
     fig.add_annotation(
-        text=f"{health:.0f}%<br><span style='font-size:13px;color:#aaa9b8'>Health</span>",
+        text=f"{health:.0f}%<br><span style='font-size:13px;color:#9aa7b7'>Health</span>",
         x=0.5,
         y=0.5,
         showarrow=False,
-        font={"size": 34, "color": "#f7f7fb"},
+        font={"size": 34, "color": "#f8fafc"},
     )
     fig.add_annotation(
         text=f"{terminate_ready} terminate-ready patterns",
         x=0.5,
         y=-0.08,
         showarrow=False,
-        font={"size": 12, "color": "#aaa9b8"},
+        font={"size": 12, "color": "#9aa7b7"},
     )
     return _plot_theme(fig, height=300, showlegend=False)
 
@@ -743,57 +798,48 @@ def run_dashboard():
         """
         <style>
         .stApp {
-            color: #f7f7fb;
-            background:
-                radial-gradient(circle at 10% 0%, #3140ff 0, rgba(49,64,255,0.24) 24%, transparent 42%),
-                radial-gradient(circle at 22% 105%, #21d7ff 0, rgba(33,215,255,0.22) 18%, transparent 38%),
-                linear-gradient(135deg, #111028 0%, #090914 54%, #05070d 100%);
+            color: #f8fafc;
+            background: #0f141b;
         }
         .block-container {
-            max-width: 1380px;
-            padding-top: 42px;
-            padding-bottom: 42px;
+            max-width: 1360px;
+            padding-top: 26px;
+            padding-bottom: 32px;
         }
         section[data-testid="stSidebar"] { display: none; }
         header[data-testid="stHeader"] {
             background: transparent;
         }
         h1, h2, h3 {
-            color: #f7f7fb;
+            color: #f8fafc;
             letter-spacing: 0;
         }
-        .shell {
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            background: #171626;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.38);
-            overflow: hidden;
-        }
         .rail {
-            min-height: 860px;
-            background: #22213a;
-            border-radius: 12px 0 0 12px;
-            padding: 22px 10px;
+            min-height: 820px;
+            background: #111827;
+            border: 1px solid rgba(148,163,184,0.14);
+            border-radius: 8px;
+            padding: 16px 8px;
             text-align: center;
         }
         .logo {
             width: 42px;
             height: 42px;
             border-radius: 8px;
-            background: #1dffbf;
-            color: #171626;
+            background: #14b8a6;
+            color: #06111a;
             font-weight: 900;
             font-size: 28px;
             line-height: 42px;
-            margin: 0 auto 54px auto;
+            margin: 0 auto 38px auto;
         }
         .rail-item {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            margin: 0 auto 18px auto;
-            border: 1px solid rgba(255,255,255,0.10);
-            color: #b5b4c6;
+            width: 46px;
+            height: 38px;
+            border-radius: 8px;
+            margin: 0 auto 10px auto;
+            border: 1px solid rgba(148,163,184,0.14);
+            color: #94a3b8;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -801,81 +847,81 @@ def run_dashboard():
             font-weight: 800;
         }
         .rail-item.active {
-            background: #353955;
-            color: #1dffbf;
-            border-color: rgba(29,255,191,0.35);
+            background: #123238;
+            color: #5eead4;
+            border-color: rgba(45,212,191,0.40);
         }
         .content-pad {
-            padding: 22px 22px 24px 10px;
+            padding: 2px 4px 18px 4px;
         }
         .top-title {
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 700;
-            color: #f7f7fb;
-            margin: 0 0 28px 0;
+            color: #f8fafc;
+            margin: 0 0 14px 0;
         }
         .tabs {
             display: flex;
             gap: 30px;
-            border-bottom: 1px solid rgba(255,255,255,0.12);
+            border-bottom: 1px solid rgba(148,163,184,0.18);
             margin-bottom: 24px;
         }
         .tab {
             padding: 0 0 11px 0;
-            color: #aaa9b8;
+            color: #94a3b8;
             font-size: 14px;
             font-weight: 650;
         }
         .tab.active {
-            color: #f7f7fb;
-            border-bottom: 2px solid #bcc6ff;
+            color: #f8fafc;
+            border-bottom: 2px solid #38bdf8;
         }
         div[data-testid="stVerticalBlock"] > div:has(.card-heading) {
-            background: #202033;
-            border-radius: 16px;
-            padding: 24px 26px;
-            border: 1px solid rgba(255,255,255,0.04);
+            background: #151922;
+            border-radius: 8px;
+            padding: 20px 22px;
+            border: 1px solid rgba(148,163,184,0.14);
         }
         .card-heading {
             margin-bottom: 8px;
         }
         .card-title {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 720;
-            color: #f7f7fb;
+            color: #f8fafc;
         }
         .card-note {
-            color: #aaa9b8;
+            color: #94a3b8;
             font-size: 12px;
             margin-top: 4px;
         }
         [data-testid="stMetricValue"] { color: #5eead4; }
         .metric-card {
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 18px 20px;
-            background: #202033;
+            background: #151922;
             min-height: 112px;
-            border: 1px solid rgba(255,255,255,0.04);
+            border: 1px solid rgba(148,163,184,0.14);
         }
-        .metric-card.cyan { box-shadow: inset 0 3px 0 #25d7f7; }
-        .metric-card.red { box-shadow: inset 0 3px 0 #ff4f73; }
-        .metric-card.amber { box-shadow: inset 0 3px 0 #ffcf4d; }
-        .metric-card.green { box-shadow: inset 0 3px 0 #1dffbf; }
+        .metric-card.cyan { box-shadow: inset 0 3px 0 #38bdf8; }
+        .metric-card.red { box-shadow: inset 0 3px 0 #f43f5e; }
+        .metric-card.amber { box-shadow: inset 0 3px 0 #f59e0b; }
+        .metric-card.green { box-shadow: inset 0 3px 0 #34d399; }
         .metric-title {
-            color: #aaa9b8;
+            color: #94a3b8;
             font-size: 12px;
             text-transform: uppercase;
             font-weight: 700;
         }
         .metric-value {
-            color: #f7f7fb;
+            color: #f8fafc;
             font-size: 32px;
             font-weight: 760;
             line-height: 1.2;
             margin-top: 8px;
         }
         .metric-note {
-            color: #aaa9b8;
+            color: #94a3b8;
             font-size: 12px;
             margin-top: 6px;
         }
@@ -883,26 +929,44 @@ def run_dashboard():
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            color: #aaa9b8;
+            color: #94a3b8;
             font-size: 12px;
             margin-top: 8px;
         }
         .health-pill {
             border-radius: 999px;
             padding: 6px 10px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #151922;
+            border: 1px solid rgba(148,163,184,0.16);
+        }
+        .info-box {
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin: 8px 0 14px 0;
+            background: #111827;
+            border: 1px solid rgba(56,189,248,0.18);
+        }
+        .info-title {
+            color: #bae6fd;
+            font-size: 12px;
+            font-weight: 720;
+            margin-bottom: 3px;
+        }
+        .info-body {
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.45;
         }
         div[data-testid="stDataFrame"] {
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 14px;
+            border: 1px solid rgba(148,163,184,0.14);
+            border-radius: 8px;
             overflow: hidden;
         }
         .stDataFrame, .stTable {
-            background: #202033;
+            background: #151922;
         }
         button[kind="secondary"] {
-            background: #202033;
+            background: #151922;
         }
         </style>
         """,
@@ -999,6 +1063,10 @@ def run_dashboard():
             """,
             unsafe_allow_html=True,
         )
+        _info_box(
+            "Dashboard guide",
+            "Active flags are high-confidence alerts only. Medium suspicious rows stay visible in tables, but they do not count as active flags unless behavior, trust, or severity crosses the response threshold.",
+        )
 
         kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
         with kpi1:
@@ -1036,50 +1104,74 @@ def run_dashboard():
                 "latest process rows",
                 "cyan",
             )
+        _info_box(
+            "Metric guide",
+            "Trust Score is overall process trust. Active Flags are processes needing attention. System Anomaly is recent behavior pressure. Process Details is the number of current rows being summarized.",
+        )
 
         main_chart, score_card = st.columns([0.74, 0.26])
         with main_chart:
             _card_header("Anomalies Over Time", "aggregate, worm pattern, and trust pressure")
+            _info_box(
+                "How to read",
+                "Spikes show behavior becoming unusual. Aggregate is general anomaly, worm pattern is worm-like activity, and trust pressure rises when dynamic trust drops.",
+            )
             anomaly_fig = _draw_anomaly_timeline(recent_process_rows)
             if anomaly_fig:
-                st.plotly_chart(anomaly_fig, width="stretch")
+                st.plotly_chart(anomaly_fig, use_container_width=True)
             else:
                 st.info("No anomaly timeline yet.")
 
         with score_card:
             _card_header("Security Score", "trust weighted system health")
+            _info_box(
+                "How to read",
+                "Higher is healthier. This combines average trust and anomaly pressure, so it can dip before a process is terminated.",
+            )
             st.plotly_chart(
                 _draw_security_score(avg_trust, avg_pressure),
-                width="stretch",
+                use_container_width=True,
             )
 
         lower_left, lower_right = st.columns([0.49, 0.51])
         with lower_left:
             _card_header("Learnt Pattern Categories", "knowledge base attack families")
+            _info_box(
+                "How to read",
+                "This shows what the learning engine has remembered from previous detections, grouped by attack family.",
+            )
             learning_fig = _draw_learning_graph(kb)
             if learning_fig:
-                st.plotly_chart(learning_fig, width="stretch")
+                st.plotly_chart(learning_fig, use_container_width=True)
             else:
                 st.info("No learned patterns yet.")
 
         with lower_right:
             _card_header("System Health", "response stages and terminate readiness")
+            _info_box(
+                "How to read",
+                "Health summarizes trust across live processes. The stage chart shows how many processes are only observed versus throttled, quarantined, or terminated.",
+            )
             health_a, health_b = st.columns([0.48, 0.52])
             with health_a:
                 st.plotly_chart(
                     _draw_health_ring(latest, kb),
-                    width="stretch",
+                    use_container_width=True,
                 )
             with health_b:
                 stage_fig = _draw_stage_graph(latest)
                 if stage_fig:
-                    st.plotly_chart(stage_fig, width="stretch")
+                    st.plotly_chart(stage_fig, use_container_width=True)
                 else:
                     st.info("No response data yet.")
 
         details_left, details_right = st.columns([0.52, 0.48])
         with details_left:
             _card_header("Process Details", "highest risk processes first")
+            _info_box(
+                "How to read",
+                "Rows are sorted by active flag, trust pressure, and worm score. A suspicious label alone is not an active alert.",
+            )
             if latest.empty:
                 st.info("No live process rows.")
             else:
@@ -1102,12 +1194,16 @@ def run_dashboard():
                         ],
                         limit=12,
                     ),
-                    width="stretch",
+                    use_container_width=True,
                     hide_index=True,
                 )
 
         with details_right:
             _card_header("Flags", "active behavioral and trust flags")
+            _info_box(
+                "How to read",
+                "This table only lists strong evidence: confirmed worm behavior, high severity, strong worm score, or trust below the response threshold.",
+            )
             if flags.empty:
                 st.success("No active flags.")
             else:
@@ -1127,11 +1223,15 @@ def run_dashboard():
                         ],
                         limit=12,
                     ),
-                    width="stretch",
+                    use_container_width=True,
                     hide_index=True,
                 )
 
         _card_header("Learnt Patterns", "what the ML agent will escalate faster next time")
+        _info_box(
+            "How to read",
+            "Each row is a behavior pattern the learner can reuse. Higher confidence and observations mean the system has seen similar behavior more often.",
+        )
         if kb.empty:
             st.info("Knowledge base is empty.")
         else:
@@ -1155,7 +1255,7 @@ def run_dashboard():
                     ],
                     limit=16,
                 ),
-                width="stretch",
+                use_container_width=True,
                 hide_index=True,
             )
 

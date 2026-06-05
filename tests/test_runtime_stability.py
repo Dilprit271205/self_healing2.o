@@ -87,6 +87,40 @@ def test_dashboard_healing_status_overlays_process_stage():
     assert merged.iloc[0]["action_taken"] is True
 
 
+def test_dashboard_ignores_stale_healing_status_for_reused_pid():
+    import pandas as pd
+    import dashboard
+
+    process_rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp("2026-06-03T10:05:00"),
+            "pid": 1234,
+            "name": "python",
+            "stage": "observe",
+            "response": "none",
+            "severity": "low",
+        }
+    ])
+    healing_rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp("2026-06-03T10:00:00"),
+            "pid": 1234,
+            "stage": "terminate",
+            "status": "terminated old attack",
+            "action_taken": True,
+        }
+    ])
+
+    merged = dashboard._overlay_healing_status(
+        process_rows,
+        healing_rows,
+        process_rows,
+    )
+
+    assert merged.iloc[0]["stage"] == "observe"
+    assert merged.iloc[0]["response"] == "none"
+
+
 def test_dashboard_normalizes_missing_dict_columns():
     import pandas as pd
     import dashboard
@@ -111,18 +145,109 @@ def test_dashboard_normalizes_missing_dict_columns():
     assert bool(normalized.iloc[0]["flagged"]) is False
 
 
-def test_dashboard_prefers_recent_live_rows_for_metrics():
+def test_dashboard_does_not_flag_weak_suspicious_observation():
     import pandas as pd
     import dashboard
 
     rows = pd.DataFrame([
         {
-            "timestamp": pd.Timestamp("2026-06-04T01:00:00"),
+            "timestamp": pd.Timestamp.now(),
+            "pid": 222,
+            "name": "python",
+            "label": "suspicious",
+            "severity": "medium",
+            "worm_score": 0.42,
+            "dynamic_trust": 0.94,
+            "final_trust": 0.94,
+            "static_trust": 0.85,
+            "signals": {"correlated_signal_count": 0},
+            "features": {},
+            "anomalies": {"aggregate": 0.02},
+        }
+    ])
+
+    normalized = dashboard._normalize_process_rows(rows)
+
+    assert bool(normalized.iloc[0]["flagged"]) is False
+
+
+def test_dashboard_flags_confirmed_or_strong_behavior():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now(),
+            "pid": 333,
+            "name": "python",
+            "label": "suspicious",
+            "severity": "medium",
+            "worm_score": 0.68,
+            "dynamic_trust": 0.80,
+            "final_trust": 0.80,
+            "static_trust": 0.85,
+            "signals": {"replication_detected": True},
+            "features": {},
+            "anomalies": {"aggregate": 0.20},
+        }
+    ])
+
+    normalized = dashboard._normalize_process_rows(rows)
+
+    assert bool(normalized.iloc[0]["flagged"]) is True
+
+
+def test_runtime_attention_filter_ignores_weak_suspicious_label():
+    import main
+
+    classification = {
+        "label": "suspicious",
+        "severity": "medium",
+        "worm_score": 0.42,
+        "signals": {"correlated_signal_count": 0},
+    }
+    trust_state = {
+        "final_trust": 0.94,
+    }
+
+    assert main.is_attention_worthy_classification(
+        classification,
+        trust_state,
+    ) is False
+
+
+def test_runtime_attention_filter_keeps_confirmed_behavior():
+    import main
+
+    classification = {
+        "label": "suspicious",
+        "severity": "medium",
+        "worm_score": 0.42,
+        "signals": {"replication_detected": True},
+    }
+    trust_state = {
+        "final_trust": 0.94,
+    }
+
+    assert main.is_attention_worthy_classification(
+        classification,
+        trust_state,
+    ) is True
+
+
+def test_dashboard_prefers_recent_live_rows_for_metrics():
+    import pandas as pd
+    import dashboard
+
+    now = pd.Timestamp.now()
+    rows = pd.DataFrame([
+        {
+            "timestamp": now - pd.Timedelta(minutes=10),
             "pid": 1,
             "final_trust": 0.10,
         },
         {
-            "timestamp": pd.Timestamp("2026-06-04T01:10:00"),
+            "timestamp": now,
             "pid": 2,
             "final_trust": 0.92,
         },
@@ -134,6 +259,56 @@ def test_dashboard_prefers_recent_live_rows_for_metrics():
     )
 
     assert set(recent["pid"]) == {2}
+
+
+def test_dashboard_ignores_future_rows_when_selecting_live_window():
+    import pandas as pd
+    import dashboard
+
+    now = pd.Timestamp.now()
+    rows = pd.DataFrame([
+        {
+            "timestamp": now + pd.Timedelta(hours=8),
+            "pid": 1,
+            "final_trust": 0.10,
+        },
+        {
+            "timestamp": now,
+            "pid": 2,
+            "final_trust": 0.92,
+        },
+    ])
+
+    recent = dashboard._recent_rows(
+        rows,
+        seconds=45,
+    )
+
+    assert set(recent["pid"]) == {2}
+
+
+def test_dashboard_latest_by_pid_uses_log_append_order():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "_log_index": 0,
+            "timestamp": pd.Timestamp("2026-06-05T10:34:00"),
+            "pid": 1,
+            "stage": "terminate",
+        },
+        {
+            "_log_index": 1,
+            "timestamp": pd.Timestamp("2026-06-05T01:18:00"),
+            "pid": 1,
+            "stage": "observe",
+        },
+    ])
+
+    latest = dashboard._latest_by_pid(rows)
+
+    assert latest.iloc[0]["stage"] == "observe"
 
 
 def test_dashboard_acceptance_coverage_tracks_behavior_flags():

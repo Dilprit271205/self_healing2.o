@@ -134,6 +134,96 @@ def debug_print(
             message
         )
 
+
+def _normalized_risk_score(value):
+    try:
+        score = float(value or 0)
+    except Exception:
+        return 0.0
+
+    if score > 1.0:
+        score = score / 100.0
+
+    return max(
+        0.0,
+        min(
+            1.0,
+            score
+        )
+    )
+
+
+def is_attention_worthy_classification(
+    classification,
+    trust_state
+):
+    signals = classification.get(
+        "signals",
+        {}
+    ) or {}
+
+    severity = str(
+        classification.get(
+            "severity",
+            "low"
+        )
+    ).lower()
+
+    label = str(
+        classification.get(
+            "label",
+            "normal"
+        )
+    ).lower()
+
+    confirmed_behavior = any(
+        bool(
+            signals.get(
+                key,
+                False
+            )
+        )
+        for key in (
+            "forkbomb_detected",
+            "replication_detected",
+            "fanout_detected",
+            "artifact_abuse_detected",
+            "thread_storm_detected",
+            "catastrophic_behavior",
+            "worm_like_behavior"
+        )
+    ) or int(
+        signals.get(
+            "correlated_signal_count",
+            0
+        )
+        or 0
+    ) >= 3
+
+    return (
+        label in {
+            "worm",
+            "forkbomb"
+        }
+        or severity in {
+            "high",
+            "critical"
+        }
+        or confirmed_behavior
+        or _normalized_risk_score(
+            classification.get(
+                "worm_score",
+                0
+            )
+        ) >= 0.65
+        or _normalized_risk_score(
+            trust_state.get(
+                "final_trust",
+                1.0
+            )
+        ) < 0.75
+    )
+
 SYSTEM_SAFE_PIDS = {
     0,
     1,
@@ -3899,15 +3989,6 @@ def monitor_loop():
                         )
                     )
 
-                    low_trust = (
-                        trust_state.get(
-                            "final_trust",
-                            1.0
-                        )
-                        <
-                        0.9
-                    )
-
                     protected_or_suppressed = (
                         response_engine.is_protected_process(
                             pid,
@@ -3937,14 +4018,9 @@ def monitor_loop():
 
                     if (
                         not protected_or_suppressed
-                        and (
-                            classification.get(
-                                "label"
-                            )
-                            !=
-                            "normal"
-                            or
-                            low_trust
+                        and is_attention_worthy_classification(
+                            classification,
+                            trust_state
                         )
                     ):
 
