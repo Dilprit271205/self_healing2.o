@@ -853,6 +853,44 @@ def _descendant_pids(
     return descendants
 
 
+def _descendant_processes(
+    pid,
+    children_by_parent
+):
+    descendants = []
+    stack = list(
+        children_by_parent.get(
+            pid,
+            []
+        )
+    )
+    seen = set()
+
+    while stack:
+        child = stack.pop()
+        child_pid = child.get(
+            "pid"
+        )
+
+        if child_pid in seen:
+            continue
+
+        seen.add(
+            child_pid
+        )
+        descendants.append(
+            child
+        )
+        stack.extend(
+            children_by_parent.get(
+                child_pid,
+                []
+            )
+        )
+
+    return descendants
+
+
 def is_runtime_protected_process(
     process
 ):
@@ -940,17 +978,28 @@ def emergency_process_storm_preflight(
             "pid"
         )
 
+        if pid in handled_pids:
+            continue
+
+        protected_process = is_runtime_protected_process(
+            process
+        )
+
         if (
-            is_runtime_protected_process(
-                process
+            protected_process
+            and not children_by_parent.get(
+                pid,
+                []
             )
-            or pid in handled_pids
         ):
             continue
 
-        if policy_engine.is_suppressed_category(
-            policy_engine.infer_category(
-                process
+        if (
+            not protected_process
+            and policy_engine.is_suppressed_category(
+                policy_engine.infer_category(
+                    process
+                )
             )
         ):
             continue
@@ -970,6 +1019,10 @@ def emergency_process_storm_preflight(
             children_by_parent
         )
         observed_family_pids = _descendant_pids(
+            pid,
+            children_by_parent
+        )
+        observed_family_processes = _descendant_processes(
             pid,
             children_by_parent
         )
@@ -1047,6 +1100,48 @@ def emergency_process_storm_preflight(
         ):
             continue
 
+        target_process = process
+        target_pid = pid
+        protected_parent_pid = None
+
+        if protected_process:
+            child_candidates = [
+                child
+                for child in observed_family_processes
+                if (
+                    not is_runtime_protected_process(
+                        child
+                    )
+                    and not policy_engine.is_suppressed_category(
+                        policy_engine.infer_category(
+                            child
+                        )
+                    )
+                    and child.get(
+                        "pid"
+                    )
+                    not in handled_pids
+                )
+            ]
+
+            if not child_candidates:
+                continue
+
+            target_process = child_candidates[0]
+            target_pid = target_process.get(
+                "pid"
+            )
+            protected_parent_pid = pid
+            observed_family_pids = [
+                child.get(
+                    "pid"
+                )
+                for child in child_candidates
+                if child.get(
+                    "pid"
+                )
+            ]
+
         features = {
             "f_proc_spawn": profile["direct_children"],
             "f_proc_tree": descendants,
@@ -1085,7 +1180,8 @@ def emergency_process_storm_preflight(
             "file_events": 0,
             "worm_score": 95,
             "emergency_preflight": True,
-            "learned_pattern_fast_path": learned_repeat_storm
+            "learned_pattern_fast_path": learned_repeat_storm,
+            "protected_parent_pid": protected_parent_pid
         }
 
         classification = {
@@ -1135,8 +1231,9 @@ def emergency_process_storm_preflight(
         }
 
         rate_limited_print(
-            f"process_storm_{pid}",
-            f"[EMERGENCY] process storm pid={pid} "
+            f"process_storm_{target_pid}",
+            f"[EMERGENCY] process storm pid={target_pid} "
+            f"parent={protected_parent_pid or pid} "
             f"children={profile['direct_children']} "
             f"repeated={profile['repeated_child_count']} "
             f"learned={int(learned_repeat_storm)} "
@@ -1149,9 +1246,9 @@ def emergency_process_storm_preflight(
         )
 
         healing_result = execute_healing(
-            pid=pid,
+            pid=target_pid,
             process={
-                **process,
+                **target_process,
                 "observed_family_pids": observed_family_pids
             },
             features=features,
@@ -1165,14 +1262,14 @@ def emergency_process_storm_preflight(
         ]
 
         log_process({
-            "pid": pid,
-            "name": process.get(
+            "pid": target_pid,
+            "name": target_process.get(
                 "name",
                 "unknown"
             ),
             "entity_root": root_map.get(
-                pid,
-                process.get(
+                target_pid,
+                target_process.get(
                     "ppid",
                     0
                 )
@@ -1208,7 +1305,7 @@ def emergency_process_storm_preflight(
         })
 
         handled_pids.add(
-            pid
+            target_pid
         )
 
     return handled_pids

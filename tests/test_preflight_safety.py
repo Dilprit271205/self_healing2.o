@@ -571,7 +571,7 @@ def test_file_preflight_can_contain_in_explicit_lab_mode(monkeypatch):
     assert calls[0]["persistence_state"]["stage"] == "quarantine"
 
 
-def test_process_storm_preflight_skips_terminal_parent(monkeypatch):
+def test_process_storm_preflight_targets_terminal_child_storm(monkeypatch):
     calls = []
 
     monkeypatch.setattr(
@@ -618,8 +618,16 @@ def test_process_storm_preflight_skips_terminal_parent(monkeypatch):
         {},
     )
 
-    assert handled == set()
-    assert calls == []
+    assert handled == {60025}
+    assert calls
+    assert calls[0]["pid"] == 60025
+    assert calls[0]["process"]["ppid"] == 60000
+    assert calls[0]["process"]["observed_family_pids"] == [
+        child["pid"]
+        for child in reversed(children)
+    ]
+    assert calls[0]["features"]["protected_parent_pid"] == 60000
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
 
 
 def test_process_storm_preflight_skips_dashboard_controller(monkeypatch):
