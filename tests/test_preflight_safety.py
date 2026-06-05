@@ -1273,6 +1273,51 @@ def test_behavior_thread_storm_terminates(monkeypatch):
     assert calls[0]["persistence_state"]["stage"] == "terminate"
 
 
+def test_behavior_terminal_thread_storm_terminates(monkeypatch):
+    calls = []
+
+    monkeypatch.setenv("SELF_HEALING_BEHAVIOR_CONTAINMENT", "true")
+    monkeypatch.setattr(
+        main_mod,
+        "_has_operator_ancestor",
+        lambda pid: pid == 62014,
+    )
+    monkeypatch.setattr(
+        main_mod,
+        "execute_healing",
+        lambda **kwargs: calls.append(kwargs) or {
+            "response": {
+                "stage": "terminate",
+                "status": "terminated",
+                "action_taken": True,
+            },
+            "learning": {},
+        },
+    )
+
+    handled = main_mod.emergency_behavior_preflight(
+        [
+            {
+                "pid": 62014,
+                "ppid": 100,
+                "name": "python",
+                "cmdline": "python 2.py",
+                "exe": "/usr/bin/python",
+                "cwd": "/home/kali/Downloads/self_healing2.o-main",
+                "threads": 28,
+                "age_seconds": 2,
+            }
+        ],
+        {},
+    )
+
+    assert handled == {62014}
+    assert calls[0]["features"]["f_thread_storm"] == 1
+    assert calls[0]["features"]["f_operator_launched"] == 1
+    assert calls[0]["persistence_state"]["stage"] == "terminate"
+    assert calls[0]["persistence_state"]["catastrophic_ready"] is True
+
+
 def test_behavior_cpu_exhaustion_without_file_or_network_correlation_observes(monkeypatch):
     calls = []
 

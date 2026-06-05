@@ -2607,6 +2607,9 @@ def emergency_behavior_preflight(
         pid = process.get(
             "pid"
         )
+        operator_launched = _has_operator_ancestor(
+            pid
+        )
         cmdline = str(
             process.get(
                 "cmdline",
@@ -2752,6 +2755,14 @@ def emergency_behavior_preflight(
         )
         thread_storm_like = (
             thread_count >= 80
+            or (
+                operator_launched
+                and thread_count >= 25
+                and process.get(
+                    "age_seconds",
+                    9999
+                ) <= 180
+            )
         )
         cpu_exhaustion_like = (
             cpu_usage >= 85
@@ -2793,7 +2804,7 @@ def emergency_behavior_preflight(
             "signals": {
                 "combined_risk": 0.86,
                 "correlated_signal_count": behavior_signal_count,
-                "catastrophic_behavior": False,
+                "catastrophic_behavior": thread_storm_like,
                 "forkbomb_detected": False,
                 "replication_detected": file_replication_like,
                 "fanout_detected": beacon_like,
@@ -2949,6 +2960,7 @@ def emergency_behavior_preflight(
                 0
             ),
             "f_thread_storm": 1 if thread_storm_like else 0,
+            "f_operator_launched": 1 if operator_launched else 0,
             "f_cpu_exhaustion": 1 if cpu_exhaustion_like else 0,
             "f_memory_spike": 1 if memory_spike_like else 0,
             "worm_score": 92,
@@ -2966,7 +2978,7 @@ def emergency_behavior_preflight(
             "signals": {
                 "combined_risk": 0.92,
                 "correlated_signal_count": 4,
-                "catastrophic_behavior": False,
+                "catastrophic_behavior": thread_storm_like,
                 "forkbomb_detected": False,
                 "replication_detected": file_replication_like,
                 "fanout_detected": beacon_like,
@@ -3012,7 +3024,8 @@ def emergency_behavior_preflight(
             "avg_correlated_signals": 4,
             "termination_ready": True,
             "force_terminate": True,
-            "confirmed_behavior": True
+            "confirmed_behavior": True,
+            "catastrophic_ready": thread_storm_like
         }
 
         rate_limited_print(
