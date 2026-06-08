@@ -387,6 +387,34 @@ def test_dashboard_uses_fresh_log_append_time_when_row_timestamp_is_stale():
     assert set(recent["pid"]) == {1}
 
 
+def test_dashboard_recent_rows_union_timestamp_and_log_append_time():
+    import pandas as pd
+    import dashboard
+
+    now = pd.Timestamp.now()
+    rows = pd.DataFrame([
+        {
+            "timestamp": now,
+            "_source_mtime": now,
+            "pid": 1,
+            "stage": "observe",
+        },
+        {
+            "timestamp": now - pd.Timedelta(hours=3),
+            "_source_mtime": now,
+            "pid": 2,
+            "stage": "terminate",
+        },
+    ])
+
+    recent = dashboard._recent_rows(
+        rows,
+        seconds=12,
+    )
+
+    assert set(recent["pid"]) == {1, 2}
+
+
 def test_runtime_log_paths_are_repo_root_relative(monkeypatch):
     from pathlib import Path
     import dashboard
@@ -584,6 +612,47 @@ def test_dashboard_state_keeps_security_event_after_normal_followup():
     assert bool(latest.iloc[0]["flagged"]) is True
 
 
+def test_dashboard_recent_security_rows_use_fresh_append_time():
+    import pandas as pd
+    import dashboard
+
+    now = pd.Timestamp.now()
+    rows = dashboard._normalize_process_rows(pd.DataFrame([
+        {
+            "_log_index": 1,
+            "timestamp": now - pd.Timedelta(hours=3),
+            "_source_mtime": now,
+            "pid": 99,
+            "name": "python",
+            "label": "worm",
+            "severity": "critical",
+            "stage": "terminate",
+            "response": "terminated targets=1",
+            "worm_score": 0.95,
+            "final_trust": 0.25,
+            "dynamic_trust": 0.25,
+            "static_trust": 0.85,
+            "signals": {
+                "catastrophic_behavior": True,
+            },
+            "features": {},
+            "anomalies": {},
+        },
+    ]))
+
+    security = dashboard._recent_security_rows(
+        rows,
+        seconds=12,
+    )
+    alerts = dashboard._alert_rows(
+        security,
+    )
+
+    assert set(security["pid"]) == {99}
+    assert len(alerts) == 1
+    assert alerts[0]["stage"] == "terminate"
+
+
 def test_dashboard_healing_rows_fill_kpis_when_process_rows_missing():
     import pandas as pd
     import dashboard
@@ -739,6 +808,32 @@ def test_dashboard_alert_rows_describe_self_healing_action():
     assert alerts[0]["status"] == "terminated targets=3"
 
 
+def test_dashboard_security_mask_tracks_isolate_and_restrict_actions():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "pid": 1,
+            "stage": "isolate",
+            "response": "temporarily isolated",
+            "flagged": False,
+            "severity": "low",
+        },
+        {
+            "pid": 2,
+            "stage": "restrict",
+            "response": "resource restricted",
+            "flagged": False,
+            "severity": "low",
+        },
+    ])
+
+    mask = dashboard._security_event_mask(rows)
+
+    assert mask.tolist() == [True, True]
+
+
 def test_dashboard_healing_rows_expire_like_live_events():
     import pandas as pd
     import dashboard
@@ -849,6 +944,24 @@ def test_logger_emits_normal_state_after_interesting_state(monkeypatch):
         "stage": "observe",
         "response": "none",
     })
+
+
+def test_logger_enqueue_latest_preserves_newest_when_queue_is_full():
+    import queue
+    from logger import logger as runtime_logger
+
+    q = queue.Queue(maxsize=1)
+    q.put_nowait({"pid": 1})
+    before = runtime_logger.logger_drop_counts.get("process", 0)
+
+    assert runtime_logger.enqueue_latest(
+        q,
+        {"pid": 2},
+        "process",
+    ) is True
+
+    assert q.get_nowait() == {"pid": 2}
+    assert runtime_logger.logger_drop_counts["process"] == before + 1
 
 
 def test_dashboard_acceptance_coverage_tracks_behavior_flags():

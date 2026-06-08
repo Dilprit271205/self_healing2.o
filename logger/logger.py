@@ -97,6 +97,11 @@ except Exception:
 last_process_log = {}
 last_process_state = {}
 last_entity_log = {}
+logger_drop_counts = {
+    "process": 0,
+    "entity": 0,
+    "healing": 0,
+}
 
 
 # ---------------------------------------------------
@@ -113,6 +118,48 @@ entity_queue = queue.Queue(
 healing_queue = queue.Queue(
     maxsize=5000
 )
+
+
+def enqueue_latest(
+    q,
+    data,
+    stream_name
+):
+    try:
+        q.put_nowait(
+            data
+        )
+        return True
+    except queue.Full:
+        logger_drop_counts[
+            stream_name
+        ] = (
+            logger_drop_counts.get(
+                stream_name,
+                0
+            )
+            + 1
+        )
+        try:
+            q.get_nowait()
+        except queue.Empty:
+            pass
+        try:
+            q.put_nowait(
+                data
+            )
+            return True
+        except queue.Full:
+            logger_drop_counts[
+                stream_name
+            ] = (
+                logger_drop_counts.get(
+                    stream_name,
+                    0
+                )
+                + 1
+            )
+            return False
 
 
 # ---------------------------------------------------
@@ -557,11 +604,13 @@ def log_process(data):
                 features
         }
 
-        process_queue.put_nowait(
-            normalized
+        enqueue_latest(
+            process_queue,
+            normalized,
+            "process"
         )
 
-    except:
+    except Exception:
         pass
 
 
@@ -631,11 +680,13 @@ def log_entity(data):
                 )
         }
 
-        entity_queue.put_nowait(
-            normalized
+        enqueue_latest(
+            entity_queue,
+            normalized,
+            "entity"
         )
 
-    except:
+    except Exception:
         pass
 
 
@@ -673,9 +724,11 @@ def log_healing(data):
                 )
         }
 
-        healing_queue.put_nowait(
-            normalized
+        enqueue_latest(
+            healing_queue,
+            normalized,
+            "healing"
         )
 
-    except:
+    except Exception:
         pass

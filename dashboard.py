@@ -96,6 +96,17 @@ DASHBOARD_EVENT_MEMORY_SECONDS = _env_int(
 SYSTEM_LOG = _project_path("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json")
 HEALING_LOG = _project_path("SELF_HEALING_HEALING_LOG", "logs/healing_log.json")
 LEARNING_KB_LOG = _project_path("SELF_HEALING_KB_PATH", "logs/learning_kb.json")
+ACTIVE_RESPONSE_STAGES = {
+    "restrict",
+    "throttle",
+    "isolate",
+    "quarantine",
+    "block_resources",
+    "terminate",
+}
+ACTION_STATUS_PATTERN = (
+    "terminated|isolated|throttled|quarantined|restricted"
+)
 
 
 def _coerce_dashboard_dict(value):
@@ -371,31 +382,38 @@ def _recent_rows(frame, seconds=45):
         seconds=seconds
     )
 
+    recent_mask = pd.Series(
+        False,
+        index=frame.index,
+    )
+
     if "timestamp" in frame.columns:
         timestamps = pd.to_datetime(
             frame["timestamp"],
             errors="coerce"
         )
-        recent = frame[
+        recent_mask = recent_mask | (
             (timestamps >= cutoff)
             &
             (timestamps <= future_grace)
-        ]
-        if not recent.empty:
-            return recent
+        )
 
     if "_source_mtime" in frame.columns:
         source_times = pd.to_datetime(
             frame["_source_mtime"],
             errors="coerce"
         )
-        recent = frame[
+        recent_mask = recent_mask | (
             (source_times >= cutoff)
             &
             (source_times <= future_grace)
-        ]
-        if not recent.empty:
-            return recent
+        )
+
+    recent = frame[
+        recent_mask
+    ]
+    if not recent.empty:
+        return recent
 
     return frame.iloc[0:0]
 
@@ -429,13 +447,13 @@ def _security_event_mask(frame):
         frame.get("stage", pd.Series("", index=index))
         .astype(str)
         .str.lower()
-        .isin(["throttle", "quarantine", "terminate", "block_resources"])
+        .isin(ACTIVE_RESPONSE_STAGES)
     )
     response_text = (
         frame.get("response", pd.Series("", index=index))
         .astype(str)
         .str.lower()
-        .str.contains("terminated|isolated|throttled|quarantined", na=False)
+        .str.contains(ACTION_STATUS_PATTERN, na=False)
     )
 
     return flagged | severe | response_stage | response_text
@@ -507,6 +525,40 @@ def _dashboard_state_rows(frame, live_seconds=12, event_seconds=60):
             "_security_priority",
         ],
         errors="ignore",
+    )
+
+
+def _recent_security_rows(frame, seconds=180, limit=100):
+    recent = _recent_rows(
+        frame,
+        seconds=seconds,
+    )
+    if recent.empty:
+        return recent
+
+    security = recent[
+        _security_event_mask(
+            recent
+        )
+    ]
+    if security.empty:
+        return security
+
+    sort_columns = [
+        column
+        for column in (
+            "_log_index",
+            "timestamp",
+        )
+        if column in security.columns
+    ]
+    if sort_columns:
+        security = security.sort_values(
+            sort_columns,
+        )
+
+    return security.tail(
+        limit
     )
 
 
@@ -591,17 +643,9 @@ def _healing_rows_as_process_rows(healing_rows, seconds=60):
     )
     actionable = recent[
         action_taken
-        | stage.isin(
-            {
-                "terminate",
-                "quarantine",
-                "throttle",
-                "block_resources",
-                "restrict",
-            }
-        )
+        | stage.isin(ACTIVE_RESPONSE_STAGES)
         | status.str.contains(
-            "terminated|isolated|throttled|quarantined",
+            ACTION_STATUS_PATTERN,
             na=False,
         )
     ]
@@ -631,13 +675,7 @@ def _healing_rows_as_process_rows(healing_rows, seconds=60):
             stage,
             action_taken=action_taken,
         )
-        flagged = stage in {
-            "terminate",
-            "quarantine",
-            "throttle",
-            "block_resources",
-            "restrict",
-        } or action_taken
+        flagged = stage in ACTIVE_RESPONSE_STAGES or action_taken
         rows.append({
             "timestamp": row.get("timestamp"),
             "_log_index": row.get("_log_index"),
@@ -1008,7 +1046,7 @@ def _has_active_dashboard_risk(frame):
         frame.get("stage", pd.Series(dtype=str))
         .astype(str)
         .str.lower()
-        .isin(["throttle", "quarantine", "terminate", "block_resources"])
+        .isin(ACTIVE_RESPONSE_STAGES)
         .any()
     )
 
@@ -1874,9 +1912,43 @@ def run_dashboard():
                 event_seconds=event_memory_seconds,
             )
             telemetry_source = "process + healing log"
-    flags = _active_flag_rows(latest)
+    if (
+        latest.empty
+        and not recent_process_rows.empty
+    ):
+        latest = _latest_by_pid(
+            recent_process_rows.tail(
+                200
+            )
+        )
+        telemetry_source = (
+            telemetry_source
+            + " recent fallback"
+        )
+    recent_security_rows = _recent_security_rows(
+        process_rows,
+        seconds=event_memory_seconds,
+    )
+    alert_source_rows = latest
+    if not recent_security_rows.empty:
+        alert_source_rows = pd.concat(
+            [
+                latest,
+                recent_security_rows,
+            ],
+            ignore_index=True,
+        )
+    if not healing_fallback_rows.empty:
+        alert_source_rows = pd.concat(
+            [
+                alert_source_rows,
+                healing_fallback_rows,
+            ],
+            ignore_index=True,
+        )
+    flags = _active_flag_rows(alert_source_rows)
     alerts = _alert_rows(
-        latest,
+        alert_source_rows,
         limit=8,
     )
 
@@ -1884,12 +1956,41 @@ def run_dashboard():
         st.warning("No telemetry yet. Start main.py and the dashboard will populate as the agent observes processes.")
         return
 
-    raw_avg_trust = float(latest["final_trust"].mean()) if not latest.empty else 1.0
-    raw_avg_pressure = float(latest["trust_anomaly_pressure"].mean()) if not latest.empty else 0.0
-    avg_trust = _dashboard_trust_score(latest)
-    avg_pressure = _dashboard_pressure_score(latest)
+    kpi_rows = latest
+    if not recent_security_rows.empty:
+        kpi_rows = pd.concat(
+            [
+                latest,
+                recent_security_rows,
+            ],
+            ignore_index=True,
+        )
+    raw_avg_trust = float(kpi_rows["final_trust"].mean()) if not kpi_rows.empty else 1.0
+    raw_avg_pressure = float(kpi_rows["trust_anomaly_pressure"].mean()) if not kpi_rows.empty else 0.0
+    avg_trust = _dashboard_trust_score(kpi_rows)
+    avg_pressure = _dashboard_pressure_score(kpi_rows)
     flagged_count = int(latest["flagged"].sum()) if not latest.empty else 0
+    if flagged_count == 0 and not recent_security_rows.empty:
+        flagged_count = int(
+            recent_security_rows.get(
+                "flagged",
+                pd.Series(False, index=recent_security_rows.index),
+            )
+            .astype(bool)
+            .sum()
+        )
     critical_count = int(latest["severity"].astype(str).str.lower().eq("critical").sum()) if not latest.empty else 0
+    if critical_count == 0 and not recent_security_rows.empty:
+        critical_count = int(
+            recent_security_rows.get(
+                "severity",
+                pd.Series("", index=recent_security_rows.index),
+            )
+            .astype(str)
+            .str.lower()
+            .eq("critical")
+            .sum()
+        )
     learned_patterns = len(kb)
     terminate_ready = 0
     if not kb.empty and "recommended_stage" in kb.columns:
@@ -1906,7 +2007,18 @@ def run_dashboard():
             latest["stage"]
             .astype(str)
             .str.lower()
-            .isin(["throttle", "quarantine", "terminate", "block_resources"])
+            .isin(ACTIVE_RESPONSE_STAGES)
+            .sum()
+        )
+    if action_count == 0 and not recent_security_rows.empty:
+        action_count = int(
+            recent_security_rows.get(
+                "stage",
+                pd.Series("", index=recent_security_rows.index),
+            )
+            .astype(str)
+            .str.lower()
+            .isin(ACTIVE_RESPONSE_STAGES)
             .sum()
         )
 
