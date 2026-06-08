@@ -519,6 +519,101 @@ def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
     return output
 
 
+def _healing_stage_trust(stage, action_taken=False):
+    stage = str(
+        stage
+        or "observe"
+    ).lower()
+    if stage == "terminate":
+        return 0.25
+    if stage == "quarantine":
+        return 0.45
+    if stage in {"throttle", "block_resources", "restrict"}:
+        return 0.65
+    if action_taken:
+        return 0.70
+    return 0.92
+
+
+def _healing_rows_as_process_rows(healing_rows, seconds=60):
+    if healing_rows is None or healing_rows.empty:
+        return pd.DataFrame()
+
+    recent = _recent_rows(
+        healing_rows,
+        seconds=seconds,
+    )
+    if recent.empty:
+        return pd.DataFrame()
+
+    latest = _latest_by_pid(
+        recent
+    )
+    if latest.empty:
+        return pd.DataFrame()
+
+    rows = []
+    for _, row in latest.iterrows():
+        stage = str(
+            row.get(
+                "stage",
+                "observe"
+            )
+            or "observe"
+        ).lower()
+        action_taken = bool(
+            row.get(
+                "action_taken",
+                False
+            )
+        )
+        final_trust = _healing_stage_trust(
+            stage,
+            action_taken=action_taken,
+        )
+        flagged = stage in {
+            "terminate",
+            "quarantine",
+            "throttle",
+            "block_resources",
+            "restrict",
+        } or action_taken
+        rows.append({
+            "timestamp": row.get("timestamp"),
+            "_log_index": row.get("_log_index"),
+            "_source_mtime": row.get("_source_mtime"),
+            "pid": row.get("pid"),
+            "name": "healing-action",
+            "label": "response" if flagged else "normal",
+            "severity": "critical" if stage == "terminate" else ("high" if flagged else "low"),
+            "stage": stage,
+            "response": row.get("status", "healing event"),
+            "action_taken": action_taken,
+            "dynamic_trust": final_trust,
+            "final_trust": final_trust,
+            "static_trust": 0.85,
+            "worm_score": 0.90 if flagged else 0.0,
+            "confidence": 90 if flagged else 0,
+            "cpu": 0.0,
+            "memory": 0.0,
+            "threads": 0.0,
+            "connections": 0.0,
+            "file_events": 0.0,
+            "signals": {
+                "correlated_signal_count": 1 if flagged else 0,
+                "healing_event": flagged,
+            },
+            "anomalies": {},
+            "features": {
+                "healing_fallback": True,
+            },
+        })
+
+    return _normalize_process_rows(
+        pd.DataFrame(rows)
+    )
+
+
 def _active_flag_rows(rows):
     if rows is None or rows.empty:
         return pd.DataFrame()
@@ -1445,9 +1540,17 @@ def run_dashboard():
         event_seconds=event_memory_seconds,
     )
     latest = _overlay_healing_status(latest, healing_rows, latest)
+    healing_fallback_rows = _healing_rows_as_process_rows(
+        healing_rows,
+        seconds=event_memory_seconds,
+    )
+    telemetry_source = "process log"
+    if latest.empty and not healing_fallback_rows.empty:
+        latest = healing_fallback_rows
+        telemetry_source = "healing log"
     flags = _active_flag_rows(latest)
 
-    if process_rows.empty and kb.empty:
+    if process_rows.empty and healing_rows.empty and kb.empty:
         st.warning("No telemetry yet. Start main.py and the dashboard will populate as the agent observes processes.")
         return
 
@@ -1507,6 +1610,9 @@ def run_dashboard():
                 </div>
                 <div class="health-row">
                     <span class="health-pill">system log {_format_age(system_signature)}</span>
+                    <span class="health-pill">source {telemetry_source}</span>
+                    <span class="health-pill">{len(process_rows)} process rows</span>
+                    <span class="health-pill">{len(healing_rows)} healing rows</span>
                     <span class="health-pill">knowledge base {_format_age(kb_signature)}</span>
                     <span class="health-pill">{terminate_ready} terminate-ready patterns</span>
                     <span class="health-pill">{action_count} active responses</span>

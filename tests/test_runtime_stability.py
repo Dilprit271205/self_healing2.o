@@ -582,6 +582,54 @@ def test_dashboard_state_normal_followup_clears_security_event():
     assert latest.empty
 
 
+def test_dashboard_healing_rows_fill_kpis_when_process_rows_missing():
+    import pandas as pd
+    import dashboard
+
+    healing = pd.DataFrame([
+        {
+            "_log_index": 0,
+            "timestamp": pd.Timestamp.now(),
+            "pid": 1234,
+            "stage": "terminate",
+            "action_taken": True,
+            "status": "terminated targets=1",
+        },
+    ])
+
+    fallback = dashboard._healing_rows_as_process_rows(
+        healing,
+        seconds=60,
+    )
+
+    assert set(fallback["pid"]) == {1234}
+    assert bool(fallback.iloc[0]["flagged"]) is True
+    assert dashboard._dashboard_trust_score(fallback) == 0.25
+
+
+def test_dashboard_healing_rows_expire_like_live_events():
+    import pandas as pd
+    import dashboard
+
+    healing = pd.DataFrame([
+        {
+            "_log_index": 0,
+            "timestamp": pd.Timestamp.now() - pd.Timedelta(minutes=5),
+            "pid": 1234,
+            "stage": "terminate",
+            "action_taken": True,
+            "status": "terminated targets=1",
+        },
+    ])
+
+    fallback = dashboard._healing_rows_as_process_rows(
+        healing,
+        seconds=60,
+    )
+
+    assert fallback.empty
+
+
 def test_dashboard_latest_by_pid_uses_log_append_order():
     import pandas as pd
     import dashboard
