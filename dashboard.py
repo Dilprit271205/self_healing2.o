@@ -356,6 +356,16 @@ def _recent_rows(frame, seconds=45):
     return recent
 
 
+def _live_latest_rows(frame, seconds=45):
+    recent = _recent_rows(
+        frame,
+        seconds=seconds,
+    )
+    return _latest_by_pid(
+        recent
+    )
+
+
 def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
     if process_rows is None or process_rows.empty:
         return fallback_rows if fallback_rows is not None else pd.DataFrame()
@@ -1058,18 +1068,20 @@ def run_dashboard():
     kb = load_learning_kb(kb_signature)
 
     process_rows = _normalize_process_rows(process_rows)
-    recent_process_rows = _recent_rows(
-        process_rows,
-        seconds=int(
-            os.getenv(
-                "SELF_HEALING_DASHBOARD_LIVE_WINDOW_SECONDS",
-                "12"
-            )
+    live_window_seconds = int(
+        os.getenv(
+            "SELF_HEALING_DASHBOARD_LIVE_WINDOW_SECONDS",
+            "12"
         )
     )
-    latest = _latest_by_pid(recent_process_rows)
-    if latest.empty:
-        latest = _latest_by_pid(process_rows)
+    recent_process_rows = _recent_rows(
+        process_rows,
+        seconds=live_window_seconds
+    )
+    latest = _live_latest_rows(
+        process_rows,
+        seconds=live_window_seconds
+    )
     latest = _overlay_healing_status(latest, healing_rows, latest)
     flags = _active_flag_rows(latest)
 
