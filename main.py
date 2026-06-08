@@ -115,6 +115,21 @@ try:
 except Exception:
     MONITOR_INTERVAL = 0.5
 
+try:
+    MAX_DEEP_INSPECT_PROCESSES = int(
+        os.getenv(
+            "SELF_HEALING_MAX_DEEP_INSPECT",
+            "12"
+        )
+    )
+except Exception:
+    MAX_DEEP_INSPECT_PROCESSES = 12
+
+MAX_DEEP_INSPECT_PROCESSES = max(
+    1,
+    MAX_DEEP_INSPECT_PROCESSES
+)
+
 VERBOSE_RUNTIME_LOGS = os.getenv(
     "SELF_HEALING_VERBOSE",
     "false"
@@ -3844,7 +3859,7 @@ def monitor_loop():
                     p,
                     entity_map
                 )
-            ][:30]
+            ][:MAX_DEEP_INSPECT_PROCESSES]
 
             rate_limited_print(
                 "monitor_loop_summary",

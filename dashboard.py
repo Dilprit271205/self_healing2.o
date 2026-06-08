@@ -353,10 +353,7 @@ def _recent_rows(frame, seconds=45):
         (timestamps <= future_grace)
     ]
 
-    if not recent.empty:
-        return recent
-
-    return frame.tail(100)
+    return recent
 
 
 def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
@@ -1066,7 +1063,7 @@ def run_dashboard():
         seconds=int(
             os.getenv(
                 "SELF_HEALING_DASHBOARD_LIVE_WINDOW_SECONDS",
-                "45"
+                "12"
             )
         )
     )

@@ -77,6 +77,7 @@ except Exception:
     ENTITY_LOG_INTERVAL = 10.0
 
 last_process_log = {}
+last_process_state = {}
 last_entity_log = {}
 
 
@@ -188,9 +189,6 @@ def should_log_process(
         ""
     ).lower()
 
-    if LOG_NORMAL_PROCESSES:
-        return True
-
     interesting = (
         label != "normal"
         or severity not in {
@@ -206,12 +204,23 @@ def should_log_process(
         or "throttled" in response
     )
 
-    if not interesting:
-        return False
-
     pid = data.get(
         "pid"
     )
+
+    previous_state = last_process_state.get(
+        pid
+    )
+    previous_interesting = (
+        previous_state or {}
+    ).get(
+        "interesting",
+        False
+    )
+
+    if not LOG_NORMAL_PROCESSES and not interesting and not previous_interesting:
+        return False
+
     key = (
         pid,
         label,
@@ -220,6 +229,20 @@ def should_log_process(
         response
     )
     now = time.time()
+
+    if previous_state and previous_state.get("key") != key:
+        last_process_log[
+            key
+        ] = now
+        last_process_state[
+            pid
+        ] = {
+            "key": key,
+            "interesting": interesting,
+            "last_logged": now
+        }
+        return True
+
     previous = last_process_log.get(
         key,
         0
@@ -231,6 +254,13 @@ def should_log_process(
     last_process_log[
         key
     ] = now
+    last_process_state[
+        pid
+    ] = {
+        "key": key,
+        "interesting": interesting,
+        "last_logged": now
+    }
     return True
 
 

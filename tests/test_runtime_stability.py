@@ -345,6 +345,26 @@ def test_dashboard_ignores_future_rows_when_selecting_live_window():
     assert set(recent["pid"]) == {2}
 
 
+def test_dashboard_drops_stale_rows_from_live_window():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now() - pd.Timedelta(minutes=5),
+            "pid": 1,
+            "final_trust": 0.10,
+        },
+    ])
+
+    recent = dashboard._recent_rows(
+        rows,
+        seconds=12,
+    )
+
+    assert recent.empty
+
+
 def test_dashboard_latest_by_pid_uses_log_append_order():
     import pandas as pd
     import dashboard
@@ -367,6 +387,37 @@ def test_dashboard_latest_by_pid_uses_log_append_order():
     latest = dashboard._latest_by_pid(rows)
 
     assert latest.iloc[0]["stage"] == "observe"
+
+
+def test_logger_emits_normal_state_after_interesting_state(monkeypatch):
+    from logger import logger as runtime_logger
+
+    runtime_logger.last_process_log.clear()
+    runtime_logger.last_process_state.clear()
+    monkeypatch.setattr(runtime_logger, "LOG_NORMAL_PROCESSES", False)
+    monkeypatch.setattr(runtime_logger, "PROCESS_LOG_INTERVAL", 10.0)
+
+    assert runtime_logger.should_log_process({
+        "pid": 9001,
+        "label": "worm",
+        "severity": "critical",
+        "stage": "terminate",
+        "response": "terminated",
+    })
+    assert runtime_logger.should_log_process({
+        "pid": 9001,
+        "label": "normal",
+        "severity": "low",
+        "stage": "observe",
+        "response": "none",
+    })
+    assert not runtime_logger.should_log_process({
+        "pid": 9002,
+        "label": "normal",
+        "severity": "low",
+        "stage": "observe",
+        "response": "none",
+    })
 
 
 def test_dashboard_acceptance_coverage_tracks_behavior_flags():
