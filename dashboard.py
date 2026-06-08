@@ -7,8 +7,6 @@ from pathlib import Path
 
 try:
     import pandas as pd
-    import plotly.express as px
-    import plotly.graph_objects as go
     import streamlit as st
 except ImportError as exc:
     print(f"Dashboard unavailable: missing dependency {exc}.")
@@ -31,8 +29,6 @@ except ImportError as exc:
 
     st = _Dummy()
     pd = _Dummy()
-    px = _Dummy()
-    go = _Dummy()
 
     def st_autorefresh(*_, **__):
         return None
@@ -92,6 +88,11 @@ DASHBOARD_EVENT_MEMORY_SECONDS = _env_int(
     "SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS",
     180,
     1,
+)
+DASHBOARD_TAIL_SECURITY_ROWS = _env_int(
+    "SELF_HEALING_DASHBOARD_TAIL_SECURITY_ROWS",
+    300,
+    25,
 )
 SYSTEM_LOG = _project_path("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json")
 HEALING_LOG = _project_path("SELF_HEALING_HEALING_LOG", "logs/healing_log.json")
@@ -562,6 +563,81 @@ def _recent_security_rows(frame, seconds=180, limit=100):
     )
 
 
+def _tail_security_rows(frame, limit=300):
+    if frame is None or frame.empty:
+        return pd.DataFrame()
+
+    tail = frame.tail(
+        max(1, int(limit))
+    ).copy()
+    security = tail[
+        _security_event_mask(
+            tail
+        )
+    ]
+    if security.empty:
+        return security
+
+    sort_columns = [
+        column
+        for column in (
+            "_log_index",
+            "timestamp",
+        )
+        if column in security.columns
+    ]
+    if sort_columns:
+        security = security.sort_values(
+            sort_columns,
+        )
+
+    return security
+
+
+def _combine_dashboard_rows(*frames):
+    available = [
+        frame
+        for frame in frames
+        if frame is not None and not frame.empty
+    ]
+    if not available:
+        return pd.DataFrame()
+
+    combined = pd.concat(
+        available,
+        ignore_index=True,
+    )
+    if "_log_index" in combined.columns:
+        combined = combined.drop_duplicates(
+            subset=[
+                column
+                for column in (
+                    "pid",
+                    "stage",
+                    "response",
+                    "_log_index",
+                )
+                if column in combined.columns
+            ],
+            keep="last",
+        )
+    return combined
+
+
+def _dashboard_security_rows(frame, seconds=180, tail_limit=300):
+    return _combine_dashboard_rows(
+        _recent_security_rows(
+            frame,
+            seconds=seconds,
+            limit=tail_limit,
+        ),
+        _tail_security_rows(
+            frame,
+            limit=tail_limit,
+        ),
+    )
+
+
 def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
     if process_rows is None or process_rows.empty:
         return fallback_rows if fallback_rows is not None else pd.DataFrame()
@@ -1026,37 +1102,6 @@ def _risk_band(value):
     return "low"
 
 
-def _has_active_dashboard_risk(frame):
-    if frame is None or frame.empty:
-        return False
-
-    flagged = (
-        frame.get("flagged", pd.Series(dtype=bool))
-        .astype(bool)
-        .any()
-    )
-    critical = (
-        frame.get("severity", pd.Series(dtype=str))
-        .astype(str)
-        .str.lower()
-        .eq("critical")
-        .any()
-    )
-    response_active = (
-        frame.get("stage", pd.Series(dtype=str))
-        .astype(str)
-        .str.lower()
-        .isin(ACTIVE_RESPONSE_STAGES)
-        .any()
-    )
-
-    return bool(
-        flagged
-        or critical
-        or response_active
-    )
-
-
 def _dashboard_trust_score(latest):
     if latest is None or latest.empty:
         return 1.0
@@ -1103,156 +1148,6 @@ def _info_box(title, body):
         """,
         unsafe_allow_html=True,
     )
-
-
-def _plot_theme(fig, height=300, showlegend=True):
-    fig.update_layout(
-        height=height,
-        paper_bgcolor="#151922",
-        plot_bgcolor="#151922",
-        font={
-            "color": "#d6dde7",
-            "family": "Inter, Segoe UI, Arial, sans-serif",
-        },
-        margin=dict(l=18, r=18, t=24, b=18),
-        legend={
-            "orientation": "h",
-            "y": 1.08,
-            "x": 0.58,
-            "font": {"color": "#9aa7b7"},
-        },
-        showlegend=showlegend,
-    )
-    fig.update_xaxes(
-        gridcolor="rgba(148,163,184,0.12)",
-        zerolinecolor="rgba(148,163,184,0.14)",
-        linecolor="rgba(148,163,184,0.18)",
-        tickfont={"color": "#9aa7b7"},
-    )
-    fig.update_yaxes(
-        gridcolor="rgba(148,163,184,0.14)",
-        zerolinecolor="rgba(148,163,184,0.14)",
-        linecolor="rgba(148,163,184,0.18)",
-        tickfont={"color": "#9aa7b7"},
-    )
-    return fig
-
-
-def _draw_security_score(avg_trust, trust_pressure):
-    score = max(
-        0,
-        min(
-            100,
-            round(
-                (
-                    avg_trust * 0.72
-                    + (1 - min(trust_pressure, 1.0)) * 0.28
-                )
-                * 100,
-                1,
-            ),
-        ),
-    )
-    fig = go.Figure()
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=score,
-        number={"suffix": "%"},
-        gauge={
-            "axis": {"range": [0, 100]},
-            "bgcolor": "#1f2937",
-            "bar": {"color": "#34d399"},
-            "borderwidth": 0,
-            "steps": [
-                {"range": [0, 40], "color": "#ef4444"},
-                {"range": [40, 70], "color": "#f59e0b"},
-                {"range": [70, 100], "color": "#22c55e"},
-            ],
-            "threshold": {
-                "line": {"color": "#06b6d4", "width": 5},
-                "thickness": 0.65,
-                "value": score,
-            },
-        },
-    ))
-    return _plot_theme(fig, height=300, showlegend=False)
-
-
-def _draw_anomaly_timeline(frame):
-    if frame.empty or "timestamp" not in frame.columns:
-        return None
-    plot = frame.dropna(subset=["timestamp"]).tail(250).copy()
-    if plot.empty:
-        return None
-    plot["time_bucket"] = plot["timestamp"].dt.floor("10s")
-    grouped = (
-        plot.groupby("time_bucket", as_index=False)[
-            [
-                "aggregate_anomaly",
-                "worm_pattern_anomaly",
-                "trust_anomaly_pressure",
-            ]
-        ]
-        .mean()
-    )
-    for col in (
-        "aggregate_anomaly",
-        "worm_pattern_anomaly",
-        "trust_anomaly_pressure",
-    ):
-        grouped[col] = grouped[col] * 100
-    fig = px.line(
-        grouped,
-        x="time_bucket",
-        y=["aggregate_anomaly", "worm_pattern_anomaly", "trust_anomaly_pressure"],
-        labels={"value": "score", "time_bucket": "", "variable": ""},
-        color_discrete_sequence=["#38bdf8", "#06b6d4", "#34d399"],
-    )
-    fig.update_traces(mode="lines+markers", line={"width": 2.2})
-    return _plot_theme(fig, height=320)
-
-
-def _draw_learning_graph(kb):
-    if kb.empty:
-        return None
-    graph = _prepare_learning_rows(kb)
-    if graph.empty:
-        return None
-    family_stage = (
-        graph.groupby(["attack_family", "recommended_stage"], as_index=False)
-        .agg(
-            patterns=("pattern_id", "count"),
-            confidence=("confidence", "mean"),
-        )
-        .sort_values(["patterns", "confidence"], ascending=[False, False])
-        .head(12)
-    )
-    fig = px.bar(
-        family_stage,
-        x="patterns",
-        y="attack_family",
-        color="recommended_stage",
-        orientation="h",
-        text="patterns",
-        labels={
-            "patterns": "learned patterns",
-            "attack_family": "",
-            "recommended_stage": "next response",
-        },
-        color_discrete_map={
-            "observe": "#38bdf8",
-            "throttle": "#f59e0b",
-            "quarantine": "#fb923c",
-            "terminate": "#f43f5e",
-            "unknown": "#94a3b8",
-        },
-    )
-    fig.update_traces(textposition="inside")
-    fig.update_layout(
-        barmode="stack",
-        yaxis={"categoryorder": "total ascending"},
-    )
-    return _plot_theme(fig, height=320)
 
 
 def _prepare_learning_rows(kb):
@@ -1342,243 +1237,6 @@ def _learning_action_summary(kb):
     summary["avg_confidence"] = summary["avg_confidence"].round(1)
     summary["avg_readiness"] = summary["avg_readiness"].round(1)
     return summary
-
-
-def _draw_learning_readiness(kb):
-    graph = _prepare_learning_rows(kb)
-    if graph.empty:
-        return None
-
-    top = graph.sort_values(
-        ["readiness_score", "observations"],
-        ascending=[False, False],
-    ).head(10)
-    fig = px.bar(
-        top,
-        x="readiness_pct",
-        y="attack_family",
-        color="recommended_stage",
-        orientation="h",
-        text="readiness_pct",
-        hover_data={
-            "pattern_id": True,
-            "confidence_pct": True,
-            "strength_pct": True,
-            "observations": True,
-            "last_process_name": True,
-        },
-        labels={
-            "readiness_pct": "readiness %",
-            "attack_family": "",
-            "recommended_stage": "next response",
-        },
-        color_discrete_map={
-            "observe": "#38bdf8",
-            "throttle": "#f59e0b",
-            "quarantine": "#fb923c",
-            "terminate": "#f43f5e",
-            "unknown": "#94a3b8",
-        },
-    )
-    fig.update_traces(
-        texttemplate="%{text:.0f}%",
-        textposition="outside",
-        cliponaxis=False,
-    )
-    fig.update_xaxes(range=[0, 105])
-    fig.update_layout(yaxis={"categoryorder": "total ascending"})
-    return _plot_theme(fig, height=320)
-
-
-def _draw_learning_evidence_map(kb):
-    graph = _prepare_learning_rows(kb)
-    if graph.empty:
-        return None
-
-    fig = px.scatter(
-        graph,
-        x="observations",
-        y="confidence_pct",
-        size="avg_pattern_strength",
-        color="recommended_stage",
-        hover_name="attack_family",
-        hover_data={
-            "pattern_id": True,
-            "readiness_pct": True,
-            "last_process_name": True,
-            "summary": True,
-        },
-        labels={
-            "observations": "times seen",
-            "confidence_pct": "confidence %",
-            "recommended_stage": "next response",
-        },
-        color_discrete_map={
-            "observe": "#38bdf8",
-            "throttle": "#f59e0b",
-            "quarantine": "#fb923c",
-            "terminate": "#f43f5e",
-            "unknown": "#94a3b8",
-        },
-        size_max=28,
-    )
-    fig.update_yaxes(range=[0, 105])
-    return _plot_theme(fig, height=320)
-
-
-def _draw_learning_pipeline():
-    nodes = [
-        "Runtime Event",
-        "Extract Features",
-        "Classify Behavior",
-        "Healing Outcome",
-        "Update KB",
-        "Reuse Pattern",
-    ]
-    descriptions = [
-        "process, file, network",
-        "spawn, trust, anomaly",
-        "worm, forkbomb, suspicious",
-        "observe, throttle, terminate",
-        "confidence + observations",
-        "faster next response",
-    ]
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=list(range(len(nodes))),
-        y=[0] * len(nodes),
-        mode="markers+text",
-        marker={
-            "size": [34, 34, 34, 34, 38, 34],
-            "color": ["#38bdf8", "#14b8a6", "#f59e0b", "#fb923c", "#34d399", "#f43f5e"],
-            "line": {"color": "#0f172a", "width": 2},
-        },
-        text=nodes,
-        textposition="top center",
-        hovertext=descriptions,
-        hoverinfo="text",
-    ))
-    for idx in range(len(nodes) - 1):
-        fig.add_annotation(
-            x=idx + 0.5,
-            y=0,
-            ax=idx + 0.12,
-            ay=0,
-            xref="x",
-            yref="y",
-            axref="x",
-            ayref="y",
-            showarrow=True,
-            arrowhead=2,
-            arrowsize=1,
-            arrowwidth=2,
-            arrowcolor="#64748b",
-        )
-    for idx, note in enumerate(descriptions):
-        fig.add_annotation(
-            x=idx,
-            y=-0.18,
-            text=note,
-            showarrow=False,
-            font={"size": 11, "color": "#94a3b8"},
-        )
-    fig.update_layout(
-        xaxis={"visible": False, "range": [-0.5, len(nodes) - 0.5]},
-        yaxis={"visible": False, "range": [-0.35, 0.35]},
-        height=210,
-        margin=dict(l=16, r=16, t=44, b=18),
-    )
-    return _plot_theme(fig, height=210, showlegend=False)
-
-
-def _draw_stage_graph(frame):
-    if frame.empty:
-        return None
-    counts = (
-        frame["stage"]
-        .astype(str)
-        .str.lower()
-        .value_counts()
-        .reset_index()
-    )
-    counts.columns = ["stage", "count"]
-    fig = px.pie(
-        counts,
-        names="stage",
-        values="count",
-        hole=0.72,
-        color="stage",
-        color_discrete_sequence=["#22c55e", "#f59e0b", "#fb923c", "#f43f5e", "#38bdf8"],
-    )
-    fig.add_annotation(
-        text=f"{int(counts['count'].sum())}<br><span style='font-size:14px;color:#9aa7b7'>Total</span>",
-        x=0.5,
-        y=0.5,
-        showarrow=False,
-        font={"size": 34, "color": "#f8fafc"},
-    )
-    return _plot_theme(fig, height=300)
-
-
-def _draw_health_ring(latest, kb):
-    if latest.empty:
-        health = 100
-    elif not _has_active_dashboard_risk(latest):
-        health = 100
-    else:
-        trust = float(latest["final_trust"].mean())
-        pressure = float(latest["trust_anomaly_pressure"].mean())
-        flagged_ratio = float(latest["flagged"].mean())
-        health = round(
-            max(
-                0,
-                min(
-                    100,
-                    (
-                        trust * 0.60
-                        + (1 - pressure) * 0.25
-                        + (1 - flagged_ratio) * 0.15
-                    )
-                    * 100,
-                ),
-            ),
-            1,
-        )
-
-    if not kb.empty and "recommended_stage" in kb.columns:
-        terminate_ready = int(
-            kb["recommended_stage"]
-            .astype(str)
-            .str.lower()
-            .eq("terminate")
-            .sum()
-        )
-    else:
-        terminate_ready = 0
-
-    fig = go.Figure()
-    fig.add_trace(go.Pie(
-        values=[health, max(0, 100 - health)],
-        hole=0.76,
-        marker={"colors": ["#34d399", "#243041"]},
-        textinfo="none",
-        sort=False,
-    ))
-    fig.add_annotation(
-        text=f"{health:.0f}%<br><span style='font-size:13px;color:#9aa7b7'>Health</span>",
-        x=0.5,
-        y=0.5,
-        showarrow=False,
-        font={"size": 34, "color": "#f8fafc"},
-    )
-    fig.add_annotation(
-        text=f"{terminate_ready} terminate-ready patterns",
-        x=0.5,
-        y=-0.08,
-        showarrow=False,
-        font={"size": 12, "color": "#9aa7b7"},
-    )
-    return _plot_theme(fig, height=300, showlegend=False)
 
 
 def _card_header(title, note=""):
@@ -1884,6 +1542,13 @@ def run_dashboard():
             event_memory_seconds,
         )
     )
+    visible_process_rows = (
+        recent_process_rows
+        if not recent_process_rows.empty
+        else process_rows.tail(
+            DASHBOARD_TAIL_SECURITY_ROWS
+        )
+    )
     latest = _dashboard_state_rows(
         process_rows,
         live_seconds=live_window_seconds,
@@ -1914,38 +1579,30 @@ def run_dashboard():
             telemetry_source = "process + healing log"
     if (
         latest.empty
-        and not recent_process_rows.empty
+        and not visible_process_rows.empty
     ):
         latest = _latest_by_pid(
-            recent_process_rows.tail(
-                200
-            )
+            visible_process_rows
         )
         telemetry_source = (
             telemetry_source
-            + " recent fallback"
+            + " tail fallback"
         )
-    recent_security_rows = _recent_security_rows(
+    security_rows = _dashboard_security_rows(
         process_rows,
         seconds=event_memory_seconds,
+        tail_limit=DASHBOARD_TAIL_SECURITY_ROWS,
     )
-    alert_source_rows = latest
-    if not recent_security_rows.empty:
-        alert_source_rows = pd.concat(
-            [
-                latest,
-                recent_security_rows,
-            ],
-            ignore_index=True,
+    if not security_rows.empty:
+        telemetry_source = (
+            telemetry_source
+            + " + alert tail"
         )
-    if not healing_fallback_rows.empty:
-        alert_source_rows = pd.concat(
-            [
-                alert_source_rows,
-                healing_fallback_rows,
-            ],
-            ignore_index=True,
-        )
+    alert_source_rows = _combine_dashboard_rows(
+        latest,
+        security_rows,
+        healing_fallback_rows,
+    )
     flags = _active_flag_rows(alert_source_rows)
     alerts = _alert_rows(
         alert_source_rows,
@@ -1956,35 +1613,30 @@ def run_dashboard():
         st.warning("No telemetry yet. Start main.py and the dashboard will populate as the agent observes processes.")
         return
 
-    kpi_rows = latest
-    if not recent_security_rows.empty:
-        kpi_rows = pd.concat(
-            [
-                latest,
-                recent_security_rows,
-            ],
-            ignore_index=True,
-        )
+    kpi_rows = _combine_dashboard_rows(
+        latest,
+        security_rows,
+        healing_fallback_rows,
+    )
     raw_avg_trust = float(kpi_rows["final_trust"].mean()) if not kpi_rows.empty else 1.0
     raw_avg_pressure = float(kpi_rows["trust_anomaly_pressure"].mean()) if not kpi_rows.empty else 0.0
     avg_trust = _dashboard_trust_score(kpi_rows)
-    avg_pressure = _dashboard_pressure_score(kpi_rows)
     flagged_count = int(latest["flagged"].sum()) if not latest.empty else 0
-    if flagged_count == 0 and not recent_security_rows.empty:
+    if flagged_count == 0 and not security_rows.empty:
         flagged_count = int(
-            recent_security_rows.get(
+            security_rows.get(
                 "flagged",
-                pd.Series(False, index=recent_security_rows.index),
+                pd.Series(False, index=security_rows.index),
             )
             .astype(bool)
             .sum()
         )
     critical_count = int(latest["severity"].astype(str).str.lower().eq("critical").sum()) if not latest.empty else 0
-    if critical_count == 0 and not recent_security_rows.empty:
+    if critical_count == 0 and not security_rows.empty:
         critical_count = int(
-            recent_security_rows.get(
+            security_rows.get(
                 "severity",
-                pd.Series("", index=recent_security_rows.index),
+                pd.Series("", index=security_rows.index),
             )
             .astype(str)
             .str.lower()
@@ -1997,8 +1649,8 @@ def run_dashboard():
         terminate_ready = int(kb["recommended_stage"].astype(str).str.lower().eq("terminate").sum())
 
     anomaly_peak = (
-        float(recent_process_rows["worm_pattern_anomaly"].max())
-        if not recent_process_rows.empty
+        float(visible_process_rows["worm_pattern_anomaly"].max())
+        if not visible_process_rows.empty
         else 0.0
     )
     action_count = 0
@@ -2010,11 +1662,11 @@ def run_dashboard():
             .isin(ACTIVE_RESPONSE_STAGES)
             .sum()
         )
-    if action_count == 0 and not recent_security_rows.empty:
+    if action_count == 0 and not security_rows.empty:
         action_count = int(
-            recent_security_rows.get(
+            security_rows.get(
                 "stage",
-                pd.Series("", index=recent_security_rows.index),
+                pd.Series("", index=security_rows.index),
             )
             .astype(str)
             .str.lower()

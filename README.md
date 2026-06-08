@@ -11,7 +11,7 @@ This project is a host-monitoring and response prototype. It collects process/ne
 5. `analysis/trust/` modules update dynamic + static + final trust.
 6. `analysis/decision/decision_engine.py` maps trust to actions.
 7. `logger/logger.py` writes JSONL logs to `logs/`.
-8. `dashboard.py` reads logs and visualizes health/risk in near real time.
+8. `dashboard.py` reads logs and shows trust, flags, live self-healing alerts, and learned response patterns in near real time.
 
 ## File-by-file explanation
 
@@ -25,10 +25,12 @@ This project is a host-monitoring and response prototype. It collects process/ne
 	- `monitor_loop()`: orchestrates full detection/response pipeline.
 
 - `dashboard.py`  
-	Streamlit executive dashboard. Auto-refreshes every 500ms by default, loads JSON logs, expands nested trust/anomaly fields, classifies each process (`normal`, `watchlist`, `critical`), calculates health score, and shows 3 tabs:
-	- **Operations**: process trust table + top CPU consumers.
-	- **Threat Intelligence**: process-family/entity growth view.
-	- **Worm Lab**: worm/stress-specific signal board.
+	Streamlit command dashboard. Auto-refreshes every 500ms by default, loads JSONL telemetry from `logs/`, normalizes trust/anomaly fields, and keeps the UI focused on:
+	- KPI cards for trust score, active flags, learned patterns, anomaly pressure, and live process rows.
+	- Live self-healing alerts that explain what was flagged, why it was flagged, and which action is being taken.
+	- Process and flag tables sorted by active response, trust pressure, and worm score.
+	- Learned pattern rows with recommended next response.
+	The dashboard also reads the latest security tail from the log so termination/throttle/quarantine alerts stay visible even when a row timestamp is stale or a normal follow-up row arrives.
 
 - `worm_sim.py`  
 	Rabbit-worm style simulator for testing detection. Repeatedly spawns child CPU workers, creates temporary replication markers in system temp directory, runs up to `RUN_TIME`, then performs cleanup.
@@ -143,7 +145,9 @@ This project is a host-monitoring and response prototype. It collects process/ne
 	Asynchronous JSONL logger using background writer threads and queues.
 	- Writes process events to `logs/system_log.json`.
 	- Writes entity events to `logs/entity_log.json`.
-	- Adds ISO timestamp in `log_process()` / `log_entity()`.
+	- Writes healing events to `logs/healing_log.json`.
+	- Adds ISO timestamp in `log_process()` / `log_entity()` / `log_healing()`.
+	- Preserves the newest process/entity/healing event when a queue fills, so dashboard notifications do not silently disappear under burst load.
 
 ### `logs/`
 
@@ -153,7 +157,10 @@ This project is a host-monitoring and response prototype. It collects process/ne
 - `logs/entity_log.json`  
 	Runtime JSONL output for process-lineage/entity summaries.
 
-Both log files currently exist and are empty until the monitor runs.
+- `logs/healing_log.json`  
+	Runtime JSONL output for self-healing actions and response status.
+
+These log files currently exist and are empty until the monitor runs.
 
 ## Runtime dependencies
 
@@ -164,7 +171,28 @@ Detected from imports in code:
 - `streamlit`
 - `streamlit-autorefresh`
 - `pandas`
-- `plotly`
+- `plotly` (legacy `dashboard_v1_backup.py` only; the active dashboard does not use Plotly)
+- `pytest`
+- `scikit-learn`
+- `joblib`
+
+## Dashboard notifications
+
+The dashboard is notification-first. It shows an alert when recent or tail-log evidence contains a high/critical severity row, a confirmed worm-like signal, a low final trust score, or an active response stage such as `throttle`, `restrict`, `quarantine`, or `terminate`.
+
+Each alert includes:
+
+- the process name and PID,
+- severity, label, trust, and worm score,
+- the flag explanation,
+- the self-healing action being taken,
+- the latest response status.
+
+Useful dashboard environment variables:
+
+- `SELF_HEALING_DASHBOARD_REFRESH_MS` controls refresh speed, default `500`.
+- `SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS` controls how long alerts remain visible, default `180`.
+- `SELF_HEALING_DASHBOARD_TAIL_SECURITY_ROWS` controls how many tail rows are checked for security events, default `300`.
 
 ## Quick start
 

@@ -3,6 +3,7 @@ Self-Healing System — Notes & Test Instructions
 Overview
 
 This repository implements a self-healing process that detects worm-like behavior and attempts automated remediation (isolate, block resources, terminate).
+The Streamlit dashboard is the operator view: it shows live flags, explains why they were raised, and displays the self-healing action currently being taken.
 
 Configuration (environment variables)
 
@@ -17,8 +18,14 @@ Configuration (environment variables)
 - SELF_HEALING_WEIGHT_SCANNING (default: 8.0)
 - SELF_HEALING_SCANNING_BOOST (default: 40)
   - Tuning knobs for detection signal weights.
- - SELF_HEALING_ALLOW_PRIVILEGE (default: false)
-   - When true, enables privileged containment actions (iptables/nft/systemd-run). Use only in controlled environments and when running as root.
+- SELF_HEALING_ALLOW_PRIVILEGE (default: false)
+  - When true, enables privileged containment actions (iptables/nft/systemd-run). Use only in controlled environments and when running as root.
+- SELF_HEALING_DASHBOARD_REFRESH_MS (default: 500)
+  - Dashboard refresh interval in milliseconds.
+- SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS (default: 180)
+  - How long live self-healing alerts remain visible after a security event.
+- SELF_HEALING_DASHBOARD_TAIL_SECURITY_ROWS (default: 300)
+  - Number of recent log rows checked for security events even if event timestamps are stale.
 
 Testing
 
@@ -38,6 +45,14 @@ export SELF_HEALING_PERSISTENCE_DELTA=4
 export SELF_HEALING_MAX_SAFE_KILL=200
 python3 main.py
 ```
+
+Run the dashboard in another terminal:
+
+```bash
+streamlit run dashboard.py
+```
+
+The dashboard reads `logs/system_log.json`, `logs/healing_log.json`, and `logs/learning_kb.json`. Restart Streamlit after changing dashboard code or environment variables.
 
 Notes & Next Steps
 

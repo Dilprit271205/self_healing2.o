@@ -495,15 +495,6 @@ def test_dashboard_learning_action_summary_is_readable():
     )
 
 
-def test_dashboard_learning_pipeline_visual_renders():
-    import dashboard
-
-    fig = dashboard._draw_learning_pipeline()
-
-    assert fig is not None
-    assert len(fig.data) == 1
-
-
 def test_dashboard_live_latest_rows_never_falls_back_to_stale_history():
     import pandas as pd
     import dashboard
@@ -523,6 +514,100 @@ def test_dashboard_live_latest_rows_never_falls_back_to_stale_history():
     )
 
     assert latest.empty
+
+
+def test_dashboard_tail_security_rows_keep_stale_timestamp_alerts_visible():
+    import pandas as pd
+    import dashboard
+
+    rows = dashboard._normalize_process_rows(pd.DataFrame([
+        {
+            "_log_index": 1,
+            "timestamp": pd.Timestamp.now() - pd.Timedelta(hours=3),
+            "pid": 99,
+            "name": "python",
+            "label": "worm",
+            "severity": "critical",
+            "stage": "terminate",
+            "response": "terminated targets=1",
+            "worm_score": 0.95,
+            "final_trust": 0.25,
+            "dynamic_trust": 0.25,
+            "static_trust": 0.85,
+            "signals": {
+                "catastrophic_behavior": True,
+            },
+            "features": {},
+            "anomalies": {},
+        },
+    ]))
+
+    recent = dashboard._recent_security_rows(
+        rows,
+        seconds=12,
+    )
+    tail = dashboard._tail_security_rows(
+        rows,
+        limit=50,
+    )
+    alerts = dashboard._alert_rows(
+        tail,
+    )
+
+    assert recent.empty
+    assert set(tail["pid"]) == {99}
+    assert alerts[0]["stage"] == "terminate"
+
+
+def test_dashboard_security_rows_combine_recent_and_tail_alert_sources():
+    import pandas as pd
+    import dashboard
+
+    now = pd.Timestamp.now()
+    rows = dashboard._normalize_process_rows(pd.DataFrame([
+        {
+            "_log_index": 1,
+            "timestamp": now - pd.Timedelta(hours=2),
+            "pid": 10,
+            "name": "old-clock.py",
+            "label": "worm",
+            "severity": "critical",
+            "stage": "terminate",
+            "response": "terminated targets=1",
+            "worm_score": 0.95,
+            "final_trust": 0.25,
+            "dynamic_trust": 0.25,
+            "static_trust": 0.85,
+            "signals": {"catastrophic_behavior": True},
+            "features": {},
+            "anomalies": {},
+        },
+        {
+            "_log_index": 2,
+            "timestamp": now,
+            "pid": 11,
+            "name": "fresh.py",
+            "label": "suspicious",
+            "severity": "high",
+            "stage": "throttle",
+            "response": "throttled cpu",
+            "worm_score": 0.70,
+            "final_trust": 0.65,
+            "dynamic_trust": 0.65,
+            "static_trust": 0.85,
+            "signals": {"thread_storm_detected": True},
+            "features": {},
+            "anomalies": {},
+        },
+    ]))
+
+    security = dashboard._dashboard_security_rows(
+        rows,
+        seconds=12,
+        tail_limit=50,
+    )
+
+    assert set(security["pid"]) == {10, 11}
 
 
 def test_dashboard_state_keeps_recent_security_event_after_live_window():
