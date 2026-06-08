@@ -43,7 +43,33 @@ else:
             return None
 
 
+def _env_int(name, default, minimum=None):
+    try:
+        value = int(os.getenv(name, str(default)))
+    except Exception:
+        value = default
+    if minimum is not None:
+        value = max(minimum, value)
+    return value
+
+
+def _env_float(name, default, minimum=None):
+    try:
+        value = float(os.getenv(name, str(default)))
+    except Exception:
+        value = default
+    if minimum is not None:
+        value = max(minimum, value)
+    return value
+
+
 DASHBOARD_MAX_ROWS = 1000
+DASHBOARD_REFRESH_MS = _env_int("SELF_HEALING_DASHBOARD_REFRESH_MS", 500, 100)
+DASHBOARD_CACHE_TTL_SECONDS = _env_float(
+    "SELF_HEALING_DASHBOARD_CACHE_TTL_SECONDS",
+    0.25,
+    0.0,
+)
 SYSTEM_LOG = Path(os.getenv("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json"))
 HEALING_LOG = Path(os.getenv("SELF_HEALING_HEALING_LOG", "logs/healing_log.json"))
 LEARNING_KB_LOG = Path(os.getenv("SELF_HEALING_KB_PATH", "logs/learning_kb.json"))
@@ -85,7 +111,7 @@ def _file_signature(path):
         }
 
 
-@st.cache_data(ttl=1)
+@st.cache_data(ttl=DASHBOARD_CACHE_TTL_SECONDS)
 def _read_json_lines(path, signature):
     del signature
     path = Path(path)
@@ -110,7 +136,7 @@ def _read_json_lines(path, signature):
     return frame
 
 
-@st.cache_data(ttl=1)
+@st.cache_data(ttl=DASHBOARD_CACHE_TTL_SECONDS)
 def load_learning_kb(signature):
     del signature
     if not LEARNING_KB_LOG.exists():
@@ -843,7 +869,7 @@ def run_dashboard():
         layout="wide",
     )
     st_autorefresh(
-        interval=int(os.getenv("SELF_HEALING_DASHBOARD_REFRESH_MS", "2000")),
+        interval=DASHBOARD_REFRESH_MS,
         key="refresh",
     )
 

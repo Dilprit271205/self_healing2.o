@@ -57,6 +57,16 @@ except Exception:
     LOG_NORMAL_PROCESSES = False
 
 try:
+    PROCESS_LOG_INTERVAL = float(
+        os.getenv(
+            "SELF_HEALING_PROCESS_LOG_INTERVAL",
+            "0.5"
+        )
+    )
+except Exception:
+    PROCESS_LOG_INTERVAL = 0.5
+
+try:
     ENTITY_LOG_INTERVAL = float(
         os.getenv(
             "SELF_HEALING_ENTITY_LOG_INTERVAL",
@@ -92,7 +102,7 @@ healing_queue = queue.Queue(
 def timestamp():
 
     return datetime.now().isoformat(
-        timespec="seconds"
+        timespec="milliseconds"
     )
 
 
@@ -215,7 +225,7 @@ def should_log_process(
         0
     )
 
-    if now - previous < 3:
+    if PROCESS_LOG_INTERVAL > 0 and now - previous < PROCESS_LOG_INTERVAL:
         return False
 
     last_process_log[

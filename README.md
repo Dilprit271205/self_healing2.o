@@ -25,7 +25,7 @@ This project is a host-monitoring and response prototype. It collects process/ne
 	- `monitor_loop()`: orchestrates full detection/response pipeline.
 
 - `dashboard.py`  
-	Streamlit executive dashboard. Auto-refreshes every 3s, loads JSON logs, expands nested trust/anomaly fields, classifies each process (`normal`, `watchlist`, `critical`), calculates health score, and shows 3 tabs:
+	Streamlit executive dashboard. Auto-refreshes every 500ms by default, loads JSON logs, expands nested trust/anomaly fields, classifies each process (`normal`, `watchlist`, `critical`), calculates health score, and shows 3 tabs:
 	- **Operations**: process trust table + top CPU consumers.
 	- **Threat Intelligence**: process-family/entity growth view.
 	- **Worm Lab**: worm/stress-specific signal board.
