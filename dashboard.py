@@ -682,17 +682,11 @@ def _dashboard_trust_score(latest):
     if latest is None or latest.empty:
         return 1.0
 
-    if not _has_active_dashboard_risk(latest):
-        return 1.0
-
     return float(latest["final_trust"].mean())
 
 
 def _dashboard_pressure_score(latest):
     if latest is None or latest.empty:
-        return 0.0
-
-    if not _has_active_dashboard_risk(latest):
         return 0.0
 
     return float(latest["trust_anomaly_pressure"].mean())
@@ -1051,6 +1045,71 @@ def _draw_learning_evidence_map(kb):
     )
     fig.update_yaxes(range=[0, 105])
     return _plot_theme(fig, height=320)
+
+
+def _draw_learning_pipeline():
+    nodes = [
+        "Runtime Event",
+        "Extract Features",
+        "Classify Behavior",
+        "Healing Outcome",
+        "Update KB",
+        "Reuse Pattern",
+    ]
+    descriptions = [
+        "process, file, network",
+        "spawn, trust, anomaly",
+        "worm, forkbomb, suspicious",
+        "observe, throttle, terminate",
+        "confidence + observations",
+        "faster next response",
+    ]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=list(range(len(nodes))),
+        y=[0] * len(nodes),
+        mode="markers+text",
+        marker={
+            "size": [34, 34, 34, 34, 38, 34],
+            "color": ["#38bdf8", "#14b8a6", "#f59e0b", "#fb923c", "#34d399", "#f43f5e"],
+            "line": {"color": "#0f172a", "width": 2},
+        },
+        text=nodes,
+        textposition="top center",
+        hovertext=descriptions,
+        hoverinfo="text",
+    ))
+    for idx in range(len(nodes) - 1):
+        fig.add_annotation(
+            x=idx + 0.5,
+            y=0,
+            ax=idx + 0.12,
+            ay=0,
+            xref="x",
+            yref="y",
+            axref="x",
+            ayref="y",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=2,
+            arrowcolor="#64748b",
+        )
+    for idx, note in enumerate(descriptions):
+        fig.add_annotation(
+            x=idx,
+            y=-0.18,
+            text=note,
+            showarrow=False,
+            font={"size": 11, "color": "#94a3b8"},
+        )
+    fig.update_layout(
+        xaxis={"visible": False, "range": [-0.5, len(nodes) - 0.5]},
+        yaxis={"visible": False, "range": [-0.35, 0.35]},
+        height=210,
+        margin=dict(l=16, r=16, t=44, b=18),
+    )
+    return _plot_theme(fig, height=210, showlegend=False)
 
 
 def _draw_stage_graph(frame):
@@ -1458,7 +1517,7 @@ def run_dashboard():
         )
         _info_box(
             "Dashboard guide",
-            "Active flags are high-confidence alerts only. Medium suspicious rows stay visible in tables, but they do not count as active flags unless behavior, trust, or severity crosses the response threshold.",
+            "Trust Score shows the current average final trust from monitored rows. Active Flags are high-confidence alerts and are tracked separately.",
         )
 
         kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
@@ -1499,7 +1558,7 @@ def run_dashboard():
             )
         _info_box(
             "Metric guide",
-            "Trust Score is operational health: it stays healthy when there are no active flags or critical responses. System Anomaly still shows medium behavior pressure separately.",
+            "Trust Score follows final_trust directly, so suspicious medium-risk drift still moves the score. Active Flags only count confirmed or high-severity evidence.",
         )
 
         main_chart, score_card = st.columns([0.74, 0.26])
@@ -1628,6 +1687,15 @@ def run_dashboard():
         if kb.empty:
             st.info("Knowledge base is empty.")
         else:
+            _card_header("Learning Implementation", "runtime feedback loop")
+            st.plotly_chart(
+                _draw_learning_pipeline(),
+                width="stretch",
+            )
+            _info_box(
+                "What gets learned",
+                "After a detection and healing decision, the learning engine stores attack family, confidence, observations, pattern strength, trust pressure, recommended response, and the last matching process.",
+            )
             learning_summary = _learning_action_summary(kb)
             if not learning_summary.empty:
                 st.dataframe(

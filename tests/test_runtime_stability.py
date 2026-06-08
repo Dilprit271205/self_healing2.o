@@ -197,7 +197,7 @@ def test_dashboard_flags_confirmed_or_strong_behavior():
     assert bool(normalized.iloc[0]["flagged"]) is True
 
 
-def test_dashboard_trust_score_is_healthy_without_active_risk():
+def test_dashboard_trust_score_tracks_raw_trust_without_active_risk():
     import pandas as pd
     import dashboard
 
@@ -222,8 +222,8 @@ def test_dashboard_trust_score_is_healthy_without_active_risk():
     normalized = dashboard._normalize_process_rows(rows)
 
     assert bool(normalized.iloc[0]["flagged"]) is False
-    assert dashboard._dashboard_trust_score(normalized) == 1.0
-    assert dashboard._dashboard_pressure_score(normalized) == 0.0
+    assert dashboard._dashboard_trust_score(normalized) == 0.80
+    assert dashboard._dashboard_pressure_score(normalized) == 0.35
 
 
 def test_dashboard_trust_score_uses_raw_risk_when_flagged():
@@ -465,6 +465,15 @@ def test_dashboard_learning_action_summary_is_readable():
     assert {"patterns", "avg_confidence", "avg_readiness", "max_observations"}.issubset(
         summary.columns
     )
+
+
+def test_dashboard_learning_pipeline_visual_renders():
+    import dashboard
+
+    fig = dashboard._draw_learning_pipeline()
+
+    assert fig is not None
+    assert len(fig.data) == 1
 
 
 def test_dashboard_live_latest_rows_never_falls_back_to_stale_history():
