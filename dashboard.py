@@ -575,8 +575,39 @@ def _healing_rows_as_process_rows(healing_rows, seconds=60):
     if recent.empty:
         return pd.DataFrame()
 
+    stage = (
+        recent.get("stage", pd.Series("", index=recent.index))
+        .astype(str)
+        .str.lower()
+    )
+    status = (
+        recent.get("status", pd.Series("", index=recent.index))
+        .astype(str)
+        .str.lower()
+    )
+    action_taken = (
+        recent.get("action_taken", pd.Series(False, index=recent.index))
+        .astype(bool)
+    )
+    actionable = recent[
+        action_taken
+        | stage.isin(
+            {
+                "terminate",
+                "quarantine",
+                "throttle",
+                "block_resources",
+                "restrict",
+            }
+        )
+        | status.str.contains(
+            "terminated|isolated|throttled|quarantined",
+            na=False,
+        )
+    ]
+
     latest = _latest_by_pid(
-        recent
+        actionable
     )
     if latest.empty:
         return pd.DataFrame()

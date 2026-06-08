@@ -762,6 +762,40 @@ def test_dashboard_healing_rows_expire_like_live_events():
     assert fallback.empty
 
 
+def test_dashboard_healing_rows_keep_action_after_observe_followup():
+    import pandas as pd
+    import dashboard
+
+    now = pd.Timestamp.now()
+    healing = pd.DataFrame([
+        {
+            "_log_index": 1,
+            "timestamp": now - pd.Timedelta(seconds=20),
+            "pid": 4321,
+            "stage": "terminate",
+            "action_taken": True,
+            "status": "terminated targets=1",
+        },
+        {
+            "_log_index": 2,
+            "timestamp": now - pd.Timedelta(seconds=5),
+            "pid": 4321,
+            "stage": "observe",
+            "action_taken": False,
+            "status": "monitoring",
+        },
+    ])
+
+    fallback = dashboard._healing_rows_as_process_rows(
+        healing,
+        seconds=60,
+    )
+
+    assert set(fallback["pid"]) == {4321}
+    assert fallback.iloc[0]["stage"] == "terminate"
+    assert bool(fallback.iloc[0]["flagged"]) is True
+
+
 def test_dashboard_latest_by_pid_uses_log_append_order():
     import pandas as pd
     import dashboard

@@ -94,6 +94,32 @@ def test_file_preflight_ignores_model_retrain_bursts():
     assert main_mod.file_burst_window == {}
 
 
+def test_file_preflight_logs_unattributed_burst_for_dashboard(monkeypatch):
+    logged = []
+    monkeypatch.setattr(
+        main_mod,
+        "log_process",
+        lambda row: logged.append(row),
+    )
+
+    handled = main_mod.emergency_file_activity_preflight(
+        [],
+        {
+            "__paths__": {
+                "/tmp/p7_file_rename_lab/document_1.tmp": 70,
+                "/tmp/p7_file_rename_lab/document_2.locked": 70,
+            }
+        },
+    )
+
+    assert handled == set()
+    assert logged
+    assert logged[0]["name"] == "file-monitor"
+    assert logged[0]["severity"] == "high"
+    assert logged[0]["signals"]["replication_detected"] is True
+    assert logged[0]["features"]["no_eligible_process_candidate"] is True
+
+
 def test_file_preflight_skips_operator_terminal(monkeypatch):
     calls = []
 

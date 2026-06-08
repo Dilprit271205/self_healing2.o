@@ -239,6 +239,43 @@ def is_attention_worthy_classification(
         ) < 0.75
     )
 
+
+def record_dashboard_alert(
+    pid=0,
+    name="system",
+    label="suspicious",
+    severity="medium",
+    stage="observe",
+    response="alert observed",
+    trust=None,
+    worm_score=0.0,
+    confidence=0,
+    signals=None,
+    features=None,
+    anomalies=None,
+):
+    log_process({
+        "pid": pid,
+        "name": name,
+        "entity_root": pid,
+        "trust": trust or {
+            "dynamic_trust": 0.75,
+            "final_trust": 0.75,
+            "static_trust": 0.85,
+        },
+        "worm_score": worm_score,
+        "confidence": confidence,
+        "label": label,
+        "severity": severity,
+        "signals": signals or {},
+        "stage": stage,
+        "response": response,
+        "learning_state": {},
+        "anomalies": anomalies or {},
+        "features": features or {},
+    })
+
+
 SYSTEM_SAFE_PIDS = {
     0,
     1,
@@ -2915,6 +2952,36 @@ def emergency_file_activity_preflight(
             f"dirs={directory_summary} "
             "but no eligible process candidate",
             interval=8
+        )
+        record_dashboard_alert(
+            pid=0,
+            name="file-monitor",
+            label="suspicious",
+            severity="high",
+            stage="observe",
+            response="file burst observed but no eligible process candidate",
+            trust={
+                "dynamic_trust": 0.65,
+                "final_trust": 0.70,
+                "static_trust": 0.85,
+            },
+            worm_score=0.72,
+            confidence=72,
+            signals={
+                "combined_risk": 0.72,
+                "correlated_signal_count": 2,
+                "replication_detected": True,
+                "correlated_signals": {
+                    "high_file_velocity": True,
+                    "mass_file_modification": True,
+                    "unattributed_file_burst": True,
+                },
+            },
+            features={
+                "file_events": total_events,
+                "directory_summary": directory_summary,
+                "no_eligible_process_candidate": True,
+            },
         )
 
     return handled_pids
