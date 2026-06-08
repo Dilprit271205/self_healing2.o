@@ -118,7 +118,6 @@ def _file_signature(path):
 
 @st.cache_data(ttl=DASHBOARD_CACHE_TTL_SECONDS)
 def _read_json_lines(path, signature):
-    del signature
     path = Path(path)
     if not path.exists():
         return pd.DataFrame()
@@ -136,6 +135,15 @@ def _read_json_lines(path, signature):
 
     frame = pd.DataFrame(rows).tail(DASHBOARD_MAX_ROWS)
     frame["_log_index"] = range(len(frame))
+    source_mtime = signature.get(
+        "mtime",
+        0,
+    ) if isinstance(signature, dict) else 0
+    frame["_source_mtime"] = pd.to_datetime(
+        source_mtime,
+        unit="s",
+        errors="coerce",
+    )
     if "timestamp" in frame.columns:
         frame["timestamp"] = pd.to_datetime(frame["timestamp"], errors="coerce")
     return frame
@@ -334,15 +342,7 @@ def _latest_by_pid(frame):
 
 
 def _recent_rows(frame, seconds=45):
-    if frame.empty or "timestamp" not in frame.columns:
-        return frame
-
-    timestamps = pd.to_datetime(
-        frame["timestamp"],
-        errors="coerce"
-    )
-
-    if timestamps.dropna().empty:
+    if frame.empty:
         return frame
 
     now = pd.Timestamp.now()
@@ -352,13 +352,34 @@ def _recent_rows(frame, seconds=45):
     cutoff = now - pd.Timedelta(
         seconds=seconds
     )
-    recent = frame[
-        (timestamps >= cutoff)
-        &
-        (timestamps <= future_grace)
-    ]
 
-    return recent
+    if "timestamp" in frame.columns:
+        timestamps = pd.to_datetime(
+            frame["timestamp"],
+            errors="coerce"
+        )
+        recent = frame[
+            (timestamps >= cutoff)
+            &
+            (timestamps <= future_grace)
+        ]
+        if not recent.empty:
+            return recent
+
+    if "_source_mtime" in frame.columns:
+        source_times = pd.to_datetime(
+            frame["_source_mtime"],
+            errors="coerce"
+        )
+        recent = frame[
+            (source_times >= cutoff)
+            &
+            (source_times <= future_grace)
+        ]
+        if not recent.empty:
+            return recent
+
+    return frame.iloc[0:0]
 
 
 def _live_latest_rows(frame, seconds=45):

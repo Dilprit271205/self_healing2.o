@@ -365,6 +365,28 @@ def test_dashboard_drops_stale_rows_from_live_window():
     assert recent.empty
 
 
+def test_dashboard_uses_fresh_log_append_time_when_row_timestamp_is_stale():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now() - pd.Timedelta(days=3),
+            "_source_mtime": pd.Timestamp.now(),
+            "pid": 1,
+            "final_trust": 0.25,
+            "stage": "terminate",
+        },
+    ])
+
+    recent = dashboard._recent_rows(
+        rows,
+        seconds=12,
+    )
+
+    assert set(recent["pid"]) == {1}
+
+
 def test_dashboard_live_latest_rows_never_falls_back_to_stale_history():
     import pandas as pd
     import dashboard
