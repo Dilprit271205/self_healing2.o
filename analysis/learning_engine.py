@@ -9,6 +9,24 @@ import hashlib
 import json
 import os
 import time
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def project_path(env_name, default):
+    configured = os.getenv(
+        env_name
+    )
+    path = Path(
+        configured
+        if configured
+        else default
+    )
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return str(path)
 
 
 class LearningEngine:
@@ -53,7 +71,7 @@ class LearningEngine:
             )
         )
 
-        self.kb_path = os.getenv(
+        self.kb_path = project_path(
             "SELF_HEALING_KB_PATH",
             os.path.join(
                 "logs",

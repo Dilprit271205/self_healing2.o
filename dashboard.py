@@ -63,6 +63,23 @@ def _env_float(name, default, minimum=None):
     return value
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+
+def _project_path(env_name, default):
+    configured = os.getenv(
+        env_name
+    )
+    path = Path(
+        configured
+        if configured
+        else default
+    )
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path
+
+
 DASHBOARD_MAX_ROWS = 1000
 DASHBOARD_REFRESH_MS = _env_int("SELF_HEALING_DASHBOARD_REFRESH_MS", 500, 100)
 DASHBOARD_CACHE_TTL_SECONDS = _env_float(
@@ -75,9 +92,9 @@ DASHBOARD_EVENT_MEMORY_SECONDS = _env_int(
     60,
     1,
 )
-SYSTEM_LOG = Path(os.getenv("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json"))
-HEALING_LOG = Path(os.getenv("SELF_HEALING_HEALING_LOG", "logs/healing_log.json"))
-LEARNING_KB_LOG = Path(os.getenv("SELF_HEALING_KB_PATH", "logs/learning_kb.json"))
+SYSTEM_LOG = _project_path("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json")
+HEALING_LOG = _project_path("SELF_HEALING_HEALING_LOG", "logs/healing_log.json")
+LEARNING_KB_LOG = _project_path("SELF_HEALING_KB_PATH", "logs/learning_kb.json")
 
 
 def _coerce_dashboard_dict(value):
@@ -825,37 +842,215 @@ def _draw_anomaly_timeline(frame):
 def _draw_learning_graph(kb):
     if kb.empty:
         return None
+    graph = _prepare_learning_rows(kb)
+    if graph.empty:
+        return None
+    family_stage = (
+        graph.groupby(["attack_family", "recommended_stage"], as_index=False)
+        .agg(
+            patterns=("pattern_id", "count"),
+            confidence=("confidence", "mean"),
+        )
+        .sort_values(["patterns", "confidence"], ascending=[False, False])
+        .head(12)
+    )
+    fig = px.bar(
+        family_stage,
+        x="patterns",
+        y="attack_family",
+        color="recommended_stage",
+        orientation="h",
+        text="patterns",
+        labels={
+            "patterns": "learned patterns",
+            "attack_family": "",
+            "recommended_stage": "next response",
+        },
+        color_discrete_map={
+            "observe": "#38bdf8",
+            "throttle": "#f59e0b",
+            "quarantine": "#fb923c",
+            "terminate": "#f43f5e",
+            "unknown": "#94a3b8",
+        },
+    )
+    fig.update_traces(textposition="inside")
+    fig.update_layout(
+        barmode="stack",
+        yaxis={"categoryorder": "total ascending"},
+    )
+    return _plot_theme(fig, height=320)
+
+
+def _prepare_learning_rows(kb):
+    if kb is None or kb.empty:
+        return pd.DataFrame()
+
     graph = kb.copy()
-    for column in ("confidence", "observations", "avg_pattern_strength"):
-        if column not in graph.columns:
-            graph[column] = 0
-        graph[column] = pd.to_numeric(graph[column], errors="coerce").fillna(0)
+    if "pattern_id" not in graph.columns:
+        graph["pattern_id"] = graph.index.astype(str)
+
     if "attack_family" not in graph.columns:
         graph["attack_family"] = "unknown"
-    family_counts = (
+
+    for column in (
+        "confidence",
+        "observations",
+        "avg_pattern_strength",
+        "avg_trust_anomaly_pressure",
+    ):
+        if column not in graph.columns:
+            graph[column] = 0
+        graph[column] = pd.to_numeric(
+            graph[column],
+            errors="coerce",
+        ).fillna(0)
+
+    for column, default in {
+        "recommended_stage": "observe",
+        "disposition": "unknown",
+        "summary": "",
+        "last_process_name": "unknown",
+    }.items():
+        if column not in graph.columns:
+            graph[column] = default
+        graph[column] = (
+            graph[column]
+            .astype(str)
+            .replace("", default)
+        )
+
+    for column in ("confidence", "avg_pattern_strength", "avg_trust_anomaly_pressure"):
+        graph[column] = graph[column].apply(_normalize_risk_score)
+
+    graph["attack_family"] = (
         graph["attack_family"]
         .astype(str)
         .replace("", "unknown")
-        .value_counts()
-        .head(5)
-        .reset_index()
     )
-    family_counts.columns = ["attack_family", "count"]
-    fig = px.pie(
-        family_counts,
-        names="attack_family",
-        values="count",
-        hole=0.72,
-        color_discrete_sequence=["#14b8a6", "#38bdf8", "#a3e635", "#f59e0b", "#f43f5e"],
+    graph["recommended_stage"] = (
+        graph["recommended_stage"]
+        .astype(str)
+        .str.lower()
+        .replace("", "observe")
     )
-    fig.add_annotation(
-        text=f"{len(graph)}<br><span style='font-size:14px;color:#9aa7b7'>Total</span>",
-        x=0.5,
-        y=0.5,
-        showarrow=False,
-        font={"size": 34, "color": "#f8fafc"},
+    graph["readiness_score"] = (
+        graph["confidence"] * 0.45
+        + graph["avg_pattern_strength"] * 0.35
+        + graph["avg_trust_anomaly_pressure"] * 0.20
     )
-    return _plot_theme(fig, height=300)
+    graph["confidence_pct"] = (
+        graph["confidence"] * 100
+    ).round(1)
+    graph["strength_pct"] = (
+        graph["avg_pattern_strength"] * 100
+    ).round(1)
+    graph["readiness_pct"] = (
+        graph["readiness_score"] * 100
+    ).round(1)
+    return graph
+
+
+def _learning_action_summary(kb):
+    graph = _prepare_learning_rows(kb)
+    if graph.empty:
+        return pd.DataFrame()
+
+    summary = (
+        graph.groupby("recommended_stage", as_index=False)
+        .agg(
+            patterns=("pattern_id", "count"),
+            avg_confidence=("confidence_pct", "mean"),
+            avg_readiness=("readiness_pct", "mean"),
+            max_observations=("observations", "max"),
+        )
+        .sort_values("avg_readiness", ascending=False)
+    )
+    summary["avg_confidence"] = summary["avg_confidence"].round(1)
+    summary["avg_readiness"] = summary["avg_readiness"].round(1)
+    return summary
+
+
+def _draw_learning_readiness(kb):
+    graph = _prepare_learning_rows(kb)
+    if graph.empty:
+        return None
+
+    top = graph.sort_values(
+        ["readiness_score", "observations"],
+        ascending=[False, False],
+    ).head(10)
+    fig = px.bar(
+        top,
+        x="readiness_pct",
+        y="attack_family",
+        color="recommended_stage",
+        orientation="h",
+        text="readiness_pct",
+        hover_data={
+            "pattern_id": True,
+            "confidence_pct": True,
+            "strength_pct": True,
+            "observations": True,
+            "last_process_name": True,
+        },
+        labels={
+            "readiness_pct": "readiness %",
+            "attack_family": "",
+            "recommended_stage": "next response",
+        },
+        color_discrete_map={
+            "observe": "#38bdf8",
+            "throttle": "#f59e0b",
+            "quarantine": "#fb923c",
+            "terminate": "#f43f5e",
+            "unknown": "#94a3b8",
+        },
+    )
+    fig.update_traces(
+        texttemplate="%{text:.0f}%",
+        textposition="outside",
+        cliponaxis=False,
+    )
+    fig.update_xaxes(range=[0, 105])
+    fig.update_layout(yaxis={"categoryorder": "total ascending"})
+    return _plot_theme(fig, height=320)
+
+
+def _draw_learning_evidence_map(kb):
+    graph = _prepare_learning_rows(kb)
+    if graph.empty:
+        return None
+
+    fig = px.scatter(
+        graph,
+        x="observations",
+        y="confidence_pct",
+        size="avg_pattern_strength",
+        color="recommended_stage",
+        hover_name="attack_family",
+        hover_data={
+            "pattern_id": True,
+            "readiness_pct": True,
+            "last_process_name": True,
+            "summary": True,
+        },
+        labels={
+            "observations": "times seen",
+            "confidence_pct": "confidence %",
+            "recommended_stage": "next response",
+        },
+        color_discrete_map={
+            "observe": "#38bdf8",
+            "throttle": "#f59e0b",
+            "quarantine": "#fb923c",
+            "terminate": "#f43f5e",
+            "unknown": "#94a3b8",
+        },
+        size_max=28,
+    )
+    fig.update_yaxes(range=[0, 105])
+    return _plot_theme(fig, height=320)
 
 
 def _draw_stage_graph(frame):
@@ -1333,10 +1528,10 @@ def run_dashboard():
 
         lower_left, lower_right = st.columns([0.49, 0.51])
         with lower_left:
-            _card_header("Learnt Pattern Categories", "knowledge base attack families")
+            _card_header("Learning Overview", "patterns grouped by next response")
             _info_box(
                 "How to read",
-                "This shows what the learning engine has remembered from previous detections, grouped by attack family.",
+                "Bars show what the system has learned and the response it will try faster next time.",
             )
             learning_fig = _draw_learning_graph(kb)
             if learning_fig:
@@ -1425,29 +1620,52 @@ def run_dashboard():
                     hide_index=True,
                 )
 
-        _card_header("Learnt Patterns", "what the ML agent will escalate faster next time")
+        _card_header("Learning Map", "how the system turns repeated evidence into faster responses")
         _info_box(
             "How to read",
-            "Each row is a behavior pattern the learner can reuse. Higher confidence and observations mean the system has seen similar behavior more often.",
+            "Readiness combines confidence, pattern strength, and trust pressure. Higher readiness means the system has enough evidence to escalate quickly.",
         )
         if kb.empty:
             st.info("Knowledge base is empty.")
         else:
-            kb_sorted = kb.sort_values(
-                [col for col in ("confidence", "observations") if col in kb.columns],
-                ascending=False,
+            learning_summary = _learning_action_summary(kb)
+            if not learning_summary.empty:
+                st.dataframe(
+                    learning_summary,
+                    width="stretch",
+                    hide_index=True,
+                )
+
+            learn_left, learn_right = st.columns([0.50, 0.50])
+            with learn_left:
+                _card_header("Response Readiness", "top learned patterns")
+                readiness_fig = _draw_learning_readiness(kb)
+                if readiness_fig:
+                    st.plotly_chart(readiness_fig, width="stretch")
+                else:
+                    st.info("No readiness data yet.")
+            with learn_right:
+                _card_header("Evidence Map", "confidence by observations")
+                evidence_fig = _draw_learning_evidence_map(kb)
+                if evidence_fig:
+                    st.plotly_chart(evidence_fig, width="stretch")
+                else:
+                    st.info("No evidence map yet.")
+
+            kb_sorted = _prepare_learning_rows(kb).sort_values(
+                ["readiness_score", "observations"],
+                ascending=[False, False],
             )
             st.dataframe(
                 _compact_table(
                     kb_sorted,
                     [
                         "attack_family",
-                        "disposition",
-                        "confidence",
                         "recommended_stage",
+                        "readiness_pct",
+                        "confidence_pct",
+                        "strength_pct",
                         "observations",
-                        "avg_pattern_strength",
-                        "avg_trust_anomaly_pressure",
                         "last_process_name",
                         "summary",
                     ],

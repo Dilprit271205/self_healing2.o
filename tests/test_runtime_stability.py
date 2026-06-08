@@ -387,6 +387,86 @@ def test_dashboard_uses_fresh_log_append_time_when_row_timestamp_is_stale():
     assert set(recent["pid"]) == {1}
 
 
+def test_runtime_log_paths_are_repo_root_relative(monkeypatch):
+    from pathlib import Path
+    import dashboard
+    from logger import logger as runtime_logger
+    from analysis import learning_engine
+
+    monkeypatch.delenv("SELF_HEALING_SYSTEM_LOG", raising=False)
+    monkeypatch.delenv("SELF_HEALING_KB_PATH", raising=False)
+
+    root = Path(__file__).resolve().parent.parent
+
+    assert dashboard._project_path(
+        "SELF_HEALING_SYSTEM_LOG",
+        "logs/system_log.json",
+    ) == root / "logs" / "system_log.json"
+    assert Path(runtime_logger.project_path(
+        "SELF_HEALING_SYSTEM_LOG",
+        "logs/system_log.json",
+    )) == root / "logs" / "system_log.json"
+    assert Path(learning_engine.project_path(
+        "SELF_HEALING_KB_PATH",
+        "logs/learning_kb.json",
+    )) == root / "logs" / "learning_kb.json"
+
+
+def test_dashboard_learning_rows_normalize_for_visuals():
+    import pandas as pd
+    import dashboard
+
+    kb = pd.DataFrame([
+        {
+            "pattern_id": "p1",
+            "attack_family": "process_storm",
+            "recommended_stage": "terminate",
+            "confidence": 91,
+            "avg_pattern_strength": 0.8,
+            "avg_trust_anomaly_pressure": 0.7,
+            "observations": 5,
+        },
+    ])
+
+    prepared = dashboard._prepare_learning_rows(kb)
+
+    assert prepared.iloc[0]["confidence"] == 0.91
+    assert prepared.iloc[0]["confidence_pct"] == 91.0
+    assert prepared.iloc[0]["strength_pct"] == 80.0
+    assert prepared.iloc[0]["readiness_pct"] > 70
+
+
+def test_dashboard_learning_action_summary_is_readable():
+    import pandas as pd
+    import dashboard
+
+    kb = pd.DataFrame([
+        {
+            "pattern_id": "p1",
+            "attack_family": "process_storm",
+            "recommended_stage": "terminate",
+            "confidence": 0.9,
+            "avg_pattern_strength": 0.8,
+            "observations": 5,
+        },
+        {
+            "pattern_id": "p2",
+            "attack_family": "thread_storm",
+            "recommended_stage": "throttle",
+            "confidence": 0.6,
+            "avg_pattern_strength": 0.5,
+            "observations": 2,
+        },
+    ])
+
+    summary = dashboard._learning_action_summary(kb)
+
+    assert set(summary["recommended_stage"]) == {"terminate", "throttle"}
+    assert {"patterns", "avg_confidence", "avg_readiness", "max_observations"}.issubset(
+        summary.columns
+    )
+
+
 def test_dashboard_live_latest_rows_never_falls_back_to_stale_history():
     import pandas as pd
     import dashboard

@@ -7,27 +7,45 @@ import queue
 import time
 
 from datetime import datetime
+from pathlib import Path
 
 
 # ---------------------------------------------------
 # LOG DIRECTORY
 # ---------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def project_path(env_name, default):
+    configured = os.getenv(
+        env_name
+    )
+    path = Path(
+        configured
+        if configured
+        else default
+    )
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return str(path)
+
+
 os.makedirs(
-    "logs",
+    PROJECT_ROOT / "logs",
     exist_ok=True
 )
 
-PROCESS_LOG = os.getenv(
+PROCESS_LOG = project_path(
     "SELF_HEALING_SYSTEM_LOG",
     "logs/system_log.json"
 )
 
-ENTITY_LOG = os.getenv(
+ENTITY_LOG = project_path(
     "SELF_HEALING_ENTITY_LOG",
     "logs/entity_log.json"
 )
 
-HEALING_LOG = os.getenv(
+HEALING_LOG = project_path(
     "SELF_HEALING_HEALING_LOG",
     "logs/healing_log.json"
 )
