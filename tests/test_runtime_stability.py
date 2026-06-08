@@ -548,7 +548,7 @@ def test_dashboard_state_expires_old_security_events():
     assert latest.empty
 
 
-def test_dashboard_state_normal_followup_clears_security_event():
+def test_dashboard_state_keeps_security_event_after_normal_followup():
     import pandas as pd
     import dashboard
 
@@ -579,7 +579,9 @@ def test_dashboard_state_normal_followup_clears_security_event():
         event_seconds=60,
     )
 
-    assert latest.empty
+    assert set(latest["pid"]) == {1}
+    assert latest.iloc[0]["stage"] == "terminate"
+    assert bool(latest.iloc[0]["flagged"]) is True
 
 
 def test_dashboard_healing_rows_fill_kpis_when_process_rows_missing():
@@ -605,6 +607,136 @@ def test_dashboard_healing_rows_fill_kpis_when_process_rows_missing():
     assert set(fallback["pid"]) == {1234}
     assert bool(fallback.iloc[0]["flagged"]) is True
     assert dashboard._dashboard_trust_score(fallback) == 0.25
+
+
+def test_dashboard_merges_recent_healing_actions_with_process_rows():
+    import pandas as pd
+    import dashboard
+
+    now = pd.Timestamp.now()
+    process_rows = dashboard._normalize_process_rows(pd.DataFrame([
+        {
+            "_log_index": 10,
+            "timestamp": now,
+            "pid": 100,
+            "name": "python",
+            "label": "normal",
+            "severity": "low",
+            "stage": "observe",
+            "response": "none",
+            "final_trust": 1.0,
+            "dynamic_trust": 1.0,
+            "static_trust": 0.85,
+            "signals": {},
+            "features": {},
+            "anomalies": {},
+        },
+    ]))
+    healing_rows = dashboard._healing_rows_as_process_rows(
+        pd.DataFrame([
+            {
+                "_log_index": 20,
+                "timestamp": now,
+                "pid": 200,
+                "stage": "terminate",
+                "action_taken": True,
+                "status": "terminated targets=1",
+            },
+        ]),
+        seconds=60,
+    )
+
+    latest = dashboard._dashboard_state_rows(
+        pd.concat(
+            [
+                process_rows,
+                healing_rows,
+            ],
+            ignore_index=True,
+        ),
+        live_seconds=12,
+        event_seconds=60,
+    )
+
+    assert set(latest["pid"]) == {100, 200}
+    assert int(latest["flagged"].sum()) == 1
+    assert int(
+        latest["stage"]
+        .astype(str)
+        .str.lower()
+        .isin(["terminate"])
+        .sum()
+    ) == 1
+
+
+def test_dashboard_flag_rows_explain_evidence_and_action():
+    import pandas as pd
+    import dashboard
+
+    rows = dashboard._normalize_process_rows(pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now(),
+            "pid": 321,
+            "name": "python",
+            "label": "worm",
+            "severity": "critical",
+            "stage": "terminate",
+            "response": "terminated targets=1",
+            "worm_score": 0.92,
+            "final_trust": 0.30,
+            "dynamic_trust": 0.30,
+            "static_trust": 0.85,
+            "signals": {
+                "replication_detected": True,
+                "correlated_signals": {
+                    "file_replication": True,
+                },
+            },
+            "features": {},
+            "anomalies": {},
+        },
+    ]))
+
+    flags = dashboard._active_flag_rows(rows)
+
+    assert not flags.empty
+    assert "file replication" in flags.iloc[0]["why"]
+    assert "Stopping the process family" in flags.iloc[0]["self_healing_action"]
+
+
+def test_dashboard_alert_rows_describe_self_healing_action():
+    import pandas as pd
+    import dashboard
+
+    rows = dashboard._normalize_process_rows(pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now(),
+            "_log_index": 5,
+            "pid": 654,
+            "name": "worm.py",
+            "label": "worm",
+            "severity": "critical",
+            "stage": "terminate",
+            "response": "terminated targets=3",
+            "worm_score": 0.95,
+            "final_trust": 0.20,
+            "dynamic_trust": 0.20,
+            "static_trust": 0.85,
+            "signals": {
+                "catastrophic_behavior": True,
+            },
+            "features": {},
+            "anomalies": {},
+        },
+    ]))
+
+    alerts = dashboard._alert_rows(rows)
+
+    assert len(alerts) == 1
+    assert alerts[0]["stage"] == "terminate"
+    assert "catastrophic" in alerts[0]["why"]
+    assert "Stopping the process family" in alerts[0]["action"]
+    assert alerts[0]["status"] == "terminated targets=3"
 
 
 def test_dashboard_healing_rows_expire_like_live_events():

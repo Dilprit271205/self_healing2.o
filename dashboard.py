@@ -1,4 +1,5 @@
 import ast
+import html
 import json
 import os
 import time
@@ -89,7 +90,7 @@ DASHBOARD_CACHE_TTL_SECONDS = _env_float(
 )
 DASHBOARD_EVENT_MEMORY_SECONDS = _env_int(
     "SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS",
-    60,
+    180,
     1,
 )
 SYSTEM_LOG = _project_path("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json")
@@ -445,16 +446,20 @@ def _security_memory_rows(frame, seconds=60):
         frame,
         seconds=seconds,
     )
-    latest = _latest_by_pid(
-        recent
-    )
-    if latest.empty:
-        return latest
-    return latest[
+    if recent.empty:
+        return recent
+
+    security_rows = recent[
         _security_event_mask(
-            latest
+            recent
         )
     ]
+    if security_rows.empty:
+        return security_rows
+
+    return _latest_by_pid(
+        security_rows
+    )
 
 
 def _dashboard_state_rows(frame, live_seconds=12, event_seconds=60):
@@ -476,8 +481,32 @@ def _dashboard_state_rows(frame, live_seconds=12, event_seconds=60):
         [live, memory],
         ignore_index=True,
     )
-    return _latest_by_pid(
+    combined["_security_priority"] = _security_event_mask(
         combined
+    ).astype(int)
+    sort_columns = [
+        column
+        for column in (
+            "pid",
+            "_security_priority",
+            "_log_index",
+            "timestamp",
+        )
+        if column in combined.columns
+    ]
+
+    return combined.sort_values(
+        sort_columns,
+    ).groupby(
+        "pid",
+        as_index=False,
+    ).tail(
+        1
+    ).drop(
+        columns=[
+            "_security_priority",
+        ],
+        errors="ignore",
     )
 
 
@@ -620,27 +649,22 @@ def _active_flag_rows(rows):
 
     output = []
     for _, item in rows.iterrows():
-        signals = _coerce_dashboard_dict(item.get("signals"))
-        correlated = _coerce_dashboard_dict(signals.get("correlated_signals"))
-        active = [
-            name
-            for name, value in correlated.items()
-            if bool(value)
-        ]
-        for key in (
-            "forkbomb_detected",
-            "replication_detected",
-            "fanout_detected",
-            "artifact_abuse_detected",
-            "trust_anomaly_pattern",
-            "worm_like_behavior",
-            "catastrophic_behavior",
-        ):
-            if signals.get(key):
-                active.append(key)
+        active = _flag_terms(item)
 
         if not active and not bool(item.get("flagged", False)):
             continue
+
+        stage = str(
+            item.get(
+                "stage",
+                "observe",
+            )
+            or "observe"
+        ).lower()
+        explanation = "; ".join(
+            FLAG_EXPLANATIONS.get(flag, flag.replace("_", " "))
+            for flag in active[:4]
+        )
 
         output.append({
             "pid": item.get("pid"),
@@ -652,9 +676,200 @@ def _active_flag_rows(rows):
             "worm_score": item.get("worm_score"),
             "trust_anomaly_pressure": item.get("trust_anomaly_pressure"),
             "flags": ", ".join(sorted(set(active))) if active else "low_trust",
+            "why": explanation,
+            "self_healing_action": ACTION_EXPLANATIONS.get(
+                stage,
+                "Monitoring and keeping telemetry visible.",
+            ),
         })
 
     return pd.DataFrame(output)
+
+
+FLAG_EXPLANATIONS = {
+    "forkbomb_detected": "rapid recursive process spawning was detected",
+    "process_storm_burst": "process count rose fast enough to indicate a storm",
+    "large_or_growing_tree": "the process family is growing unusually large",
+    "repeated_similar_children": "many children share the same executable pattern",
+    "short_lived_recursive_children": "children are appearing and exiting in a recursive pattern",
+    "deep_recursive_tree": "the process lineage is deeper than normal",
+    "replication_detected": "file replication behavior was confirmed",
+    "file_replication": "files are being copied or rewritten in a replication pattern",
+    "high_file_velocity": "file events are arriving quickly",
+    "extreme_file_velocity": "file velocity is high enough to look destructive",
+    "mass_file_modification": "many files are being changed in a short window",
+    "suspicious_rename": "rename activity resembles staged encryption or evasion",
+    "fanout_detected": "network fanout behavior was confirmed",
+    "localhost_beaconing": "repeated localhost connections look like beaconing",
+    "network_fanout": "connections are spreading across endpoints or ports",
+    "artifact_abuse_detected": "persistence or sensitive artifact abuse was detected",
+    "persistence_artifact": "startup, script, or persistence artifacts were touched",
+    "sensitive_file_access": "sensitive paths or credential-like files were accessed",
+    "thread_storm_detected": "thread creation looks like a resource storm",
+    "thread_explosion": "thread count jumped sharply",
+    "cpu_memory_escalation": "resource usage is escalating",
+    "resource_pressure": "system pressure is high enough to affect trust",
+    "trust_anomaly_pattern": "trust dropped in a learned suspicious pattern",
+    "worm_like_behavior": "multiple signals combine into worm-like behavior",
+    "catastrophic_behavior": "catastrophic behavior is severe enough for immediate response",
+    "healing_event": "a self-healing action was recorded",
+    "low_trust": "final trust fell below the response threshold",
+}
+
+
+ACTION_EXPLANATIONS = {
+    "observe": "Monitoring only; evidence is not strong enough to intervene.",
+    "protected": "Action blocked because the target matches a protected workload.",
+    "trust_recovery": "Recovering trust after risk dropped below the response threshold.",
+    "throttle": "Reducing activity to slow the process while collecting more evidence.",
+    "block_resources": "Restricting resources to contain active pressure.",
+    "restrict": "Applying a reversible restriction before stronger containment.",
+    "quarantine": "Isolating the process or related behavior to prevent spread.",
+    "terminate": "Stopping the process family because evidence crossed the termination policy.",
+}
+
+
+def _flag_terms(row):
+    signals = _coerce_dashboard_dict(row.get("signals"))
+    correlated = _coerce_dashboard_dict(signals.get("correlated_signals"))
+    active = [
+        name
+        for name, value in correlated.items()
+        if bool(value)
+    ]
+    for key in (
+        "forkbomb_detected",
+        "replication_detected",
+        "fanout_detected",
+        "artifact_abuse_detected",
+        "thread_storm_detected",
+        "trust_anomaly_pattern",
+        "worm_like_behavior",
+        "catastrophic_behavior",
+        "healing_event",
+    ):
+        if signals.get(key):
+            active.append(key)
+
+    if not active and bool(row.get("flagged", False)):
+        active.append("low_trust")
+
+    return sorted(set(active))
+
+
+def _stage_tone(stage, flagged=False):
+    stage = str(stage or "observe").lower()
+    if stage == "terminate":
+        return "critical"
+    if stage in {"quarantine", "block_resources", "restrict"}:
+        return "high"
+    if stage == "throttle":
+        return "medium"
+    if flagged:
+        return "medium"
+    return "low"
+
+
+def _format_pct(value):
+    try:
+        return f"{float(value) * 100:.1f}%"
+    except Exception:
+        return "n/a"
+
+
+def _alert_rows(rows, limit=8):
+    if rows is None or rows.empty:
+        return []
+
+    candidates = rows[
+        _security_event_mask(
+            rows
+        )
+    ].copy()
+    if candidates.empty:
+        return []
+
+    if "timestamp" in candidates.columns:
+        candidates["timestamp"] = pd.to_datetime(
+            candidates["timestamp"],
+            errors="coerce",
+        )
+
+    sort_columns = [
+        column
+        for column in (
+            "timestamp",
+            "_log_index",
+        )
+        if column in candidates.columns
+    ]
+    if sort_columns:
+        candidates = candidates.sort_values(
+            sort_columns,
+            ascending=True,
+        )
+
+    alerts = []
+    for _, row in candidates.tail(limit).iloc[::-1].iterrows():
+        stage = str(row.get("stage", "observe") or "observe").lower()
+        flags = _flag_terms(row)
+        flag_text = "; ".join(
+            FLAG_EXPLANATIONS.get(flag, flag.replace("_", " "))
+            for flag in flags[:5]
+        )
+        if not flag_text:
+            flag_text = "risk evidence was recorded but no specific flag names were present"
+
+        severity = str(row.get("severity", "low") or "low").lower()
+        label = str(row.get("label", "normal") or "normal").lower()
+        response = row.get("response", "")
+        status = str(response or ACTION_EXPLANATIONS.get(stage, "Monitoring."))
+        alerts.append({
+            "pid": row.get("pid"),
+            "name": row.get("name", "unknown"),
+            "severity": severity,
+            "label": label,
+            "stage": stage,
+            "tone": _stage_tone(stage, bool(row.get("flagged", False))),
+            "trust": _format_pct(row.get("final_trust")),
+            "worm_score": _format_pct(_normalize_risk_score(row.get("worm_score"))),
+            "flags": ", ".join(flags) if flags else "none",
+            "why": flag_text,
+            "action": ACTION_EXPLANATIONS.get(stage, "Monitoring and keeping telemetry visible."),
+            "status": status,
+        })
+
+    return alerts
+
+
+def _render_alert_feed(alerts):
+    if not alerts:
+        st.success("No active self-healing alerts in the current dashboard window.")
+        return
+
+    for alert in alerts:
+        safe_alert = {
+            key: html.escape(str(value))
+            for key, value in alert.items()
+        }
+        st.markdown(
+            f"""
+            <div class="alert-card {safe_alert["tone"]}">
+                <div class="alert-top">
+                    <div>
+                        <div class="alert-title">{safe_alert["stage"].upper()} · {safe_alert["name"]}</div>
+                        <div class="alert-meta">pid {safe_alert["pid"]} · {safe_alert["label"]} · {safe_alert["severity"]} · trust {safe_alert["trust"]} · worm {safe_alert["worm_score"]}</div>
+                    </div>
+                    <div class="alert-stage">{safe_alert["stage"]}</div>
+                </div>
+                <div class="alert-body"><b>Why:</b> {safe_alert["why"]}</div>
+                <div class="alert-body"><b>Self-healing action:</b> {safe_alert["action"]}</div>
+                <div class="alert-body"><b>Status:</b> {safe_alert["status"]}</div>
+                <div class="alert-flags">{safe_alert["flags"]}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def _acceptance_coverage_rows(latest_rows, signal_rows):
@@ -1490,6 +1705,72 @@ def run_dashboard():
             font-size: 12px;
             line-height: 1.45;
         }
+        .alert-card {
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin: 10px 0;
+            background: #111827;
+            border: 1px solid rgba(148,163,184,0.16);
+        }
+        .alert-card.critical {
+            border-color: rgba(244,63,94,0.54);
+            box-shadow: inset 4px 0 0 #f43f5e;
+        }
+        .alert-card.high {
+            border-color: rgba(251,146,60,0.52);
+            box-shadow: inset 4px 0 0 #fb923c;
+        }
+        .alert-card.medium {
+            border-color: rgba(245,158,11,0.52);
+            box-shadow: inset 4px 0 0 #f59e0b;
+        }
+        .alert-card.low {
+            border-color: rgba(52,211,153,0.36);
+            box-shadow: inset 4px 0 0 #34d399;
+        }
+        .alert-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .alert-title {
+            color: #f8fafc;
+            font-weight: 760;
+            font-size: 15px;
+        }
+        .alert-meta {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+        .alert-stage {
+            border-radius: 999px;
+            color: #e2e8f0;
+            background: #1f2937;
+            border: 1px solid rgba(148,163,184,0.18);
+            padding: 5px 9px;
+            font-size: 11px;
+            font-weight: 760;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .alert-body {
+            color: #cbd5e1;
+            font-size: 12px;
+            line-height: 1.48;
+            margin-top: 5px;
+        }
+        .alert-body b {
+            color: #e2e8f0;
+        }
+        .alert-flags {
+            color: #bae6fd;
+            font-size: 11px;
+            margin-top: 9px;
+            overflow-wrap: anywhere;
+        }
         div[data-testid="stDataFrame"] {
             border: 1px solid rgba(148,163,184,0.14);
             border-radius: 8px;
@@ -1545,10 +1826,28 @@ def run_dashboard():
         seconds=event_memory_seconds,
     )
     telemetry_source = "process log"
-    if latest.empty and not healing_fallback_rows.empty:
-        latest = healing_fallback_rows
-        telemetry_source = "healing log"
+    if not healing_fallback_rows.empty:
+        if latest.empty:
+            latest = healing_fallback_rows
+            telemetry_source = "healing log"
+        else:
+            latest = _dashboard_state_rows(
+                pd.concat(
+                    [
+                        latest,
+                        healing_fallback_rows,
+                    ],
+                    ignore_index=True,
+                ),
+                live_seconds=live_window_seconds,
+                event_seconds=event_memory_seconds,
+            )
+            telemetry_source = "process + healing log"
     flags = _active_flag_rows(latest)
+    alerts = _alert_rows(
+        latest,
+        limit=8,
+    )
 
     if process_rows.empty and healing_rows.empty and kb.empty:
         st.warning("No telemetry yet. Start main.py and the dashboard will populate as the agent observes processes.")
@@ -1667,6 +1966,18 @@ def run_dashboard():
             "Trust Score follows final_trust directly, so suspicious medium-risk drift still moves the score. Active Flags only count confirmed or high-severity evidence.",
         )
 
+        _card_header(
+            "Live Self-Healing Alerts",
+            "latest flagged behavior, explanation, and action being taken",
+        )
+        _info_box(
+            "Alert guide",
+            "Alerts remain visible for the dashboard memory window so you can see what was flagged, why it was flagged, and which self-healing response is active.",
+        )
+        _render_alert_feed(
+            alerts
+        )
+
         main_chart, score_card = st.columns([0.74, 0.26])
         with main_chart:
             _card_header("Anomalies Over Time", "aggregate, worm pattern, and trust pressure")
@@ -1778,6 +2089,8 @@ def run_dashboard():
                             "stage",
                             "final_trust",
                             "flags",
+                            "why",
+                            "self_healing_action",
                         ],
                         limit=12,
                     ),
