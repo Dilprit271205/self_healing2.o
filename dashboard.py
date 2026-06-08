@@ -2121,62 +2121,6 @@ def run_dashboard():
             alerts
         )
 
-        main_chart, score_card = st.columns([0.74, 0.26])
-        with main_chart:
-            _card_header("Anomalies Over Time", "aggregate, worm pattern, and trust pressure")
-            _info_box(
-                "How to read",
-                "Spikes show behavior becoming unusual. Aggregate is general anomaly, worm pattern is worm-like activity, and trust pressure rises when dynamic trust drops.",
-            )
-            anomaly_fig = _draw_anomaly_timeline(recent_process_rows)
-            if anomaly_fig:
-                st.plotly_chart(anomaly_fig, width="stretch")
-            else:
-                st.info("No anomaly timeline yet.")
-
-        with score_card:
-            _card_header("Security Score", "trust weighted system health")
-            _info_box(
-                "How to read",
-                "Higher is healthier. This combines average trust and anomaly pressure, so it can dip before a process is terminated.",
-            )
-            st.plotly_chart(
-                _draw_security_score(avg_trust, avg_pressure),
-                width="stretch",
-            )
-
-        lower_left, lower_right = st.columns([0.49, 0.51])
-        with lower_left:
-            _card_header("Learning Overview", "patterns grouped by next response")
-            _info_box(
-                "How to read",
-                "Bars show what the system has learned and the response it will try faster next time.",
-            )
-            learning_fig = _draw_learning_graph(kb)
-            if learning_fig:
-                st.plotly_chart(learning_fig, width="stretch")
-            else:
-                st.info("No learned patterns yet.")
-
-        with lower_right:
-            _card_header("System Health", "response stages and terminate readiness")
-            _info_box(
-                "How to read",
-                "Health summarizes trust across live processes. The stage chart shows how many processes are only observed versus throttled, quarantined, or terminated.",
-            )
-            health_a, health_b = st.columns([0.48, 0.52])
-            with health_a:
-                st.plotly_chart(
-                    _draw_health_ring(latest, kb),
-                    width="stretch",
-                )
-            with health_b:
-                stage_fig = _draw_stage_graph(latest)
-                if stage_fig:
-                    st.plotly_chart(stage_fig, width="stretch")
-                else:
-                    st.info("No response data yet.")
-
         details_left, details_right = st.columns([0.52, 0.48])
         with details_left:
             _card_header("Process Details", "highest risk processes first")
@@ -2241,47 +2185,10 @@ def run_dashboard():
                     hide_index=True,
                 )
 
-        _card_header("Learning Map", "how the system turns repeated evidence into faster responses")
-        _info_box(
-            "How to read",
-            "Readiness combines confidence, pattern strength, and trust pressure. Higher readiness means the system has enough evidence to escalate quickly.",
-        )
+        _card_header("Learnt Patterns", "stored behavior patterns and recommended response")
         if kb.empty:
             st.info("Knowledge base is empty.")
         else:
-            _card_header("Learning Implementation", "runtime feedback loop")
-            st.plotly_chart(
-                _draw_learning_pipeline(),
-                width="stretch",
-            )
-            _info_box(
-                "What gets learned",
-                "After a detection and healing decision, the learning engine stores attack family, confidence, observations, pattern strength, trust pressure, recommended response, and the last matching process.",
-            )
-            learning_summary = _learning_action_summary(kb)
-            if not learning_summary.empty:
-                st.dataframe(
-                    learning_summary,
-                    width="stretch",
-                    hide_index=True,
-                )
-
-            learn_left, learn_right = st.columns([0.50, 0.50])
-            with learn_left:
-                _card_header("Response Readiness", "top learned patterns")
-                readiness_fig = _draw_learning_readiness(kb)
-                if readiness_fig:
-                    st.plotly_chart(readiness_fig, width="stretch")
-                else:
-                    st.info("No readiness data yet.")
-            with learn_right:
-                _card_header("Evidence Map", "confidence by observations")
-                evidence_fig = _draw_learning_evidence_map(kb)
-                if evidence_fig:
-                    st.plotly_chart(evidence_fig, width="stretch")
-                else:
-                    st.info("No evidence map yet.")
-
             kb_sorted = _prepare_learning_rows(kb).sort_values(
                 ["readiness_score", "observations"],
                 ascending=[False, False],
