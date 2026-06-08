@@ -386,6 +386,91 @@ def test_dashboard_live_latest_rows_never_falls_back_to_stale_history():
     assert latest.empty
 
 
+def test_dashboard_state_keeps_recent_security_event_after_live_window():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "_log_index": 1,
+            "timestamp": pd.Timestamp.now() - pd.Timedelta(seconds=30),
+            "pid": 1,
+            "final_trust": 0.30,
+            "stage": "terminate",
+            "severity": "critical",
+            "flagged": True,
+        },
+    ])
+
+    latest = dashboard._dashboard_state_rows(
+        rows,
+        live_seconds=12,
+        event_seconds=60,
+    )
+
+    assert set(latest["pid"]) == {1}
+    assert latest.iloc[0]["final_trust"] == 0.30
+
+
+def test_dashboard_state_expires_old_security_events():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "_log_index": 1,
+            "timestamp": pd.Timestamp.now() - pd.Timedelta(minutes=5),
+            "pid": 1,
+            "final_trust": 0.30,
+            "stage": "terminate",
+            "severity": "critical",
+            "flagged": True,
+        },
+    ])
+
+    latest = dashboard._dashboard_state_rows(
+        rows,
+        live_seconds=12,
+        event_seconds=60,
+    )
+
+    assert latest.empty
+
+
+def test_dashboard_state_normal_followup_clears_security_event():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "_log_index": 1,
+            "timestamp": pd.Timestamp.now() - pd.Timedelta(seconds=40),
+            "pid": 1,
+            "final_trust": 0.30,
+            "stage": "terminate",
+            "severity": "critical",
+            "flagged": True,
+        },
+        {
+            "_log_index": 2,
+            "timestamp": pd.Timestamp.now() - pd.Timedelta(seconds=30),
+            "pid": 1,
+            "final_trust": 1.0,
+            "stage": "observe",
+            "severity": "low",
+            "flagged": False,
+        },
+    ])
+
+    latest = dashboard._dashboard_state_rows(
+        rows,
+        live_seconds=12,
+        event_seconds=60,
+    )
+
+    assert latest.empty
+
+
 def test_dashboard_latest_by_pid_uses_log_append_order():
     import pandas as pd
     import dashboard

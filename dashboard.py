@@ -70,6 +70,11 @@ DASHBOARD_CACHE_TTL_SECONDS = _env_float(
     0.25,
     0.0,
 )
+DASHBOARD_EVENT_MEMORY_SECONDS = _env_int(
+    "SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS",
+    60,
+    1,
+)
 SYSTEM_LOG = Path(os.getenv("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json"))
 HEALING_LOG = Path(os.getenv("SELF_HEALING_HEALING_LOG", "logs/healing_log.json"))
 LEARNING_KB_LOG = Path(os.getenv("SELF_HEALING_KB_PATH", "logs/learning_kb.json"))
@@ -363,6 +368,78 @@ def _live_latest_rows(frame, seconds=45):
     )
     return _latest_by_pid(
         recent
+    )
+
+
+def _security_event_mask(frame):
+    if frame is None or frame.empty:
+        return pd.Series(dtype=bool)
+
+    index = frame.index
+    flagged = (
+        frame.get("flagged", pd.Series(False, index=index))
+        .astype(bool)
+    )
+    severe = (
+        frame.get("severity", pd.Series("", index=index))
+        .astype(str)
+        .str.lower()
+        .isin({"high", "critical"})
+    )
+    response_stage = (
+        frame.get("stage", pd.Series("", index=index))
+        .astype(str)
+        .str.lower()
+        .isin(["throttle", "quarantine", "terminate", "block_resources"])
+    )
+    response_text = (
+        frame.get("response", pd.Series("", index=index))
+        .astype(str)
+        .str.lower()
+        .str.contains("terminated|isolated|throttled|quarantined", na=False)
+    )
+
+    return flagged | severe | response_stage | response_text
+
+
+def _security_memory_rows(frame, seconds=60):
+    recent = _recent_rows(
+        frame,
+        seconds=seconds,
+    )
+    latest = _latest_by_pid(
+        recent
+    )
+    if latest.empty:
+        return latest
+    return latest[
+        _security_event_mask(
+            latest
+        )
+    ]
+
+
+def _dashboard_state_rows(frame, live_seconds=12, event_seconds=60):
+    live = _live_latest_rows(
+        frame,
+        seconds=live_seconds,
+    )
+    memory = _security_memory_rows(
+        frame,
+        seconds=event_seconds,
+    )
+
+    if live.empty:
+        return memory
+    if memory.empty:
+        return live
+
+    combined = pd.concat(
+        [live, memory],
+        ignore_index=True,
+    )
+    return _latest_by_pid(
+        combined
     )
 
 
@@ -1074,13 +1151,23 @@ def run_dashboard():
             "12"
         )
     )
+    event_memory_seconds = int(
+        os.getenv(
+            "SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS",
+            str(DASHBOARD_EVENT_MEMORY_SECONDS)
+        )
+    )
     recent_process_rows = _recent_rows(
         process_rows,
-        seconds=live_window_seconds
+        seconds=max(
+            live_window_seconds,
+            event_memory_seconds,
+        )
     )
-    latest = _live_latest_rows(
+    latest = _dashboard_state_rows(
         process_rows,
-        seconds=live_window_seconds
+        live_seconds=live_window_seconds,
+        event_seconds=event_memory_seconds,
     )
     latest = _overlay_healing_status(latest, healing_rows, latest)
     flags = _active_flag_rows(latest)
