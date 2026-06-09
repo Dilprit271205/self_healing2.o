@@ -69,14 +69,32 @@ def _project_path(env_name, default):
     configured = os.getenv(
         env_name
     )
-    path = Path(
-        configured
-        if configured
-        else default
-    )
-    if not path.is_absolute():
-        path = PROJECT_ROOT / path
-    return path
+    if configured:
+        path = Path(configured)
+        if not path.is_absolute():
+            path = PROJECT_ROOT / path
+        return path
+
+    default_path = Path(default)
+    if default_path.is_absolute():
+        return default_path
+
+    candidates = []
+    for root in (
+        PROJECT_ROOT,
+        PROJECT_ROOT.parent,
+        Path.cwd(),
+        Path.cwd().parent,
+    ):
+        candidate = root / default_path
+        if candidate not in candidates:
+            candidates.append(candidate)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return PROJECT_ROOT / default_path
 
 
 DASHBOARD_MAX_ROWS = 1000
@@ -1569,7 +1587,7 @@ def _learning_rows(kb):
 
 def run_dashboard():
     st.set_page_config(
-        page_title="Cyber CRM Dashboard",
+        page_title="Self-Healing Defense Dashboard",
         page_icon=".",
         layout="wide",
     )
@@ -1594,68 +1612,51 @@ def run_dashboard():
     )
     kb = load_learning_kb(kb_signature)
 
-    live_window_seconds = int(
-        os.getenv(
-            "SELF_HEALING_DASHBOARD_LIVE_WINDOW_SECONDS",
-            "120"
-        )
-    )
-    event_memory_seconds = int(
-        os.getenv(
-            "SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS",
-            str(DASHBOARD_EVENT_MEMORY_SECONDS),
-        )
-    )
-    latest = _dashboard_state_rows(
+    latest_process_rows = _latest_by_pid(
         process_rows,
-        live_seconds=live_window_seconds,
-        event_seconds=event_memory_seconds,
-        trust_source_mtime=True,
-    )
-    latest = _overlay_healing_status(
-        latest,
-        healing_rows,
-        latest,
     )
     healing_fallback_rows = _healing_rows_as_process_rows(
         healing_rows,
-        seconds=event_memory_seconds,
+        seconds=60 * 60 * 24 * 365,
         trust_source_mtime=True,
     )
-    if not healing_fallback_rows.empty:
-        latest = _dashboard_state_rows(
-            _combine_dashboard_rows(
-                latest,
-                healing_fallback_rows,
-            ),
-            live_seconds=live_window_seconds,
-            event_seconds=event_memory_seconds,
-            trust_source_mtime=True,
-        )
-
-    recent_security_rows = _recent_security_rows(
-        process_rows,
-        seconds=event_memory_seconds,
-        limit=DASHBOARD_TAIL_SECURITY_ROWS,
-        trust_source_mtime=True,
-    )
-    current_alert_rows = _combine_dashboard_rows(
-        latest,
-        recent_security_rows,
+    latest = _combine_dashboard_rows(
+        latest_process_rows,
         healing_fallback_rows,
     )
-    historical_security_rows = _tail_security_rows(
+    latest = _latest_by_pid(
+        latest,
+    )
+    security_rows = _tail_security_rows(
         process_rows,
         limit=DASHBOARD_TAIL_SECURITY_ROWS,
     )
-    flags = _active_flag_rows(latest)
-    alerts = _alert_rows(
-        current_alert_rows,
-        limit=8,
+    alert_source_rows = _combine_dashboard_rows(
+        security_rows,
+        healing_fallback_rows,
     )
+    alerts = _alert_rows(
+        alert_source_rows,
+        limit=12,
+    )
+    healing_actions = pd.DataFrame()
+    if healing_rows is not None and not healing_rows.empty:
+        healing_tail = healing_rows.tail(100).copy()
+        if "action_taken" not in healing_tail.columns:
+            healing_tail["action_taken"] = False
+        if "stage" not in healing_tail.columns:
+            healing_tail["stage"] = "observe"
+        healing_actions = healing_tail[
+            healing_tail["action_taken"].astype(bool)
+            | healing_tail["stage"].astype(str).str.lower().isin(ACTIVE_RESPONSE_STAGES)
+        ].copy()
 
     if process_rows.empty and healing_rows.empty and kb.empty:
-        st.warning("No telemetry yet. Start main.py and the dashboard will populate as soon as process rows are written.")
+        st.warning(
+            "No telemetry found. Start main.py, or set SELF_HEALING_SYSTEM_LOG and SELF_HEALING_HEALING_LOG to the active log files."
+        )
+        st.caption(f"System log checked: {SYSTEM_LOG}")
+        st.caption(f"Healing log checked: {HEALING_LOG}")
         return
 
     kpi_rows = latest
@@ -1708,618 +1709,65 @@ def run_dashboard():
         else 0.0
     )
 
-    trust_values = _chunked_metric_values(process_rows, "final_trust", default=avg_trust)
-    pressure_values = _chunked_metric_values(
-        process_rows,
-        "trust_anomaly_pressure",
-        default=raw_avg_pressure,
-    )
-    worm_values = _chunked_metric_values(process_rows, "worm_score", default=anomaly_peak)
-    stable_count = max(0, len(latest) - flagged_count - action_count)
-    total_source = max(1, len(latest) if not latest.empty else len(process_rows))
-    search_hint = "Search telemetry..."
-    kpi_html = "".join([
-        _metric_tile(
-            "Live Processes",
-            _compact_number(len(latest)),
-            f"{len(process_rows)} process rows",
-            "violet",
-            trust_values[-5:],
-        ),
-        _metric_tile(
-            "Trust Score",
-            f"{avg_trust * 100:.1f}%",
-            f"pressure {raw_avg_pressure:.3f}",
-            "blue",
-            trust_values[-5:],
-        ),
-        _metric_tile(
-            "Active Flags",
-            _compact_number(flagged_count),
-            f"{critical_count} critical",
-            "coral",
-            worm_values[-5:],
-        ),
-    ])
-
     st.markdown(
         """
         <style>
         .stApp {
-            color: #11131a;
-            background: radial-gradient(circle at top left, #eef2f5 0, #d7dce1 42%, #cdd2d6 100%);
+            background: #f5f7fb;
+            color: #172033;
         }
         .block-container {
-            max-width: 1220px;
-            padding: 18px 16px 28px 16px;
+            max-width: 1360px;
+            padding: 22px 22px 34px 22px;
         }
-        header[data-testid="stHeader"],
-        section[data-testid="stSidebar"],
-        footer {
-            display: none;
+        header[data-testid="stHeader"] {
+            background: transparent;
         }
-        div[data-testid="stToolbar"] {
-            display: none;
+        div[data-testid="stMetric"] {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 14px 16px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
         }
-        .crm-shell {
+        div[data-testid="stMetricLabel"] {
+            color: #64748b;
+            font-weight: 700;
+        }
+        div[data-testid="stMetricValue"] {
+            color: #0f172a;
+        }
+        .status-strip {
             display: grid;
-            grid-template-columns: 96px minmax(0, 1fr);
-            gap: 28px;
-            min-height: 760px;
-            padding: 24px;
-            border-radius: 28px;
-            background: #f7f8fa;
-            border: 1px solid rgba(255,255,255,0.88);
-            box-shadow: 0 38px 70px rgba(23,28,35,0.28);
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        }
-        .crm-rail {
-            width: 72px;
-            min-height: 710px;
-            background: #050505;
-            border-radius: 999px;
-            padding: 14px 0;
-            display: flex;
-            align-items: center;
-            flex-direction: column;
-            gap: 18px;
-        }
-        .rail-logo,
-        .rail-active,
-        .rail-dot,
-        .rail-avatar {
-            display: grid;
-            place-items: center;
-            color: #fff;
-        }
-        .rail-logo {
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            background: #fff;
-            color: #050505;
-            font-size: 24px;
-            font-weight: 900;
-        }
-        .rail-logo span {
-            width: 18px;
-            height: 18px;
-            border-radius: 50% 50% 4px 4px;
-            background: #050505;
-            box-shadow: 0 16px 0 #050505;
-            transform: rotate(45deg);
-        }
-        .rail-active {
-            width: 54px;
-            height: 54px;
-            border-radius: 50%;
-            background: #fff;
-            color: #050505;
-            font-weight: 900;
-            font-size: 20px;
-        }
-        .rail-dot {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            color: #f6f6f6;
-            font-size: 12px;
-            border: 1px solid transparent;
-        }
-        .rail-dot:hover {
-            border-color: rgba(255,255,255,0.24);
-        }
-        .rail-spacer {
-            flex: 1;
-        }
-        .rail-avatar {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background: linear-gradient(145deg, #ffffff, #8c92a0);
-            color: #080808;
-            font-size: 11px;
-            font-weight: 900;
-        }
-        .crm-main {
-            min-width: 0;
-        }
-        .crm-topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            margin: 5px 2px 28px 0;
-        }
-        .crm-title h1 {
-            margin: 0;
-            color: #11131a;
-            font-size: 26px;
-            line-height: 1;
-            letter-spacing: 0;
-        }
-        .crm-title p {
-            margin: 8px 0 0 0;
-            color: #727782;
-            font-size: 12px;
-        }
-        .crm-tools {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .crm-search {
-            width: 250px;
-            height: 46px;
-            border-radius: 999px;
-            background: #fff;
-            display: flex;
-            align-items: center;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
-            padding: 0 18px;
-            color: #11131a;
-            box-shadow: 0 16px 28px rgba(115,118,128,0.12);
-            font-size: 12px;
+            margin: 10px 0 20px 0;
         }
-        .crm-search span:first-child {
-            font-size: 18px;
-            line-height: 1;
-        }
-        .crm-bell {
-            width: 46px;
-            height: 46px;
-            border-radius: 50%;
+        .status-pill {
             background: #fff;
-            box-shadow: 0 16px 28px rgba(115,118,128,0.12);
-            display: grid;
-            place-items: center;
-            font-size: 18px;
-        }
-        .crm-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 320px;
-            gap: 24px;
-            align-items: start;
-        }
-        .crm-left,
-        .crm-right {
-            display: flex;
-            flex-direction: column;
-            gap: 22px;
-            min-width: 0;
-        }
-        .crm-kpis {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 20px;
-        }
-        .crm-kpi,
-        .crm-card,
-        .donut-card,
-        .assistant-card,
-        .top-card {
-            background: #fff;
-            border-radius: 18px;
-            box-shadow: 0 18px 32px rgba(116,119,130,0.11);
-            border: 1px solid rgba(239,240,244,0.85);
-        }
-        .crm-kpi {
-            min-height: 150px;
-            padding: 22px;
-        }
-        .kpi-icon {
-            width: 30px;
-            height: 30px;
-            border-radius: 10px;
-            position: relative;
-        }
-        .kpi-icon:after {
-            content: "";
-            position: absolute;
-            inset: 10px;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.85);
-        }
-        .kpi-icon.violet { background: #6652d8; }
-        .kpi-icon.blue { background: #2f8df0; }
-        .kpi-icon.coral { background: #ff886c; }
-        .kpi-spacer {
-            height: 34px;
-        }
-        .kpi-label {
-            color: #777b86;
-            font-size: 11px;
-            margin-bottom: 5px;
-        }
-        .kpi-row {
-            display: flex;
-            align-items: end;
-            justify-content: space-between;
-            gap: 16px;
-        }
-        .kpi-value {
-            color: #121522;
-            font-size: 28px;
-            font-weight: 850;
-            letter-spacing: 0;
-        }
-        .kpi-note {
-            color: #29b984;
-            font-size: 11px;
-            margin-top: 8px;
-        }
-        .spark-bars {
-            height: 58px;
-            display: flex;
-            gap: 7px;
-            align-items: flex-end;
-        }
-        .spark-bar {
-            width: 9px;
-            border-radius: 5px 5px 0 0;
-            opacity: 0.95;
-        }
-        .spark-bar.violet { background: linear-gradient(#8e7df0, #6652d8); }
-        .spark-bar.blue { background: linear-gradient(#90dcff, #2f8df0); }
-        .spark-bar.coral { background: linear-gradient(#ffd37c, #ff886c); }
-        .crm-card {
-            padding: 22px;
-        }
-        .section-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 22px;
-        }
-        .section-head h2,
-        .side-title {
-            margin: 0;
-            font-size: 18px;
-            color: #151722;
-            font-weight: 850;
-            letter-spacing: 0;
-        }
-        .soft-select {
-            border-radius: 999px;
-            background: #f7f7fa;
-            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
             font-size: 12px;
-            color: #646976;
+            color: #475569;
+            overflow-wrap: anywhere;
         }
-        .analytics-chart {
-            display: grid;
-            grid-template-columns: 52px minmax(0, 1fr);
-            gap: 14px;
-            min-height: 220px;
-        }
-        .y-axis {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            color: #737884;
-            font-size: 11px;
-            padding-bottom: 28px;
-        }
-        .chart-area {
-            display: grid;
-            grid-template-columns: repeat(9, minmax(28px, 1fr));
-            gap: 12px;
-            align-items: end;
-        }
-        .chart-col {
-            height: 220px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 10px;
-        }
-        .chart-track {
-            position: relative;
-            width: 34px;
-            height: 188px;
-            display: flex;
-            align-items: end;
-            justify-content: center;
-            border-left: 1px solid #e8e6f5;
-        }
-        .chart-ghost,
-        .chart-main {
-            position: absolute;
-            bottom: 0;
-            width: 18px;
-            border-radius: 999px;
-        }
-        .chart-ghost {
-            background: #eeeafd;
-            transform: translateX(-8px);
-        }
-        .chart-main {
-            background: linear-gradient(180deg, #7563df, #6652d8);
-            transform: translateX(8px);
-        }
-        .chart-dot {
-            position: absolute;
-            left: 22px;
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: #fff;
-            border: 3px solid #8876e8;
-            z-index: 3;
-        }
-        .chart-label {
-            color: #777b86;
-            font-size: 11px;
-        }
-        .deal-head,
-        .deal-row {
-            display: grid;
-            grid-template-columns: 1.5fr 0.8fr 0.8fr 0.7fr 0.8fr;
-            gap: 16px;
-            align-items: center;
-        }
-        .deal-head {
-            color: #9a9ea8;
-            font-size: 11px;
-            padding: 4px 0 13px 0;
-            border-bottom: 1px solid #eceef2;
-        }
-        .deal-row {
-            min-height: 58px;
-            color: #212431;
-            font-size: 12px;
-            border-bottom: 1px solid #f0f1f4;
-        }
-        .proc-id {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 0;
-        }
-        .proc-id > span {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: linear-gradient(145deg, #ffd0a6, #6a56d9);
-            flex: 0 0 auto;
-        }
-        .proc-id b,
-        .proc-id small {
+        .status-pill b {
             display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            color: #0f172a;
+            margin-bottom: 3px;
         }
-        .proc-id small {
-            color: #858996;
-            margin-top: 3px;
+        .danger-note {
+            border-left: 4px solid #dc2626;
+            background: #fff1f2;
+            color: #7f1d1d;
+            padding: 12px 14px;
+            border-radius: 8px;
+            margin: 10px 0 18px 0;
         }
-        .risk-pill {
-            display: inline-block;
-            border-radius: 999px;
-            padding: 6px 10px;
-            font-size: 10px;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-        .risk-pill.low { background: #eafaf3; color: #1c9a6a; }
-        .risk-pill.medium { background: #fff4d8; color: #b27500; }
-        .risk-pill.high { background: #ffe9dd; color: #d76227; }
-        .risk-pill.critical { background: #ffe3ea; color: #cf2e56; }
-        .crm-empty-row,
-        .empty-state {
-            border-radius: 16px;
-            background: #f7f8fb;
-            padding: 18px;
-            color: #7d828d;
-            font-size: 12px;
-        }
-        .empty-state b,
-        .empty-state span {
-            display: block;
-        }
-        .empty-state span {
-            margin-top: 6px;
-        }
-        .donut-card,
-        .assistant-card,
-        .top-card {
-            position: relative;
-            padding: 22px;
-        }
-        .card-menu {
-            position: absolute;
-            right: 22px;
-            top: 19px;
-            color: #b1b4bd;
-            letter-spacing: 2px;
-        }
-        .donut-wrap {
-            display: grid;
-            place-items: center;
-            padding: 22px 0 18px 0;
-        }
-        .donut {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            display: grid;
-            place-items: center;
-            filter: drop-shadow(0 18px 22px rgba(113,87,218,0.20));
-        }
-        .donut-center {
-            width: 74px;
-            height: 74px;
-            border-radius: 50%;
-            background: #fff;
-            display: grid;
-            place-items: center;
-            align-content: center;
-        }
-        .donut-center span {
-            color: #777b86;
-            font-size: 10px;
-        }
-        .donut-center b {
-            color: #151722;
-            font-size: 20px;
-            line-height: 1.1;
-        }
-        .donut-legend {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        .donut-legend div {
-            display: grid;
-            gap: 4px;
-            font-size: 11px;
-            color: #151722;
-            border-left: 3px solid transparent;
-            padding-left: 10px;
-        }
-        .donut-legend small {
-            color: #8b8f9a;
-        }
-        .legend {
-            display: none;
-        }
-        .donut-legend div:has(.pink) { border-left-color: #f59adf; }
-        .donut-legend div:has(.purple) { border-left-color: #6a56d9; }
-        .donut-legend div:has(.gold) { border-left-color: #ffd069; }
-        .assistant-card {
-            min-height: 220px;
-            text-align: center;
-        }
-        .assistant-orb {
-            width: 86px;
-            height: 86px;
-            border-radius: 50%;
-            margin: 34px auto 18px auto;
-            background:
-                radial-gradient(circle at 30% 25%, #7de1e8 0 12%, transparent 13%),
-                repeating-conic-gradient(from 30deg, #6c55d8 0 9deg, #263f9d 10deg 20deg, #6bd5c8 21deg 32deg);
-            box-shadow: 0 18px 30px rgba(75,69,181,0.25);
-        }
-        .assistant-card p {
-            margin: 0;
-            font-size: 13px;
-            color: #1d202c;
-        }
-        .assistant-input {
-            height: 42px;
-            border-radius: 14px;
-            background: #f0edff;
-            margin-top: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 10px 0 14px;
-            color: #777b86;
-            font-size: 12px;
-        }
-        .assistant-input b,
-        .assistant-input span:last-child {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: grid;
-            place-items: center;
-            background: #fff;
-            color: #11131a;
-        }
-        .assistant-input span:last-child {
-            background: #6a56d9;
-            color: #fff;
-        }
-        .top-card h3 {
-            margin: 0 0 18px 0;
-            color: #151722;
-            font-size: 18px;
-        }
-        .top-deal-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-top: 1px solid #f0f1f4;
-            padding: 13px 0;
-            color: #151722;
-        }
-        .top-deal-row b,
-        .top-deal-row span {
-            display: block;
-        }
-        .top-deal-row span {
-            margin-top: 4px;
-            color: #8b8f9a;
-            font-size: 11px;
-        }
-        .top-deal-row strong {
-            color: #6a56d9;
-        }
-        .health-strip {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .health-strip span {
-            border-radius: 999px;
-            padding: 7px 10px;
-            background: #fff;
-            color: #737884;
-            font-size: 11px;
-            box-shadow: 0 10px 20px rgba(116,119,130,0.08);
-        }
-        @media (max-width: 980px) {
-            .crm-shell {
+        @media (max-width: 900px) {
+            .status-strip {
                 grid-template-columns: 1fr;
-                padding: 18px;
-                border-radius: 22px;
-            }
-            .crm-rail {
-                width: 100%;
-                min-height: auto;
-                height: 74px;
-                flex-direction: row;
-                justify-content: center;
-                border-radius: 999px;
-            }
-            .rail-spacer,
-            .rail-avatar {
-                display: none;
-            }
-            .crm-topbar,
-            .crm-grid {
-                grid-template-columns: 1fr;
-                display: grid;
-            }
-            .crm-kpis {
-                grid-template-columns: 1fr;
-            }
-            .crm-search {
-                width: 100%;
             }
         }
         </style>
@@ -2327,111 +1775,179 @@ def run_dashboard():
         unsafe_allow_html=True,
     )
 
-    page_html = f"""
-    <div class="crm-shell">
-        <aside class="crm-rail">
-            <div class="rail-logo"><span></span></div>
-            <div class="rail-active">::</div>
-            <div class="rail-dot">TS</div>
-            <div class="rail-dot">AN</div>
-            <div class="rail-dot">ML</div>
-            <div class="rail-dot">PR</div>
-            <div class="rail-dot">HL</div>
-            <div class="rail-spacer"></div>
-            <div class="rail-avatar">SH</div>
-        </aside>
-        <main class="crm-main">
-            <div class="crm-topbar">
-                <div class="crm-title">
-                    <h1>CRM Dashboard</h1>
-                    <p>Welcome back, operator.</p>
-                    <div class="health-strip">
-                        <span>refresh {DASHBOARD_REFRESH_MS}ms</span>
-                        <span>system log {_format_age(system_signature)}</span>
-                        <span>healing log {_format_age(healing_signature)}</span>
-                        <span>{len(historical_security_rows)} historical alerts</span>
-                    </div>
-                </div>
-                <div class="crm-tools">
-                    <div class="crm-search"><span>o</span><span>{_safe_text(search_hint)}</span><b>Ctrl K</b></div>
-                    <div class="crm-bell">!</div>
-                </div>
+    st.title("Self-Healing Defense")
+    st.caption("Live telemetry from the newest log rows. Focused on trust, alerts, and response actions.")
+    st.markdown(
+        f"""
+        <div class="status-strip">
+            <div class="status-pill"><b>System log</b>{_safe_text(str(SYSTEM_LOG))}<br>{_format_age(system_signature)}</div>
+            <div class="status-pill"><b>Healing log</b>{_safe_text(str(HEALING_LOG))}<br>{_format_age(healing_signature)}</div>
+            <div class="status-pill"><b>Learning KB</b>{_safe_text(str(LEARNING_KB_LOG))}<br>{_format_age(kb_signature)}</div>
+            <div class="status-pill"><b>Refresh</b>{DASHBOARD_REFRESH_MS} ms</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if system_signature.get("age_seconds") is None:
+        st.error("System telemetry log is missing.")
+    elif system_signature.get("age_seconds", 0) > 300:
+        st.markdown(
+            f"""
+            <div class="danger-note">
+                System telemetry has not changed for {_format_age(system_signature)}.
+                If main.py is running, the dashboard is probably reading a different log path.
             </div>
-            <div class="crm-grid">
-                <section class="crm-left">
-                    <div class="crm-kpis">
-                        {kpi_html}
-                    </div>
-                    <div class="crm-card">
-                        <div class="section-head">
-                            <h2>Revenue Analytics</h2>
-                            <div class="soft-select">Month v</div>
-                        </div>
-                        <div class="analytics-chart">
-                            <div class="y-axis">
-                                <span>100%</span>
-                                <span>75%</span>
-                                <span>50%</span>
-                                <span>25%</span>
-                                <span>0%</span>
-                            </div>
-                            <div class="chart-area">
-                                {_analytics_chart(trust_values)}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="crm-card">
-                        <div class="section-head">
-                            <h2>Deals Statistics</h2>
-                            <div class="soft-select">Sort by v</div>
-                        </div>
-                        <div class="deal-head">
-                            <div>Process</div>
-                            <div>Category</div>
-                            <div>Stage</div>
-                            <div>Trust</div>
-                            <div>Severity</div>
-                        </div>
-                        {_process_table(latest)}
-                    </div>
-                </section>
-                <aside class="crm-right">
-                    {_risk_donut(total_source, critical_count, action_count, stable_count)}
-                    <div class="assistant-card">
-                        <div class="card-menu">...</div>
-                        <div class="side-title">AI Assistant</div>
-                        <div class="assistant-orb"></div>
-                        <p>What can I help with?</p>
-                        <div class="assistant-input"><b>+</b><span>Ask me anything</span><span>^</span></div>
-                    </div>
-                    <div class="top-card">
-                        <div class="card-menu">...</div>
-                        <h3>Top Deals</h3>
-                        {_top_signal_rows(flags, historical_security_rows)}
-                    </div>
-                    <div class="top-card">
-                        <div class="card-menu">...</div>
-                        <h3>Learnt Patterns</h3>
-                        {_learning_rows(kb)}
-                    </div>
-                    <div class="top-card">
-                        <div class="card-menu">...</div>
-                        <h3>Live Self-Healing Alerts</h3>
-                        {_alerts_panel(alerts)}
-                    </div>
-                </aside>
-            </div>
-        </main>
-    </div>
-    """
-    if hasattr(st, "html"):
-        st.html(page_html)
-    else:
-        components.html(
-            page_html,
-            height=1180,
-            scrolling=True,
+            """,
+            unsafe_allow_html=True,
         )
+
+    row_note = f"{len(process_rows)} process rows, {len(healing_rows)} healing rows"
+    alert_count = len(alerts)
+    healing_action_count = len(healing_actions)
+    trust_delta = f"pressure {raw_avg_pressure:.3f}"
+    active_delta = f"{critical_count} critical, {action_count} response stages"
+
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("Telemetry Rows", _compact_number(len(process_rows)), row_note)
+    k2.metric("Tracked Processes", _compact_number(len(latest)), "latest row per PID")
+    k3.metric("Trust Score", f"{avg_trust * 100:.1f}%", trust_delta)
+    k4.metric("Alerts", _compact_number(alert_count), active_delta)
+    k5.metric("Healing Actions", _compact_number(healing_action_count), "latest 100 healing rows")
+
+    chart_rows = latest_process_rows.copy()
+    if not chart_rows.empty:
+        chart_rows = chart_rows.sort_values("_log_index" if "_log_index" in chart_rows.columns else "pid").tail(80)
+        chart_data = pd.DataFrame({
+            "trust": chart_rows["final_trust"].astype(float) * 100.0,
+            "risk": chart_rows["worm_score"].apply(_normalize_risk_score) * 100.0,
+        })
+        st.subheader("Trust And Risk Trend")
+        st.line_chart(chart_data, height=220)
+
+    st.subheader("Active Alerts")
+    alert_table = pd.DataFrame(alerts)
+    if alert_table.empty:
+        st.success("No active alerts in the newest telemetry rows.")
+    else:
+        display_columns = [
+            column
+            for column in (
+                "pid",
+                "name",
+                "stage",
+                "severity",
+                "trust",
+                "worm_score",
+                "why",
+                "action",
+                "status",
+            )
+            if column in alert_table.columns
+        ]
+        st.dataframe(
+            alert_table[display_columns],
+            use_container_width=True,
+            hide_index=True,
+            height=330,
+        )
+
+    left, right = st.columns([1.35, 1.0])
+    with left:
+        st.subheader("Processes Being Watched")
+        process_table = latest_process_rows.copy()
+        if process_table.empty:
+            st.info("No process telemetry rows found.")
+        else:
+            for column in ("final_trust", "worm_score", "cpu", "memory"):
+                if column in process_table.columns:
+                    process_table[column] = pd.to_numeric(
+                        process_table[column],
+                        errors="coerce",
+                    ).fillna(0)
+            if "final_trust" in process_table.columns:
+                process_table["trust_pct"] = (process_table["final_trust"] * 100).round(1)
+            if "worm_score" in process_table.columns:
+                process_table["risk_pct"] = process_table["worm_score"].apply(
+                    lambda value: round(_normalize_risk_score(value) * 100, 1)
+                )
+            process_columns = [
+                column
+                for column in (
+                    "pid",
+                    "name",
+                    "label",
+                    "severity",
+                    "stage",
+                    "response",
+                    "trust_pct",
+                    "risk_pct",
+                    "cpu",
+                    "memory",
+                    "threads",
+                    "file_events",
+                )
+                if column in process_table.columns
+            ]
+            st.dataframe(
+                process_table.sort_values(
+                    "_log_index" if "_log_index" in process_table.columns else "pid",
+                    ascending=False,
+                )[process_columns].head(80),
+                use_container_width=True,
+                hide_index=True,
+                height=430,
+            )
+
+    with right:
+        st.subheader("Healing Actions")
+        if healing_actions.empty:
+            st.info("No healing actions in the latest healing rows.")
+        else:
+            healing_columns = [
+                column
+                for column in (
+                    "timestamp",
+                    "pid",
+                    "stage",
+                    "status",
+                    "action_taken",
+                )
+                if column in healing_actions.columns
+            ]
+            st.dataframe(
+                healing_actions.sort_values(
+                    "_log_index" if "_log_index" in healing_actions.columns else "timestamp",
+                    ascending=False,
+                )[healing_columns].head(50),
+                use_container_width=True,
+                hide_index=True,
+                height=250,
+            )
+
+        st.subheader("Learned Patterns")
+        learning = _prepare_learning_rows(kb)
+        if learning.empty:
+            st.info("No learned behavior patterns yet.")
+        else:
+            learning_columns = [
+                column
+                for column in (
+                    "attack_family",
+                    "recommended_stage",
+                    "confidence_pct",
+                    "readiness_pct",
+                    "observations",
+                    "last_process_name",
+                )
+                if column in learning.columns
+            ]
+            st.dataframe(
+                learning[learning_columns].head(12),
+                use_container_width=True,
+                hide_index=True,
+                height=250,
+            )
 
 
 if __name__ == "__main__":
