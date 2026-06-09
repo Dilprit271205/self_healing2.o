@@ -229,6 +229,83 @@ def rotate_if_needed(
         pass
 
 
+def _normalized_risk_score(value):
+    try:
+        score = float(value or 0)
+    except Exception:
+        return 0.0
+
+    if score > 1.0:
+        score = score / 100.0
+
+    return max(0.0, min(1.0, score))
+
+
+def _coerce_dict(value):
+    return value if isinstance(value, dict) else {}
+
+
+def _is_attention_worthy_process(data):
+    signals = _coerce_dict(data.get("signals"))
+    label = str(data.get("label", "normal") or "normal").lower()
+    severity = str(data.get("severity", "low") or "low").lower()
+    stage = str(data.get("stage", "observe") or "observe").lower()
+    response = str(data.get("response", "") or "").lower()
+    worm_score = _normalized_risk_score(data.get("worm_score", 0))
+    final_trust = _normalized_risk_score(
+        data.get(
+            "final_trust",
+            _coerce_dict(data.get("trust")).get("final_trust", 1.0),
+        )
+    )
+    correlated_signal_count = int(signals.get("correlated_signal_count", 0) or 0)
+    confirmed_behavior = any(
+        bool(signals.get(key, False))
+        for key in (
+            "forkbomb_detected",
+            "replication_detected",
+            "fanout_detected",
+            "artifact_abuse_detected",
+            "thread_storm_detected",
+            "catastrophic_behavior",
+            "worm_like_behavior",
+        )
+    ) or correlated_signal_count >= 3
+    active_response = (
+        stage in {
+            "restrict",
+            "throttle",
+            "isolate",
+            "quarantine",
+            "block_resources",
+            "terminate",
+        }
+        or "terminated" in response
+        or "isolated" in response
+        or "throttled" in response
+        or "quarantined" in response
+        or "restricted" in response
+    )
+    high_confidence_label = label in {"worm", "forkbomb"} and (
+        confirmed_behavior
+        or worm_score >= 0.65
+    )
+    high_confidence_severity = severity in {"high", "critical"} and (
+        confirmed_behavior
+        or worm_score >= 0.65
+        or correlated_signal_count >= 2
+        or final_trust < 0.50
+    )
+
+    return (
+        high_confidence_label
+        or high_confidence_severity
+        or confirmed_behavior
+        or worm_score >= 0.65
+        or active_response
+    )
+
+
 def should_log_process(
     data
 ):
@@ -253,20 +330,7 @@ def should_log_process(
         ""
     ).lower()
 
-    interesting = (
-        label != "normal"
-        or severity not in {
-            "low",
-            "normal"
-        }
-        or stage not in {
-            "observe",
-            "protected"
-        }
-        or "terminated" in response
-        or "isolated" in response
-        or "throttled" in response
-    )
+    interesting = _is_attention_worthy_process(data)
 
     pid = data.get(
         "pid"

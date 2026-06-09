@@ -1847,7 +1847,7 @@ def run_dashboard():
         ]
         st.dataframe(
             alert_table[display_columns],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             height=330,
         )
@@ -1894,7 +1894,7 @@ def run_dashboard():
                     "_log_index" if "_log_index" in process_table.columns else "pid",
                     ascending=False,
                 )[process_columns].head(80),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 height=430,
             )
@@ -1920,7 +1920,7 @@ def run_dashboard():
                     "_log_index" if "_log_index" in healing_actions.columns else "timestamp",
                     ascending=False,
                 )[healing_columns].head(50),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 height=250,
             )
@@ -1944,7 +1944,7 @@ def run_dashboard():
             ]
             st.dataframe(
                 learning[learning_columns].head(12),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 height=250,
             )

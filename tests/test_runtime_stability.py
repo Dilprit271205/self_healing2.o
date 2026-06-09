@@ -1192,6 +1192,51 @@ def test_logger_emits_normal_state_after_interesting_state(monkeypatch):
     })
 
 
+def test_logger_ignores_weak_random_suspicious_process(monkeypatch):
+    from logger import logger as runtime_logger
+
+    runtime_logger.last_process_log.clear()
+    runtime_logger.last_process_state.clear()
+    monkeypatch.setattr(runtime_logger, "LOG_NORMAL_PROCESSES", False)
+
+    assert not runtime_logger.should_log_process({
+        "pid": 9010,
+        "name": "random-helper",
+        "label": "suspicious",
+        "severity": "medium",
+        "stage": "observe",
+        "response": "monitoring",
+        "worm_score": 0.20,
+        "final_trust": 0.92,
+        "signals": {
+            "correlated_signal_count": 0,
+        },
+    })
+
+
+def test_logger_keeps_confirmed_suspicious_behavior(monkeypatch):
+    from logger import logger as runtime_logger
+
+    runtime_logger.last_process_log.clear()
+    runtime_logger.last_process_state.clear()
+    monkeypatch.setattr(runtime_logger, "LOG_NORMAL_PROCESSES", False)
+
+    assert runtime_logger.should_log_process({
+        "pid": 9011,
+        "name": "replicator.py",
+        "label": "suspicious",
+        "severity": "medium",
+        "stage": "observe",
+        "response": "monitoring",
+        "worm_score": 0.45,
+        "final_trust": 0.88,
+        "signals": {
+            "replication_detected": True,
+            "correlated_signal_count": 1,
+        },
+    })
+
+
 def test_logger_enqueue_latest_preserves_newest_when_queue_is_full():
     import queue
     from logger import logger as runtime_logger
