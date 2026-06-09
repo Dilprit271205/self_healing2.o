@@ -50,7 +50,8 @@
       "system_update",
       "multiprocessing",
       "build_system",
-      "developer_tool"
+      "developer_tool",
+      "system_kernel"
     ],
     "max_stage_without_confirmed_behavior": "throttle"
   },
@@ -66,6 +67,32 @@
     "system_update": ["packagekit", "update", "updater", "windows update"],
     "multiprocessing": ["multiprocessing", "joblib", "loky", "ray", "dask"],
     "build_system": ["make", "ninja", "cmake", "msbuild", "gradle", "maven", "webpack", "vite"],
+    "system_kernel": [
+      "jbd2",
+      "khugepaged",
+      "kthreadd",
+      "kworker",
+      "ksoftirqd",
+      "kswapd",
+      "kcompactd",
+      "kblockd",
+      "kintegrityd",
+      "kdevtmpfs",
+      "kauditd",
+      "khungtaskd",
+      "oom_reaper",
+      "writeback",
+      "migration/",
+      "watchdog/",
+      "irq/",
+      "rcu_",
+      "rcu-",
+      "ext4-rsv",
+      "scsi_eh",
+      "scsi_tmf",
+      "ata_sff",
+      "ipv6_addrconf"
+    ],
     "developer_tool": [
       "git",
       "ssh",
@@ -94,7 +121,8 @@
   "hard_protected_categories": [
     "dashboard",
     "ide",
-    "remote_dev"
+    "remote_dev",
+    "system_kernel"
   ],
   "critical_process_hints": [
     "streamlit",
@@ -113,6 +141,15 @@
     "rcu_preempt",
     "kworker",
     "kswapd",
+    "khugepaged",
+    "jbd2",
+    "ext4-rsv",
+    "kcompactd",
+    "kblockd",
+    "kintegrityd",
+    "kdevtmpfs",
+    "oom_reaper",
+    "writeback",
     "migration/",
     "watchdog/",
     "irq/",

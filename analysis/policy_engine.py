@@ -35,14 +35,44 @@ DEFAULT_POLICY = {
         "cpu_percent": 95,
     },
     "false_positive_suppression": {
-        "suppressed_categories": [],
+        "suppressed_categories": [
+            "system_kernel"
+        ],
         "max_stage_without_confirmed_behavior": "throttle",
     },
-    "category_hints": {},
+    "category_hints": {
+        "system_kernel": [
+            "jbd2",
+            "khugepaged",
+            "kthreadd",
+            "kworker",
+            "ksoftirqd",
+            "kswapd",
+            "kcompactd",
+            "kblockd",
+            "kintegrityd",
+            "kdevtmpfs",
+            "kauditd",
+            "khungtaskd",
+            "oom_reaper",
+            "writeback",
+            "migration/",
+            "watchdog/",
+            "irq/",
+            "rcu_",
+            "rcu-",
+            "ext4-rsv",
+            "scsi_eh",
+            "scsi_tmf",
+            "ata_sff",
+            "ipv6_addrconf",
+        ],
+    },
     "hard_protected_categories": [
         "dashboard",
         "ide",
-        "remote_dev"
+        "remote_dev",
+        "system_kernel",
     ],
     "critical_process_hints": [],
 }

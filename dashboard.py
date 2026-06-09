@@ -426,6 +426,11 @@ def _recent_rows(frame, seconds=45):
             &
             (timestamps <= future_grace)
         )
+    else:
+        timestamps = pd.Series(
+            pd.NaT,
+            index=frame.index,
+        )
 
     if "_source_mtime" in frame.columns:
         source_times = pd.to_datetime(
@@ -433,6 +438,8 @@ def _recent_rows(frame, seconds=45):
             errors="coerce"
         )
         recent_mask = recent_mask | (
+            timestamps.isna()
+            &
             (source_times >= cutoff)
             &
             (source_times <= future_grace)

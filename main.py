@@ -191,6 +191,19 @@ def is_attention_worthy_classification(
         )
     ).lower()
 
+    worm_score = _normalized_risk_score(
+        classification.get(
+            "worm_score",
+            0
+        )
+    )
+    final_trust = _normalized_risk_score(
+        trust_state.get(
+            "final_trust",
+            1.0
+        )
+    )
+
     confirmed_behavior = any(
         bool(
             signals.get(
@@ -215,28 +228,40 @@ def is_attention_worthy_classification(
         or 0
     ) >= 3
 
-    return (
+    high_confidence_label = (
         label in {
             "worm",
             "forkbomb"
         }
-        or severity in {
+        and (
+            confirmed_behavior
+            or worm_score >= 0.65
+        )
+    )
+    high_confidence_severity = (
+        severity in {
             "high",
             "critical"
         }
+        and (
+            confirmed_behavior
+            or worm_score >= 0.65
+            or int(
+                signals.get(
+                    "correlated_signal_count",
+                    0
+                )
+                or 0
+            ) >= 2
+            or final_trust < 0.50
+        )
+    )
+
+    return (
+        high_confidence_label
+        or high_confidence_severity
         or confirmed_behavior
-        or _normalized_risk_score(
-            classification.get(
-                "worm_score",
-                0
-            )
-        ) >= 0.65
-        or _normalized_risk_score(
-            trust_state.get(
-                "final_trust",
-                1.0
-            )
-        ) < 0.75
+        or worm_score >= 0.65
     )
 
 

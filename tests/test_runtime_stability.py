@@ -330,6 +330,44 @@ def test_runtime_attention_filter_ignores_weak_suspicious_label():
     ) is False
 
 
+def test_runtime_attention_filter_ignores_normal_low_score_process():
+    import main
+
+    classification = {
+        "label": "normal",
+        "severity": "low",
+        "worm_score": 0.408,
+        "signals": {"correlated_signal_count": 0},
+    }
+    trust_state = {
+        "final_trust": 0.94,
+    }
+
+    assert main.is_attention_worthy_classification(
+        classification,
+        trust_state,
+    ) is False
+
+
+def test_runtime_attention_filter_ignores_high_severity_without_evidence():
+    import main
+
+    classification = {
+        "label": "suspicious",
+        "severity": "high",
+        "worm_score": 0.20,
+        "signals": {"correlated_signal_count": 0},
+    }
+    trust_state = {
+        "final_trust": 0.90,
+    }
+
+    assert main.is_attention_worthy_classification(
+        classification,
+        trust_state,
+    ) is False
+
+
 def test_runtime_attention_filter_keeps_confirmed_behavior():
     import main
 
@@ -421,13 +459,34 @@ def test_dashboard_drops_stale_rows_from_live_window():
     assert recent.empty
 
 
-def test_dashboard_uses_fresh_log_append_time_when_row_timestamp_is_stale():
+def test_dashboard_ignores_fresh_log_append_time_when_row_timestamp_is_stale():
     import pandas as pd
     import dashboard
 
     rows = pd.DataFrame([
         {
             "timestamp": pd.Timestamp.now() - pd.Timedelta(days=3),
+            "_source_mtime": pd.Timestamp.now(),
+            "pid": 1,
+            "final_trust": 0.25,
+            "stage": "terminate",
+        },
+    ])
+
+    recent = dashboard._recent_rows(
+        rows,
+        seconds=12,
+    )
+
+    assert recent.empty
+
+
+def test_dashboard_uses_fresh_log_append_time_when_row_has_no_timestamp():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
             "_source_mtime": pd.Timestamp.now(),
             "pid": 1,
             "final_trust": 0.25,
@@ -468,7 +527,30 @@ def test_dashboard_recent_rows_union_timestamp_and_log_append_time():
         seconds=12,
     )
 
-    assert set(recent["pid"]) == {1, 2}
+    assert set(recent["pid"]) == {1}
+
+
+def test_dashboard_log_append_time_does_not_revive_stale_timestamped_alerts():
+    import pandas as pd
+    import dashboard
+
+    now = pd.Timestamp.now()
+    rows = pd.DataFrame([
+        {
+            "timestamp": now - pd.Timedelta(hours=3),
+            "_source_mtime": now,
+            "pid": 1,
+            "stage": "terminate",
+            "severity": "critical",
+        },
+    ])
+
+    recent = dashboard._recent_rows(
+        rows,
+        seconds=12,
+    )
+
+    assert recent.empty
 
 
 def test_runtime_log_paths_are_repo_root_relative(monkeypatch):
@@ -753,7 +835,7 @@ def test_dashboard_state_keeps_security_event_after_normal_followup():
     assert bool(latest.iloc[0]["flagged"]) is True
 
 
-def test_dashboard_recent_security_rows_use_fresh_append_time():
+def test_dashboard_recent_security_rows_do_not_revive_stale_timestamped_alerts():
     import pandas as pd
     import dashboard
 
@@ -789,9 +871,32 @@ def test_dashboard_recent_security_rows_use_fresh_append_time():
         security,
     )
 
-    assert set(security["pid"]) == {99}
-    assert len(alerts) == 1
-    assert alerts[0]["stage"] == "terminate"
+    assert security.empty
+    assert alerts == []
+
+
+def test_policy_protects_kernel_worker_names():
+    from analysis.policy_engine import policy_engine
+    from analysis.response_engine import ResponseEngine
+
+    for name in ("jbd2/sda1-8", "khugepaged"):
+        process = {
+            "name": name,
+            "cmdline": name,
+            "exe": "",
+            "cwd": "",
+        }
+        category = policy_engine.infer_category(process)
+
+        assert category == "system_kernel"
+        assert policy_engine.is_suppressed_category(category)
+        assert ResponseEngine().is_protected_process(
+            329,
+            name,
+            name,
+            "",
+            "",
+        )
 
 
 def test_dashboard_healing_rows_fill_kpis_when_process_rows_missing():

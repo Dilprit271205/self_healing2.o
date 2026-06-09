@@ -297,7 +297,16 @@ class ResponseEngine:
         ):
             return True
 
-        return False
+        category = policy_engine.infer_category({
+            "name": process_name,
+            "cmdline": cmdline,
+            "exe": exe_path,
+            "cwd": cwd,
+        })
+
+        return policy_engine.is_hard_protected_category(
+            category
+        )
 
     def _stage_rank(self, stage):
         order = {
@@ -543,6 +552,21 @@ class ResponseEngine:
                 ))
             )
 
+            category = policy_engine.infer_category({
+                "name": process_name,
+                "cmdline": cmdline,
+                "exe": exe_path,
+                "cwd": cwd,
+            })
+
+            if stage != "observe" and category == "system_kernel":
+                return {
+                    "pid": pid,
+                    "stage": "protected",
+                    "action_taken": False,
+                    "status": "system kernel process"
+                }
+
             stage = self._apply_false_positive_suppression(
                 stage,
                 process_info,
@@ -592,7 +616,13 @@ class ResponseEngine:
             if (
                 stage != "observe"
                 and
-                self.is_protected_process(pid, process_name, cmdline, exe_path)
+                self.is_protected_process(
+                    pid,
+                    process_name,
+                    cmdline,
+                    exe_path,
+                    cwd
+                )
                 and
                 not self._can_override_name_protection(force_terminate)
             ):
