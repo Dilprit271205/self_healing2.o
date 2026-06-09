@@ -80,10 +80,10 @@ def _project_path(env_name, default):
 
 
 DASHBOARD_MAX_ROWS = 1000
-DASHBOARD_REFRESH_MS = _env_int("SELF_HEALING_DASHBOARD_REFRESH_MS", 150, 50)
+DASHBOARD_REFRESH_MS = _env_int("SELF_HEALING_DASHBOARD_REFRESH_MS", 2000, 500)
 DASHBOARD_CACHE_TTL_SECONDS = _env_float(
     "SELF_HEALING_DASHBOARD_CACHE_TTL_SECONDS",
-    0.05,
+    1.0,
     0.0,
 )
 DASHBOARD_EVENT_MEMORY_SECONDS = _env_int(
@@ -137,6 +137,7 @@ def _file_signature(path):
         return {
             "path": str(path),
             "mtime": stat.st_mtime,
+            "mtime_ns": stat.st_mtime_ns,
             "size": stat.st_size,
             "age_seconds": max(0, time.time() - stat.st_mtime),
         }
@@ -144,6 +145,7 @@ def _file_signature(path):
         return {
             "path": str(path),
             "mtime": 0,
+            "mtime_ns": 0,
             "size": 0,
             "age_seconds": None,
         }
