@@ -108,6 +108,7 @@ ACTIVE_RESPONSE_STAGES = {
 ACTION_STATUS_PATTERN = (
     "terminated|isolated|throttled|quarantined|restricted"
 )
+HIGH_CONFIDENCE_TRUST_CUTOFF = 0.50
 
 
 def _coerce_dashboard_dict(value):
@@ -340,18 +341,45 @@ def _normalize_process_rows(frame):
     frame["strong_worm_score"] = frame["worm_score"].apply(
         lambda value: _normalize_risk_score(value) >= 0.65
     )
+    high_severity = frame["severity"].astype(str).str.lower().isin(
+        {"high", "critical"}
+    )
+    active_response = (
+        frame["stage"].astype(str).str.lower().isin(ACTIVE_RESPONSE_STAGES)
+        | frame["response"].astype(str).str.lower().str.contains(
+            ACTION_STATUS_PATTERN,
+            na=False,
+        )
+    )
+    high_confidence_label = (
+        frame["label"].astype(str).str.lower().isin({"worm", "forkbomb"})
+        & (
+            frame["strong_worm_score"].astype(bool)
+            | frame["confirmed_behavior"].astype(bool)
+        )
+    )
+    high_confidence_severity = (
+        high_severity
+        & (
+            frame["confirmed_behavior"].astype(bool)
+            | frame["strong_worm_score"].astype(bool)
+            | (frame["correlated_signal_count"] >= 2)
+            | (frame["final_trust"] < HIGH_CONFIDENCE_TRUST_CUTOFF)
+        )
+    )
     frame["flagged"] = (
         (
-            frame["label"].astype(str).str.lower().isin({"worm", "forkbomb"})
-            | frame["severity"].astype(str).str.lower().isin({"high", "critical"})
+            high_confidence_label
+            | high_confidence_severity
             | frame["confirmed_behavior"].astype(bool)
             | frame["strong_worm_score"].astype(bool)
-            | (frame["final_trust"] < 0.75)
+            | active_response
         )
         & (
             ~frame["category_suppressed"].astype(bool)
             | frame["confirmed_behavior"].astype(bool)
             | frame["severity"].astype(str).str.lower().eq("critical")
+            | active_response
         )
     )
     return frame
@@ -438,11 +466,37 @@ def _security_event_mask(frame):
         frame.get("flagged", pd.Series(False, index=index))
         .astype(bool)
     )
-    severe = (
+    severe_with_evidence = (
         frame.get("severity", pd.Series("", index=index))
         .astype(str)
         .str.lower()
         .isin({"high", "critical"})
+        & (
+            frame.get("confirmed_behavior", pd.Series(False, index=index))
+            .astype(bool)
+            | frame.get("strong_worm_score", pd.Series(False, index=index))
+            .astype(bool)
+            | (
+                pd.to_numeric(
+                    frame.get(
+                        "correlated_signal_count",
+                        pd.Series(0, index=index),
+                    ),
+                    errors="coerce",
+                ).fillna(0)
+                >= 2
+            )
+            | (
+                pd.to_numeric(
+                    frame.get(
+                        "final_trust",
+                        pd.Series(1.0, index=index),
+                    ),
+                    errors="coerce",
+                ).fillna(1.0)
+                < HIGH_CONFIDENCE_TRUST_CUTOFF
+            )
+        )
     )
     response_stage = (
         frame.get("stage", pd.Series("", index=index))
@@ -457,7 +511,7 @@ def _security_event_mask(frame):
         .str.contains(ACTION_STATUS_PATTERN, na=False)
     )
 
-    return flagged | severe | response_stage | response_text
+    return flagged | severe_with_evidence | response_stage | response_text
 
 
 def _security_memory_rows(frame, seconds=60):

@@ -226,6 +226,62 @@ def test_dashboard_trust_score_tracks_raw_trust_without_active_risk():
     assert dashboard._dashboard_pressure_score(normalized) == 0.35
 
 
+def test_dashboard_low_trust_drift_is_not_an_active_flag_without_evidence():
+    import pandas as pd
+    import dashboard
+
+    rows = pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now(),
+            "pid": 446,
+            "name": "python",
+            "label": "normal",
+            "severity": "low",
+            "stage": "observe",
+            "response": "none",
+            "worm_score": 0.10,
+            "dynamic_trust": 0.62,
+            "final_trust": 0.68,
+            "static_trust": 0.85,
+            "signals": {"correlated_signal_count": 0},
+            "features": {},
+            "anomalies": {"aggregate": 0.10},
+        }
+    ])
+
+    normalized = dashboard._normalize_process_rows(rows)
+
+    assert bool(normalized.iloc[0]["flagged"]) is False
+    assert dashboard._active_flag_rows(normalized).empty
+
+
+def test_dashboard_high_severity_without_evidence_is_not_security_memory():
+    import pandas as pd
+    import dashboard
+
+    rows = dashboard._normalize_process_rows(pd.DataFrame([
+        {
+            "timestamp": pd.Timestamp.now(),
+            "pid": 447,
+            "name": "python",
+            "label": "suspicious",
+            "severity": "high",
+            "stage": "observe",
+            "response": "monitoring",
+            "worm_score": 0.20,
+            "dynamic_trust": 0.90,
+            "final_trust": 0.90,
+            "static_trust": 0.85,
+            "signals": {"correlated_signal_count": 0},
+            "features": {},
+            "anomalies": {},
+        }
+    ]))
+
+    assert bool(rows.iloc[0]["flagged"]) is False
+    assert dashboard._security_event_mask(rows).tolist() == [False]
+
+
 def test_dashboard_trust_score_uses_raw_risk_when_flagged():
     import pandas as pd
     import dashboard
