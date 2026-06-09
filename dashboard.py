@@ -8,6 +8,7 @@ from pathlib import Path
 try:
     import pandas as pd
     import streamlit as st
+    import streamlit.components.v1 as components
 except ImportError as exc:
     print(f"Dashboard unavailable: missing dependency {exc}.")
 
@@ -29,6 +30,7 @@ except ImportError as exc:
 
     st = _Dummy()
     pd = _Dummy()
+    components = _Dummy()
 
     def st_autorefresh(*_, **__):
         return None
@@ -1712,8 +1714,8 @@ def run_dashboard():
             background: radial-gradient(circle at top left, #eef2f5 0, #d7dce1 42%, #cdd2d6 100%);
         }
         .block-container {
-            max-width: 1180px;
-            padding: 42px 22px 48px 22px;
+            max-width: 1220px;
+            padding: 18px 16px 28px 16px;
         }
         header[data-testid="stHeader"],
         section[data-testid="stSidebar"],
@@ -2386,7 +2388,14 @@ def run_dashboard():
         </main>
     </div>
     """
-    st.markdown(page_html, unsafe_allow_html=True)
+    if hasattr(st, "html"):
+        st.html(page_html)
+    else:
+        components.html(
+            page_html,
+            height=1180,
+            scrolling=True,
+        )
 
 
 if __name__ == "__main__":
