@@ -403,7 +403,7 @@ def _latest_by_pid(frame):
     return ordered.groupby("pid", as_index=False).tail(1)
 
 
-def _recent_rows(frame, seconds=45):
+def _recent_rows(frame, seconds=45, trust_source_mtime=False):
     if frame.empty:
         return frame
 
@@ -441,8 +441,18 @@ def _recent_rows(frame, seconds=45):
             frame["_source_mtime"],
             errors="coerce"
         )
+        # Some test and demo generators replay fixed event timestamps while
+        # actively appending to the log. Treat a hot source file as live so the
+        # dashboard follows what is being written instead of freezing at zero.
+        if trust_source_mtime:
+            source_time_eligible = pd.Series(
+                True,
+                index=frame.index,
+            )
+        else:
+            source_time_eligible = timestamps.isna()
         recent_mask = recent_mask | (
-            timestamps.isna()
+            source_time_eligible
             &
             (source_times >= cutoff)
             &
@@ -458,10 +468,11 @@ def _recent_rows(frame, seconds=45):
     return frame.iloc[0:0]
 
 
-def _live_latest_rows(frame, seconds=45):
+def _live_latest_rows(frame, seconds=45, trust_source_mtime=False):
     recent = _recent_rows(
         frame,
         seconds=seconds,
+        trust_source_mtime=trust_source_mtime,
     )
     return _latest_by_pid(
         recent
@@ -525,10 +536,11 @@ def _security_event_mask(frame):
     return flagged | severe_with_evidence | response_stage | response_text
 
 
-def _security_memory_rows(frame, seconds=60):
+def _security_memory_rows(frame, seconds=60, trust_source_mtime=False):
     recent = _recent_rows(
         frame,
         seconds=seconds,
+        trust_source_mtime=trust_source_mtime,
     )
     if recent.empty:
         return recent
@@ -546,14 +558,21 @@ def _security_memory_rows(frame, seconds=60):
     )
 
 
-def _dashboard_state_rows(frame, live_seconds=12, event_seconds=60):
+def _dashboard_state_rows(
+    frame,
+    live_seconds=12,
+    event_seconds=60,
+    trust_source_mtime=False,
+):
     live = _live_latest_rows(
         frame,
         seconds=live_seconds,
+        trust_source_mtime=trust_source_mtime,
     )
     memory = _security_memory_rows(
         frame,
         seconds=event_seconds,
+        trust_source_mtime=trust_source_mtime,
     )
 
     if live.empty:
@@ -594,10 +613,16 @@ def _dashboard_state_rows(frame, live_seconds=12, event_seconds=60):
     )
 
 
-def _recent_security_rows(frame, seconds=180, limit=100):
+def _recent_security_rows(
+    frame,
+    seconds=180,
+    limit=100,
+    trust_source_mtime=False,
+):
     recent = _recent_rows(
         frame,
         seconds=seconds,
+        trust_source_mtime=trust_source_mtime,
     )
     if recent.empty:
         return recent
@@ -757,13 +782,18 @@ def _healing_stage_trust(stage, action_taken=False):
     return 0.92
 
 
-def _healing_rows_as_process_rows(healing_rows, seconds=60):
+def _healing_rows_as_process_rows(
+    healing_rows,
+    seconds=60,
+    trust_source_mtime=False,
+):
     if healing_rows is None or healing_rows.empty:
         return pd.DataFrame()
 
     recent = _recent_rows(
         healing_rows,
         seconds=seconds,
+        trust_source_mtime=trust_source_mtime,
     )
     if recent.empty:
         return pd.DataFrame()
@@ -1580,6 +1610,7 @@ def run_dashboard():
         process_rows,
         live_seconds=live_window_seconds,
         event_seconds=event_memory_seconds,
+        trust_source_mtime=True,
     )
     latest = _overlay_healing_status(
         latest,
@@ -1589,6 +1620,7 @@ def run_dashboard():
     healing_fallback_rows = _healing_rows_as_process_rows(
         healing_rows,
         seconds=event_memory_seconds,
+        trust_source_mtime=True,
     )
     if not healing_fallback_rows.empty:
         latest = _dashboard_state_rows(
@@ -1598,12 +1630,14 @@ def run_dashboard():
             ),
             live_seconds=live_window_seconds,
             event_seconds=event_memory_seconds,
+            trust_source_mtime=True,
         )
 
     recent_security_rows = _recent_security_rows(
         process_rows,
         seconds=event_memory_seconds,
         limit=DASHBOARD_TAIL_SECURITY_ROWS,
+        trust_source_mtime=True,
     )
     current_alert_rows = _combine_dashboard_rows(
         latest,
