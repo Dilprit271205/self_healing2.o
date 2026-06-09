@@ -6,7 +6,7 @@ from analysis.static.static_rules import evaluate_static_risk
 def get_file_size(file_path):
     try:
         return os.path.getsize(file_path)
-    except:
+    except OSError:
         return 0
 
 
@@ -49,7 +49,7 @@ def compute_static_trust(file_path):
 
     risk_score = evaluate_static_risk(features)
 
-    # Convert risk → trust
+    # Convert risk to trust.
     trust_score = 1 - risk_score
 
     return {

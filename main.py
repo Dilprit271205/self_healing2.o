@@ -3862,7 +3862,7 @@ def monitor_loop():
                 {}
             )
 
-            network_data = (   
+            network_data = (
                network_monitor
                .get_network_data()
            )
@@ -4384,7 +4384,7 @@ if HEALING_SAFE_MODE:
 # Ensure the controller PID is protected explicitly
 try:
     response_engine.add_protected_pid(os.getpid())
-except:
+except Exception:
     pass
 
 # ===================================================
@@ -4746,5 +4746,3 @@ if __name__ == "__main__":
     start_rapid_lineage_monitor()
 
     monitor_loop()
-
-

@@ -39,7 +39,7 @@ def clear_logs():
     print("[CLEANUP] Clearing logs...")
 
     try:
-        with open(LOG_FILE, "w") as f:
+        with open(LOG_FILE, "w", encoding="utf-8"):
             pass
         print("Logs cleared")
     except Exception as e:

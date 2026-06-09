@@ -64,23 +64,23 @@ def terminate_process_tree(pid):
         for child in children:
             try:
                 child.kill()
-            except:
+            except Exception:
                 pass
 
         for child in children:
             try:
                 child.wait(timeout=1)
-            except:
+            except Exception:
                 pass
 
         try:
             parent.kill()
-        except:
+        except Exception:
             pass
 
         return True
 
-    except:
+    except Exception:
         return False
 
 
@@ -135,7 +135,7 @@ def should_kill_process(pid, proc_name, cmdline, worm_score):
             )
             return True
 
-    except:
+    except Exception:
         return False
 
     # Must explicitly be simulator file
@@ -150,7 +150,7 @@ def should_kill_process(pid, proc_name, cmdline, worm_score):
     # Must actually look malicious
     if worm_score < 8:
         return False
-    
+
     if child_count < 15:
         return False
 

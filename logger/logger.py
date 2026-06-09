@@ -185,8 +185,7 @@ def safe_json(data):
             default=str
         )
 
-    except:
-
+    except Exception:
         return json.dumps({
 
             "error":
@@ -370,7 +369,7 @@ def writer(
                         encoding="utf-8"
                     )
 
-            except:
+            except Exception:
                 pass
 
 

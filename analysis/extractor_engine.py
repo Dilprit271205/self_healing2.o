@@ -457,7 +457,7 @@ class ExtractorEngine:
         try:
             if scanning_detected:
                 worm_score += 40
-        except:
+        except Exception:
             pass
 
         worm_score = round(
@@ -523,7 +523,7 @@ class ExtractorEngine:
 
             "f_connection_velocity":
                 connection_velocity,
-            
+
             "f_port_spread":
                 port_spread,
 

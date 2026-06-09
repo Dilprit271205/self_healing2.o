@@ -163,7 +163,7 @@ st.set_page_config(
 
 st_autorefresh(interval=3000, key="refresh")
 
-st.title("🛡️ Self-Healing Cyber Defense System")
+st.title(" Self-Healing Cyber Defense System")
 st.caption("Executive Cyber Resilience Dashboard")
 
 # ---------------------------------------------------
@@ -173,7 +173,7 @@ st.caption("Executive Cyber Resilience Dashboard")
 def load_process_logs():
     try:
         return pd.read_json(PROCESS_LOG, lines=True).tail(4000)
-    except:
+    except Exception:
         return pd.DataFrame()
 
 
@@ -181,7 +181,7 @@ def load_process_logs():
 def load_entity_logs():
     try:
         return pd.read_json(ENTITY_LOG, lines=True).tail(4000)
-    except:
+    except Exception:
         return pd.DataFrame()
 
 
@@ -211,14 +211,14 @@ if "trust" in latest.columns:
     try:
         trust_df = pd.json_normalize(latest["trust"])
         latest = pd.concat([latest, trust_df], axis=1)
-    except:
+    except Exception:
         pass
 
 if "anomalies" in latest.columns:
     try:
         anom_df = pd.json_normalize(latest["anomalies"])
         latest = pd.concat([latest, anom_df], axis=1)
-    except:
+    except Exception:
         pass
 
 latest = latest.loc[:, ~latest.columns.duplicated()]
@@ -324,7 +324,7 @@ def classify(row):
 
         return "normal"
 
-    except:
+    except Exception:
         return "normal"
 
 
@@ -370,11 +370,11 @@ else:
 # ---------------------------------------------------
 c1, c2, c3, c4, c5 = st.columns(5)
 
-c1.metric("⚙️ Active Processes", len(latest))
-c2.metric("🚨 Risk Processes", len(critical) + len(watchlist))
-c3.metric("🔥 Avg CPU", round(latest["cpu"].mean(), 2))
-c4.metric("🧠 Avg Memory", round(latest["memory"].mean(), 2))
-c5.metric("🟢 Health", f"{health_score}%")
+c1.metric("Active Processes", len(latest))
+c2.metric("Risk Processes", len(critical) + len(watchlist))
+c3.metric("Avg CPU", round(latest["cpu"].mean(), 2))
+c4.metric("Avg Memory", round(latest["memory"].mean(), 2))
+c5.metric(" Health", f"{health_score}%")
 
 st.markdown("---")
 
@@ -410,9 +410,9 @@ with v2:
 page = st.radio(
     "Navigation",
     [
-        "💻 Operations",
-        "🧬 Threat Intelligence",
-        "🐇 Worm Lab"
+        " Operations",
+        " Threat Intelligence",
+        " Worm Lab"
     ],
     horizontal=True
 )
@@ -420,9 +420,9 @@ page = st.radio(
 # ===================================================
 # TAB 1
 # ===================================================
-if page == "💻 Operations":
+if page == " Operations":
 
-    st.subheader("📊 Process Trust Table")
+    st.subheader(" Process Trust Table")
 
     cols = [
         "pid", "name", "cpu", "memory",
@@ -438,7 +438,7 @@ if page == "💻 Operations":
         height=520
     )
 
-    st.subheader("🔥 Top CPU Consumers")
+    st.subheader(" Top CPU Consumers")
 
     top_cpu = latest.sort_values(
         "cpu",
@@ -457,9 +457,9 @@ if page == "💻 Operations":
 # ===================================================
 # TAB 2
 # ===================================================
-elif page == "🧬 Threat Intelligence":
+elif page == " Threat Intelligence":
 
-    st.subheader("🧬 Process Family Analysis")
+    st.subheader(" Process Family Analysis")
 
     if entity_df.empty:
         st.info("No entity logs found.")
@@ -506,9 +506,9 @@ elif page == "🧬 Threat Intelligence":
 # ===================================================
 # TAB 3
 # ===================================================
-elif page == "🐇 Worm Lab":
+elif page == " Worm Lab":
 
-    st.subheader("🐇 Worm Simulation & Attack Lab")
+    st.subheader(" Worm Simulation & Attack Lab")
 
     st.info(
         "Only worm_sim.py or correlated "
@@ -547,10 +547,10 @@ elif page == "🐇 Worm Lab":
 
     a, b, c = st.columns(3)
 
-    a.metric("🐇 Active Worm Signals", len(suspects))
+    a.metric("Active Worm Signals", len(suspects))
 
     b.metric(
-        "⚠️ Highest Worm Score",
+        "Highest Worm Score",
         round(
             suspects["worm_score"].max(),
             2
@@ -558,18 +558,18 @@ elif page == "🐇 Worm Lab":
     )
 
     c.metric(
-        "🛡️ Containment",
+        "Containment",
         "ACTIVE" if not suspects.empty else "STABLE"
     )
 
     st.markdown("---")
 
     if suspects.empty:
-        st.success("✅ No active worm signatures.")
+        st.success("No active worm signatures.")
         st.info("Run worm_sim.py to simulate.")
 
     else:
-        st.error("🚨 Worm replication detected")
+        st.error("Worm replication detected")
 
         cols = [
             "pid", "name",

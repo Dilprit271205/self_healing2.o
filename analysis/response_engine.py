@@ -12,17 +12,16 @@ class ResponseEngine:
     PPT + review aligned
     adaptive healing engine
 
-    Slide 16–17
+    Slide 16-17
 
     Healing Flow:
     observe
-    → restrict
-    → isolate
-    → block_resources
-    → terminate
-    → trust_recovery
+    -> restrict
+    -> isolate
+    -> block_resources
+    -> terminate
+    -> trust_recovery
     """
-
     def __init__(self, safe_mode=None):
 
         self.response_history = (
@@ -51,13 +50,13 @@ class ResponseEngine:
                 os.getppid(),
                 1
             }
-        except:
+        except Exception:
             self.protected_pids = set()
 
     def add_protected_pid(self, pid):
         try:
             self.protected_pids.add(int(pid))
-        except:
+        except Exception:
             pass
 
     def _normalize_text(self, value):
@@ -378,7 +377,7 @@ class ResponseEngine:
     def _privileges_allowed(self):
         try:
             return os.getenv("SELF_HEALING_ALLOW_PRIVILEGE", "false").lower() in ("1", "true", "yes", "y")
-        except:
+        except Exception:
             return False
 
     def network_quarantine(self, pid, ips=None):
@@ -705,12 +704,12 @@ class ResponseEngine:
 
                 try:
                     net_token = self.network_quarantine(pid)
-                except:
+                except Exception:
                     net_token = None
 
                 try:
                     scope = self.cgroup_quarantine(pid)
-                except:
+                except Exception:
                     scope = None
 
                 result = (
@@ -731,13 +730,13 @@ class ResponseEngine:
                 try:
                     if net_token:
                         self.network_quarantine_rollback(net_token)
-                except:
+                except Exception:
                     pass
 
                 try:
                     if scope:
                         self.cgroup_quarantine_rollback(scope)
-                except:
+                except Exception:
                     pass
 
             # ---------------------------------
@@ -812,7 +811,7 @@ class ResponseEngine:
                         [0]
                     )
 
-            except:
+            except Exception:
                 pass
 
             self.restricted_pids.add(
@@ -928,7 +927,7 @@ class ResponseEngine:
             # limit CPU
             try:
                 proc.cpu_affinity([0])
-            except:
+            except Exception:
                 pass
 
             # suspend children
@@ -955,7 +954,7 @@ class ResponseEngine:
                         continue
 
                     child.suspend()
-                except:
+                except Exception:
                     pass
 
             return {
@@ -1117,12 +1116,12 @@ class ResponseEngine:
 
             try:
                 MAX_SAFE_KILL = int(os.getenv("SELF_HEALING_MAX_SAFE_KILL", "300"))
-            except:
+            except Exception:
                 MAX_SAFE_KILL = 300
 
             try:
                 MAX_FORCE_KILL = int(os.getenv("SELF_HEALING_MAX_FORCE_KILL", "2000"))
-            except:
+            except Exception:
                 MAX_FORCE_KILL = 2000
 
             if len(children) > MAX_FORCE_KILL:
@@ -1227,7 +1226,7 @@ class ResponseEngine:
                         child.terminate()
                     except psutil.NoSuchProcess:
                         continue
-                    except:
+                    except Exception:
                         pass
 
                     add_target(child)
@@ -1239,7 +1238,7 @@ class ResponseEngine:
                 add_target(proc)
             except psutil.NoSuchProcess:
                 pass
-            except:
+            except Exception:
                 pass
 
             for target in list(kill_targets):
@@ -1287,7 +1286,7 @@ class ResponseEngine:
                         p.kill()
                     except psutil.NoSuchProcess:
                         continue
-                    except:
+                    except Exception:
                         pass
 
                 gone2, alive2 = psutil.wait_procs(

@@ -78,10 +78,10 @@ def _project_path(env_name, default):
 
 
 DASHBOARD_MAX_ROWS = 1000
-DASHBOARD_REFRESH_MS = _env_int("SELF_HEALING_DASHBOARD_REFRESH_MS", 500, 100)
+DASHBOARD_REFRESH_MS = _env_int("SELF_HEALING_DASHBOARD_REFRESH_MS", 150, 50)
 DASHBOARD_CACHE_TTL_SECONDS = _env_float(
     "SELF_HEALING_DASHBOARD_CACHE_TTL_SECONDS",
-    0.25,
+    0.05,
     0.0,
 )
 DASHBOARD_EVENT_MEMORY_SECONDS = _env_int(
@@ -1063,8 +1063,8 @@ def _render_alert_feed(alerts):
             <div class="alert-card {safe_alert["tone"]}">
                 <div class="alert-top">
                     <div>
-                        <div class="alert-title">{safe_alert["stage"].upper()} · {safe_alert["name"]}</div>
-                        <div class="alert-meta">pid {safe_alert["pid"]} · {safe_alert["label"]} · {safe_alert["severity"]} · trust {safe_alert["trust"]} · worm {safe_alert["worm_score"]}</div>
+                        <div class="alert-title">{safe_alert["stage"].upper()} - {safe_alert["name"]}</div>
+                        <div class="alert-meta">pid {safe_alert["pid"]} - {safe_alert["label"]} - {safe_alert["severity"]} - trust {safe_alert["trust"]} - worm {safe_alert["worm_score"]}</div>
                     </div>
                     <div class="alert-stage">{safe_alert["stage"]}</div>
                 </div>
@@ -1579,35 +1579,28 @@ def run_dashboard():
     healing_signature = _file_signature(HEALING_LOG)
     kb_signature = _file_signature(LEARNING_KB_LOG)
 
-    process_rows = _read_json_lines(str(SYSTEM_LOG), system_signature)
-    healing_rows = _read_json_lines(str(HEALING_LOG), healing_signature)
+    process_rows = _normalize_process_rows(
+        _read_json_lines(
+            str(SYSTEM_LOG),
+            system_signature,
+        )
+    )
+    healing_rows = _read_json_lines(
+        str(HEALING_LOG),
+        healing_signature,
+    )
     kb = load_learning_kb(kb_signature)
 
-    process_rows = _normalize_process_rows(process_rows)
     live_window_seconds = int(
         os.getenv(
             "SELF_HEALING_DASHBOARD_LIVE_WINDOW_SECONDS",
-            "12"
+            "4"
         )
     )
     event_memory_seconds = int(
         os.getenv(
             "SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS",
-            str(DASHBOARD_EVENT_MEMORY_SECONDS)
-        )
-    )
-    recent_process_rows = _recent_rows(
-        process_rows,
-        seconds=max(
-            live_window_seconds,
-            event_memory_seconds,
-        )
-    )
-    visible_process_rows = (
-        recent_process_rows
-        if not recent_process_rows.empty
-        else process_rows.tail(
-            DASHBOARD_TAIL_SECURITY_ROWS
+            str(DASHBOARD_EVENT_MEMORY_SECONDS),
         )
     )
     latest = _dashboard_state_rows(
@@ -1615,50 +1608,30 @@ def run_dashboard():
         live_seconds=live_window_seconds,
         event_seconds=event_memory_seconds,
     )
-    latest = _overlay_healing_status(latest, healing_rows, latest)
+    latest = _overlay_healing_status(
+        latest,
+        healing_rows,
+        latest,
+    )
     healing_fallback_rows = _healing_rows_as_process_rows(
         healing_rows,
         seconds=event_memory_seconds,
     )
-    telemetry_source = "process log"
     if not healing_fallback_rows.empty:
-        if latest.empty:
-            latest = healing_fallback_rows
-            telemetry_source = "healing log"
-        else:
-            latest = _dashboard_state_rows(
-                pd.concat(
-                    [
-                        latest,
-                        healing_fallback_rows,
-                    ],
-                    ignore_index=True,
-                ),
-                live_seconds=live_window_seconds,
-                event_seconds=event_memory_seconds,
-            )
-            telemetry_source = "process + healing log"
-    if (
-        latest.empty
-        and not visible_process_rows.empty
-    ):
-        latest = _latest_by_pid(
-            visible_process_rows
+        latest = _dashboard_state_rows(
+            _combine_dashboard_rows(
+                latest,
+                healing_fallback_rows,
+            ),
+            live_seconds=live_window_seconds,
+            event_seconds=event_memory_seconds,
         )
-        telemetry_source = (
-            telemetry_source
-            + " tail fallback"
-        )
+
     security_rows = _dashboard_security_rows(
         process_rows,
         seconds=event_memory_seconds,
         tail_limit=DASHBOARD_TAIL_SECURITY_ROWS,
     )
-    if not security_rows.empty:
-        telemetry_source = (
-            telemetry_source
-            + " + alert tail"
-        )
     alert_source_rows = _combine_dashboard_rows(
         latest,
         security_rows,
@@ -1671,259 +1644,201 @@ def run_dashboard():
     )
 
     if process_rows.empty and healing_rows.empty and kb.empty:
-        st.warning("No telemetry yet. Start main.py and the dashboard will populate as the agent observes processes.")
+        st.warning("No telemetry yet. Start main.py and the dashboard will populate as soon as process rows are written.")
         return
 
-    kpi_rows = _combine_dashboard_rows(
-        latest,
-        security_rows,
-        healing_fallback_rows,
-    )
-    raw_avg_trust = float(kpi_rows["final_trust"].mean()) if not kpi_rows.empty else 1.0
-    raw_avg_pressure = float(kpi_rows["trust_anomaly_pressure"].mean()) if not kpi_rows.empty else 0.0
+    kpi_rows = alert_source_rows if not alert_source_rows.empty else latest
     avg_trust = _dashboard_trust_score(kpi_rows)
-    flagged_count = int(latest["flagged"].sum()) if not latest.empty else 0
-    if flagged_count == 0 and not security_rows.empty:
-        flagged_count = int(
-            security_rows.get(
-                "flagged",
-                pd.Series(False, index=security_rows.index),
-            )
-            .astype(bool)
-            .sum()
+    raw_avg_pressure = _dashboard_pressure_score(kpi_rows)
+    flagged_count = int(
+        kpi_rows.get(
+            "flagged",
+            pd.Series(False, index=kpi_rows.index),
+        ).astype(bool).sum()
+    ) if not kpi_rows.empty else 0
+    critical_count = int(
+        kpi_rows.get(
+            "severity",
+            pd.Series("", index=kpi_rows.index),
         )
-    critical_count = int(latest["severity"].astype(str).str.lower().eq("critical").sum()) if not latest.empty else 0
-    if critical_count == 0 and not security_rows.empty:
-        critical_count = int(
-            security_rows.get(
-                "severity",
-                pd.Series("", index=security_rows.index),
-            )
-            .astype(str)
-            .str.lower()
-            .eq("critical")
-            .sum()
+        .astype(str)
+        .str.lower()
+        .eq("critical")
+        .sum()
+    ) if not kpi_rows.empty else 0
+    action_count = int(
+        kpi_rows.get(
+            "stage",
+            pd.Series("", index=kpi_rows.index),
         )
+        .astype(str)
+        .str.lower()
+        .isin(ACTIVE_RESPONSE_STAGES)
+        .sum()
+    ) if not kpi_rows.empty else 0
     learned_patterns = len(kb)
     terminate_ready = 0
     if not kb.empty and "recommended_stage" in kb.columns:
-        terminate_ready = int(kb["recommended_stage"].astype(str).str.lower().eq("terminate").sum())
-
+        terminate_ready = int(
+            kb["recommended_stage"]
+            .astype(str)
+            .str.lower()
+            .eq("terminate")
+            .sum()
+        )
     anomaly_peak = (
-        float(visible_process_rows["worm_pattern_anomaly"].max())
-        if not visible_process_rows.empty
+        float(
+            kpi_rows.get(
+                "worm_pattern_anomaly",
+                pd.Series(0.0, index=kpi_rows.index),
+            ).max()
+        )
+        if not kpi_rows.empty
         else 0.0
     )
-    action_count = 0
-    if not latest.empty:
-        action_count = int(
-            latest["stage"]
-            .astype(str)
-            .str.lower()
-            .isin(ACTIVE_RESPONSE_STAGES)
-            .sum()
-        )
-    if action_count == 0 and not security_rows.empty:
-        action_count = int(
-            security_rows.get(
-                "stage",
-                pd.Series("", index=security_rows.index),
-            )
-            .astype(str)
-            .str.lower()
-            .isin(ACTIVE_RESPONSE_STAGES)
-            .sum()
-        )
 
-    rail, body = st.columns([0.075, 0.925], gap="small")
-
-    with rail:
-        st.markdown(
-            """
-            <div class="rail">
-                <div class="logo">G</div>
-                <div class="rail-item active">TS</div>
-                <div class="rail-item">AN</div>
-                <div class="rail-item">ML</div>
-                <div class="rail-item">PR</div>
-                <div class="rail-item">HL</div>
+    st.markdown(
+        f"""
+        <div class="content-pad">
+            <div class="top-title">Live Trust</div>
+            <div class="health-row">
+                <span class="health-pill">refresh {DASHBOARD_REFRESH_MS}ms</span>
+                <span class="health-pill">system log {_format_age(system_signature)}</span>
+                <span class="health-pill">healing log {_format_age(healing_signature)}</span>
+                <span class="health-pill">knowledge base {_format_age(kb_signature)}</span>
+                <span class="health-pill">{len(latest)} live processes</span>
+                <span class="health-pill">{action_count} current responses</span>
             </div>
-            """,
-            unsafe_allow_html=True,
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+    with kpi1:
+        _metric_card(
+            "Trust Score",
+            f"{avg_trust * 100:.1f}%",
+            f"pressure {raw_avg_pressure:.3f}",
+            "cyan",
+        )
+    with kpi2:
+        _metric_card(
+            "Active Flags",
+            flagged_count,
+            f"{critical_count} critical",
+            "red" if flagged_count else "green",
+        )
+    with kpi3:
+        _metric_card(
+            "Patterns Learnt",
+            learned_patterns,
+            f"{terminate_ready} terminate-ready",
+            "green",
+        )
+    with kpi4:
+        _metric_card(
+            "System Anomaly",
+            f"{anomaly_peak:.3f}",
+            _risk_band(anomaly_peak),
+            "amber",
+        )
+    with kpi5:
+        _metric_card(
+            "Live Processes",
+            len(latest),
+            f"{len(process_rows)} process rows",
+            "amber",
         )
 
-    with body:
-        st.markdown(
-            f"""
-            <div class="content-pad">
-                <div class="top-title">Threats</div>
-                <div class="tabs">
-                    <div class="tab">Overview</div>
-                    <div class="tab active">Insights</div>
-                    <div class="tab">Process Details</div>
-                    <div class="tab">Learnt Patterns</div>
-                </div>
-                <div class="health-row">
-                    <span class="health-pill">system log {_format_age(system_signature)}</span>
-                    <span class="health-pill">source {telemetry_source}</span>
-                    <span class="health-pill">{len(process_rows)} process rows</span>
-                    <span class="health-pill">{len(healing_rows)} healing rows</span>
-                    <span class="health-pill">knowledge base {_format_age(kb_signature)}</span>
-                    <span class="health-pill">{terminate_ready} terminate-ready patterns</span>
-                    <span class="health-pill">{action_count} active responses</span>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        _info_box(
-            "Dashboard guide",
-            "Trust Score shows the current average final trust from monitored rows. Active Flags are high-confidence alerts and are tracked separately.",
-        )
+    _card_header(
+        "Live Self-Healing Alerts",
+        "latest flagged behavior, explanation, and response status",
+    )
+    _render_alert_feed(alerts)
 
-        kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-        with kpi1:
-            _metric_card(
-                "Trust Score",
-                f"{avg_trust * 100:.1f}%",
-                f"raw {raw_avg_trust * 100:.1f}% | pressure {raw_avg_pressure:.3f}",
-                "cyan",
-            )
-        with kpi2:
-            _metric_card(
-                "Active Flags",
-                flagged_count,
-                f"{critical_count} critical",
-                "red" if flagged_count else "green",
-            )
-        with kpi3:
-            _metric_card(
-                "Patterns Learnt",
-                learned_patterns,
-                f"{terminate_ready} terminate-ready",
-                "green",
-            )
-        with kpi4:
-            _metric_card(
-                "System Anomaly",
-                f"{anomaly_peak:.3f}",
-                _risk_band(anomaly_peak),
-                "amber",
-            )
-        with kpi5:
-            _metric_card(
-                "Process Details",
-                len(latest),
-                "latest process rows",
-                "cyan",
-            )
-        _info_box(
-            "Metric guide",
-            "Trust Score follows final_trust directly, so suspicious medium-risk drift still moves the score. Active Flags only count confirmed or high-severity evidence.",
-        )
-
-        _card_header(
-            "Live Self-Healing Alerts",
-            "latest flagged behavior, explanation, and action being taken",
-        )
-        _info_box(
-            "Alert guide",
-            "Alerts remain visible for the dashboard memory window so you can see what was flagged, why it was flagged, and which self-healing response is active.",
-        )
-        _render_alert_feed(
-            alerts
-        )
-
-        details_left, details_right = st.columns([0.52, 0.48])
-        with details_left:
-            _card_header("Process Details", "highest risk processes first")
-            _info_box(
-                "How to read",
-                "Rows are sorted by active flag, trust pressure, and worm score. A suspicious label alone is not an active alert.",
-            )
-            if latest.empty:
-                st.info("No live process rows.")
-            else:
-                process_table = latest.sort_values(
-                    ["flagged", "trust_anomaly_pressure", "worm_score"],
-                    ascending=[False, False, False],
-                )
-                st.dataframe(
-                    _compact_table(
-                        process_table,
-                        [
-                            "pid",
-                            "name",
-                            "label",
-                            "severity",
-                            "stage",
-                            "final_trust",
-                            "trust_anomaly_pressure",
-                            "worm_score",
-                        ],
-                        limit=12,
-                    ),
-                    width="stretch",
-                    hide_index=True,
-                )
-
-        with details_right:
-            _card_header("Flags", "active behavioral and trust flags")
-            _info_box(
-                "How to read",
-                "This table only lists strong evidence: confirmed worm behavior, high severity, strong worm score, or trust below the response threshold.",
-            )
-            if flags.empty:
-                st.success("No active flags.")
-            else:
-                st.dataframe(
-                    _compact_table(
-                        flags.sort_values(
-                            ["trust_anomaly_pressure", "worm_score"],
-                            ascending=[False, False],
-                        ),
-                        [
-                            "pid",
-                            "name",
-                            "severity",
-                            "stage",
-                            "final_trust",
-                            "flags",
-                            "why",
-                            "self_healing_action",
-                        ],
-                        limit=12,
-                    ),
-                    width="stretch",
-                    hide_index=True,
-                )
-
-        _card_header("Learnt Patterns", "stored behavior patterns and recommended response")
-        if kb.empty:
-            st.info("Knowledge base is empty.")
+    left, right = st.columns([0.58, 0.42])
+    with left:
+        _card_header("Processes", "current process rows and retained alerts")
+        if latest.empty:
+            st.info("Waiting for fresh process telemetry.")
         else:
-            kb_sorted = _prepare_learning_rows(kb).sort_values(
-                ["readiness_score", "observations"],
-                ascending=[False, False],
+            process_table = latest.sort_values(
+                ["flagged", "trust_anomaly_pressure", "worm_score"],
+                ascending=[False, False, False],
             )
             st.dataframe(
                 _compact_table(
-                    kb_sorted,
+                    process_table,
                     [
-                        "attack_family",
-                        "recommended_stage",
-                        "readiness_pct",
-                        "confidence_pct",
-                        "strength_pct",
-                        "observations",
-                        "last_process_name",
-                        "summary",
+                        "pid",
+                        "name",
+                        "label",
+                        "severity",
+                        "stage",
+                        "final_trust",
+                        "trust_anomaly_pressure",
+                        "worm_score",
                     ],
-                    limit=16,
+                    limit=20,
                 ),
                 width="stretch",
                 hide_index=True,
             )
+
+    with right:
+        _card_header("Flags", "confirmed behavior and active responses")
+        if flags.empty:
+            st.success("No active flags.")
+        else:
+            st.dataframe(
+                _compact_table(
+                    flags.sort_values(
+                        ["trust_anomaly_pressure", "worm_score"],
+                        ascending=[False, False],
+                    ),
+                    [
+                        "pid",
+                        "name",
+                        "severity",
+                        "stage",
+                        "final_trust",
+                        "flags",
+                        "why",
+                        "self_healing_action",
+                    ],
+                    limit=20,
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+
+    _card_header("Learnt Patterns", "stored behavior patterns and recommended response")
+    if kb.empty:
+        st.info("Knowledge base is empty.")
+    else:
+        kb_sorted = _prepare_learning_rows(kb).sort_values(
+            ["readiness_score", "observations"],
+            ascending=[False, False],
+        )
+        st.dataframe(
+            _compact_table(
+                kb_sorted,
+                [
+                    "attack_family",
+                    "recommended_stage",
+                    "readiness_pct",
+                    "confidence_pct",
+                    "strength_pct",
+                    "observations",
+                    "last_process_name",
+                    "summary",
+                ],
+                limit=16,
+            ),
+            width="stretch",
+            hide_index=True,
+        )
 
 
 if __name__ == "__main__":

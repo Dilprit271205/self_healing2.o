@@ -124,7 +124,7 @@ class DetectorEngine:
         # BASELINE COMPARISON
         # slide 23
         #
-        # A=min(1, |f-μ| / kσ)
+        # A=min(1, |f-Î¼| / kÏƒ)
         # -----------------------------------------
         for feature, value in tracked_features.items():
 
@@ -173,7 +173,7 @@ class DetectorEngine:
                 pid,
                 feature
             )
-        
+
         # -----------------------------------------
         # FORK BOMB EARLY WARNING
         # Detect rapid PID creation by age ratio
@@ -182,7 +182,7 @@ class DetectorEngine:
             # If a young process (age < 5s) already has 8+ PIDs, it's forking rapidly
             proc_age = float(features.get("age_seconds", 60))
             tree_size = int(features.get("f_proc_tree", 0))
-            
+
             if proc_age > 0 and proc_age < 5:
                 fork_rate_per_sec = tree_size / proc_age
                 temporal_features["fork_rate_per_sec"] = round(fork_rate_per_sec, 2)
@@ -192,7 +192,7 @@ class DetectorEngine:
             else:
                 temporal_features["fork_rate_per_sec"] = 0
                 temporal_features["fork_bomb_early_warning"] = False
-        except:
+        except Exception:
             temporal_features["fork_rate_per_sec"] = 0
             temporal_features["fork_bomb_early_warning"] = False
 

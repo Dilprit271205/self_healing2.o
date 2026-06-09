@@ -23,7 +23,7 @@ def init_cpu():
                     interval=None
                 )
 
-            except:
+            except Exception:
                 pass
 
         _initialized = True
@@ -225,7 +225,7 @@ def get_process_data():
 
             continue
 
-        except:
+        except Exception:
             continue
 
     return processes

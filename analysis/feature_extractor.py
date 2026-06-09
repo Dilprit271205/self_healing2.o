@@ -129,7 +129,7 @@ def extract_features(process, connection_map, file_map):
     # ---------------------------------------------------
     try:
         process_age = max(now - create_time, 0)
-    except:
+    except Exception:
         process_age = 999999
 
     f_young_process = 1 if process_age < 45 else 0
