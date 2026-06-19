@@ -7,45 +7,27 @@ import queue
 import time
 
 from datetime import datetime
-from pathlib import Path
 
 
 # ---------------------------------------------------
 # LOG DIRECTORY
 # ---------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-
-def project_path(env_name, default):
-    configured = os.getenv(
-        env_name
-    )
-    path = Path(
-        configured
-        if configured
-        else default
-    )
-    if not path.is_absolute():
-        path = PROJECT_ROOT / path
-    return str(path)
-
-
 os.makedirs(
-    PROJECT_ROOT / "logs",
+    "logs",
     exist_ok=True
 )
 
-PROCESS_LOG = project_path(
+PROCESS_LOG = os.getenv(
     "SELF_HEALING_SYSTEM_LOG",
     "logs/system_log.json"
 )
 
-ENTITY_LOG = project_path(
+ENTITY_LOG = os.getenv(
     "SELF_HEALING_ENTITY_LOG",
     "logs/entity_log.json"
 )
 
-HEALING_LOG = project_path(
+HEALING_LOG = os.getenv(
     "SELF_HEALING_HEALING_LOG",
     "logs/healing_log.json"
 )
@@ -75,16 +57,6 @@ except Exception:
     LOG_NORMAL_PROCESSES = False
 
 try:
-    PROCESS_LOG_INTERVAL = float(
-        os.getenv(
-            "SELF_HEALING_PROCESS_LOG_INTERVAL",
-            "0.5"
-        )
-    )
-except Exception:
-    PROCESS_LOG_INTERVAL = 0.5
-
-try:
     ENTITY_LOG_INTERVAL = float(
         os.getenv(
             "SELF_HEALING_ENTITY_LOG_INTERVAL",
@@ -95,13 +67,7 @@ except Exception:
     ENTITY_LOG_INTERVAL = 10.0
 
 last_process_log = {}
-last_process_state = {}
 last_entity_log = {}
-logger_drop_counts = {
-    "process": 0,
-    "entity": 0,
-    "healing": 0,
-}
 
 
 # ---------------------------------------------------
@@ -120,55 +86,13 @@ healing_queue = queue.Queue(
 )
 
 
-def enqueue_latest(
-    q,
-    data,
-    stream_name
-):
-    try:
-        q.put_nowait(
-            data
-        )
-        return True
-    except queue.Full:
-        logger_drop_counts[
-            stream_name
-        ] = (
-            logger_drop_counts.get(
-                stream_name,
-                0
-            )
-            + 1
-        )
-        try:
-            q.get_nowait()
-        except queue.Empty:
-            pass
-        try:
-            q.put_nowait(
-                data
-            )
-            return True
-        except queue.Full:
-            logger_drop_counts[
-                stream_name
-            ] = (
-                logger_drop_counts.get(
-                    stream_name,
-                    0
-                )
-                + 1
-            )
-            return False
-
-
 # ---------------------------------------------------
 # TIMESTAMP
 # ---------------------------------------------------
 def timestamp():
 
     return datetime.now().isoformat(
-        timespec="milliseconds"
+        timespec="seconds"
     )
 
 
@@ -185,7 +109,8 @@ def safe_json(data):
             default=str
         )
 
-    except Exception:
+    except:
+
         return json.dumps({
 
             "error":
@@ -229,83 +154,6 @@ def rotate_if_needed(
         pass
 
 
-def _normalized_risk_score(value):
-    try:
-        score = float(value or 0)
-    except Exception:
-        return 0.0
-
-    if score > 1.0:
-        score = score / 100.0
-
-    return max(0.0, min(1.0, score))
-
-
-def _coerce_dict(value):
-    return value if isinstance(value, dict) else {}
-
-
-def _is_attention_worthy_process(data):
-    signals = _coerce_dict(data.get("signals"))
-    label = str(data.get("label", "normal") or "normal").lower()
-    severity = str(data.get("severity", "low") or "low").lower()
-    stage = str(data.get("stage", "observe") or "observe").lower()
-    response = str(data.get("response", "") or "").lower()
-    worm_score = _normalized_risk_score(data.get("worm_score", 0))
-    final_trust = _normalized_risk_score(
-        data.get(
-            "final_trust",
-            _coerce_dict(data.get("trust")).get("final_trust", 1.0),
-        )
-    )
-    correlated_signal_count = int(signals.get("correlated_signal_count", 0) or 0)
-    confirmed_behavior = any(
-        bool(signals.get(key, False))
-        for key in (
-            "forkbomb_detected",
-            "replication_detected",
-            "fanout_detected",
-            "artifact_abuse_detected",
-            "thread_storm_detected",
-            "catastrophic_behavior",
-            "worm_like_behavior",
-        )
-    ) or correlated_signal_count >= 3
-    active_response = (
-        stage in {
-            "restrict",
-            "throttle",
-            "isolate",
-            "quarantine",
-            "block_resources",
-            "terminate",
-        }
-        or "terminated" in response
-        or "isolated" in response
-        or "throttled" in response
-        or "quarantined" in response
-        or "restricted" in response
-    )
-    high_confidence_label = label in {"worm", "forkbomb"} and (
-        confirmed_behavior
-        or worm_score >= 0.65
-    )
-    high_confidence_severity = severity in {"high", "critical"} and (
-        confirmed_behavior
-        or worm_score >= 0.65
-        or correlated_signal_count >= 2
-        or final_trust < 0.50
-    )
-
-    return (
-        high_confidence_label
-        or high_confidence_severity
-        or confirmed_behavior
-        or worm_score >= 0.65
-        or active_response
-    )
-
-
 def should_log_process(
     data
 ):
@@ -330,25 +178,30 @@ def should_log_process(
         ""
     ).lower()
 
-    interesting = _is_attention_worthy_process(data)
+    if LOG_NORMAL_PROCESSES:
+        return True
+
+    interesting = (
+        label != "normal"
+        or severity not in {
+            "low",
+            "normal"
+        }
+        or stage not in {
+            "observe",
+            "protected"
+        }
+        or "terminated" in response
+        or "isolated" in response
+        or "throttled" in response
+    )
+
+    if not interesting:
+        return False
 
     pid = data.get(
         "pid"
     )
-
-    previous_state = last_process_state.get(
-        pid
-    )
-    previous_interesting = (
-        previous_state or {}
-    ).get(
-        "interesting",
-        False
-    )
-
-    if not LOG_NORMAL_PROCESSES and not interesting and not previous_interesting:
-        return False
-
     key = (
         pid,
         label,
@@ -357,38 +210,17 @@ def should_log_process(
         response
     )
     now = time.time()
-
-    if previous_state and previous_state.get("key") != key:
-        last_process_log[
-            key
-        ] = now
-        last_process_state[
-            pid
-        ] = {
-            "key": key,
-            "interesting": interesting,
-            "last_logged": now
-        }
-        return True
-
     previous = last_process_log.get(
         key,
         0
     )
 
-    if PROCESS_LOG_INTERVAL > 0 and now - previous < PROCESS_LOG_INTERVAL:
+    if now - previous < 3:
         return False
 
     last_process_log[
         key
     ] = now
-    last_process_state[
-        pid
-    ] = {
-        "key": key,
-        "interesting": interesting,
-        "last_logged": now
-    }
     return True
 
 
@@ -433,7 +265,7 @@ def writer(
                         encoding="utf-8"
                     )
 
-            except Exception:
+            except:
                 pass
 
 
@@ -667,13 +499,11 @@ def log_process(data):
                 features
         }
 
-        enqueue_latest(
-            process_queue,
-            normalized,
-            "process"
+        process_queue.put_nowait(
+            normalized
         )
 
-    except Exception:
+    except:
         pass
 
 
@@ -743,13 +573,11 @@ def log_entity(data):
                 )
         }
 
-        enqueue_latest(
-            entity_queue,
-            normalized,
-            "entity"
+        entity_queue.put_nowait(
+            normalized
         )
 
-    except Exception:
+    except:
         pass
 
 
@@ -787,11 +615,9 @@ def log_healing(data):
                 )
         }
 
-        enqueue_latest(
-            healing_queue,
-            normalized,
-            "healing"
+        healing_queue.put_nowait(
+            normalized
         )
 
-    except Exception:
+    except:
         pass

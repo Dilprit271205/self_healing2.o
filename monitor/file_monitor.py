@@ -113,7 +113,7 @@ class FileHandler(
                                     proc.pid
                                 )
 
-                        except Exception:
+                        except:
                             continue
 
                 except (

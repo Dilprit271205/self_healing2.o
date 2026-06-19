@@ -15,7 +15,7 @@ class PersistenceEngine:
     PPT + review aligned
     persistence engine
 
-    Slide 15-16
+    Slide 15–16
 
     Purpose:
     Verify anomaly persistence
@@ -23,11 +23,12 @@ class PersistenceEngine:
 
     Healing Flow:
     observe
-    -> restrict
-    -> isolate
-    -> block_resources
-    -> terminate
+    → restrict
+    → isolate
+    → block_resources
+    → terminate
     """
+
     def __init__(self):
 
         # -----------------------------------------
@@ -38,7 +39,7 @@ class PersistenceEngine:
         )
 
         # -----------------------------------------
-        # persistence window Î´
+        # persistence window δ
         # slide 15
         # -----------------------------------------
         # default delta (entries required to evaluate persistence)
@@ -55,7 +56,7 @@ class PersistenceEngine:
             ))
             if env_delta >= 1:
                 self.delta = env_delta
-        except Exception:
+        except:
             pass
 
     # -----------------------------------------
@@ -243,7 +244,7 @@ class PersistenceEngine:
         try:
             ema_alpha = float(os.getenv("SELF_HEALING_EMA_ALPHA", "0.6"))
             ema_alpha = max(0.01, min(0.99, ema_alpha))
-        except Exception:
+        except:
             ema_alpha = 0.6
 
         ema = None

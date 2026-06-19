@@ -115,21 +115,6 @@ try:
 except Exception:
     MONITOR_INTERVAL = 0.5
 
-try:
-    MAX_DEEP_INSPECT_PROCESSES = int(
-        os.getenv(
-            "SELF_HEALING_MAX_DEEP_INSPECT",
-            "12"
-        )
-    )
-except Exception:
-    MAX_DEEP_INSPECT_PROCESSES = 12
-
-MAX_DEEP_INSPECT_PROCESSES = max(
-    1,
-    MAX_DEEP_INSPECT_PROCESSES
-)
-
 VERBOSE_RUNTIME_LOGS = os.getenv(
     "SELF_HEALING_VERBOSE",
     "false"
@@ -191,19 +176,6 @@ def is_attention_worthy_classification(
         )
     ).lower()
 
-    worm_score = _normalized_risk_score(
-        classification.get(
-            "worm_score",
-            0
-        )
-    )
-    final_trust = _normalized_risk_score(
-        trust_state.get(
-            "final_trust",
-            1.0
-        )
-    )
-
     confirmed_behavior = any(
         bool(
             signals.get(
@@ -228,78 +200,29 @@ def is_attention_worthy_classification(
         or 0
     ) >= 3
 
-    high_confidence_label = (
+    return (
         label in {
             "worm",
             "forkbomb"
         }
-        and (
-            confirmed_behavior
-            or worm_score >= 0.65
-        )
-    )
-    high_confidence_severity = (
-        severity in {
+        or severity in {
             "high",
             "critical"
         }
-        and (
-            confirmed_behavior
-            or worm_score >= 0.65
-            or int(
-                signals.get(
-                    "correlated_signal_count",
-                    0
-                )
-                or 0
-            ) >= 2
-            or final_trust < 0.50
-        )
-    )
-
-    return (
-        high_confidence_label
-        or high_confidence_severity
         or confirmed_behavior
-        or worm_score >= 0.65
+        or _normalized_risk_score(
+            classification.get(
+                "worm_score",
+                0
+            )
+        ) >= 0.65
+        or _normalized_risk_score(
+            trust_state.get(
+                "final_trust",
+                1.0
+            )
+        ) < 0.75
     )
-
-
-def record_dashboard_alert(
-    pid=0,
-    name="system",
-    label="suspicious",
-    severity="medium",
-    stage="observe",
-    response="alert observed",
-    trust=None,
-    worm_score=0.0,
-    confidence=0,
-    signals=None,
-    features=None,
-    anomalies=None,
-):
-    log_process({
-        "pid": pid,
-        "name": name,
-        "entity_root": pid,
-        "trust": trust or {
-            "dynamic_trust": 0.75,
-            "final_trust": 0.75,
-            "static_trust": 0.85,
-        },
-        "worm_score": worm_score,
-        "confidence": confidence,
-        "label": label,
-        "severity": severity,
-        "signals": signals or {},
-        "stage": stage,
-        "response": response,
-        "learning_state": {},
-        "anomalies": anomalies or {},
-        "features": features or {},
-    })
-
 
 SYSTEM_SAFE_PIDS = {
     0,
@@ -2978,36 +2901,6 @@ def emergency_file_activity_preflight(
             "but no eligible process candidate",
             interval=8
         )
-        record_dashboard_alert(
-            pid=0,
-            name="file-monitor",
-            label="suspicious",
-            severity="high",
-            stage="observe",
-            response="file burst observed but no eligible process candidate",
-            trust={
-                "dynamic_trust": 0.65,
-                "final_trust": 0.70,
-                "static_trust": 0.85,
-            },
-            worm_score=0.72,
-            confidence=72,
-            signals={
-                "combined_risk": 0.72,
-                "correlated_signal_count": 2,
-                "replication_detected": True,
-                "correlated_signals": {
-                    "high_file_velocity": True,
-                    "mass_file_modification": True,
-                    "unattributed_file_burst": True,
-                },
-            },
-            features={
-                "file_events": total_events,
-                "directory_summary": directory_summary,
-                "no_eligible_process_candidate": True,
-            },
-        )
 
     return handled_pids
 
@@ -3862,7 +3755,7 @@ def monitor_loop():
                 {}
             )
 
-            network_data = (
+            network_data = (   
                network_monitor
                .get_network_data()
            )
@@ -3951,7 +3844,7 @@ def monitor_loop():
                     p,
                     entity_map
                 )
-            ][:MAX_DEEP_INSPECT_PROCESSES]
+            ][:30]
 
             rate_limited_print(
                 "monitor_loop_summary",
@@ -4384,7 +4277,7 @@ if HEALING_SAFE_MODE:
 # Ensure the controller PID is protected explicitly
 try:
     response_engine.add_protected_pid(os.getpid())
-except Exception:
+except:
     pass
 
 # ===================================================
@@ -4746,3 +4639,5 @@ if __name__ == "__main__":
     start_rapid_lineage_monitor()
 
     monitor_loop()
+
+

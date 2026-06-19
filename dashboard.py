@@ -1,5 +1,4 @@
 import ast
-import html
 import json
 import os
 import time
@@ -7,8 +6,9 @@ from pathlib import Path
 
 try:
     import pandas as pd
+    import plotly.express as px
+    import plotly.graph_objects as go
     import streamlit as st
-    import streamlit.components.v1 as components
 except ImportError as exc:
     print(f"Dashboard unavailable: missing dependency {exc}.")
 
@@ -30,7 +30,8 @@ except ImportError as exc:
 
     st = _Dummy()
     pd = _Dummy()
-    components = _Dummy()
+    px = _Dummy()
+    go = _Dummy()
 
     def st_autorefresh(*_, **__):
         return None
@@ -42,93 +43,10 @@ else:
             return None
 
 
-def _env_int(name, default, minimum=None):
-    try:
-        value = int(os.getenv(name, str(default)))
-    except Exception:
-        value = default
-    if minimum is not None:
-        value = max(minimum, value)
-    return value
-
-
-def _env_float(name, default, minimum=None):
-    try:
-        value = float(os.getenv(name, str(default)))
-    except Exception:
-        value = default
-    if minimum is not None:
-        value = max(minimum, value)
-    return value
-
-
-PROJECT_ROOT = Path(__file__).resolve().parent
-
-
-def _project_path(env_name, default):
-    configured = os.getenv(
-        env_name
-    )
-    if configured:
-        path = Path(configured)
-        if not path.is_absolute():
-            path = PROJECT_ROOT / path
-        return path
-
-    default_path = Path(default)
-    if default_path.is_absolute():
-        return default_path
-
-    candidates = []
-    for root in (
-        PROJECT_ROOT,
-        PROJECT_ROOT.parent,
-        Path.cwd(),
-        Path.cwd().parent,
-    ):
-        candidate = root / default_path
-        if candidate not in candidates:
-            candidates.append(candidate)
-
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-
-    return PROJECT_ROOT / default_path
-
-
 DASHBOARD_MAX_ROWS = 1000
-DASHBOARD_REFRESH_MS = _env_int("SELF_HEALING_DASHBOARD_REFRESH_MS", 2000, 500)
-DASHBOARD_CACHE_TTL_SECONDS = _env_float(
-    "SELF_HEALING_DASHBOARD_CACHE_TTL_SECONDS",
-    1.0,
-    0.0,
-)
-DASHBOARD_EVENT_MEMORY_SECONDS = _env_int(
-    "SELF_HEALING_DASHBOARD_EVENT_MEMORY_SECONDS",
-    180,
-    1,
-)
-DASHBOARD_TAIL_SECURITY_ROWS = _env_int(
-    "SELF_HEALING_DASHBOARD_TAIL_SECURITY_ROWS",
-    300,
-    25,
-)
-SYSTEM_LOG = _project_path("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json")
-HEALING_LOG = _project_path("SELF_HEALING_HEALING_LOG", "logs/healing_log.json")
-LEARNING_KB_LOG = _project_path("SELF_HEALING_KB_PATH", "logs/learning_kb.json")
-ACTIVE_RESPONSE_STAGES = {
-    "restrict",
-    "throttle",
-    "isolate",
-    "quarantine",
-    "block_resources",
-    "terminate",
-}
-ACTION_STATUS_PATTERN = (
-    "terminated|isolated|throttled|quarantined|restricted"
-)
-HIGH_CONFIDENCE_TRUST_CUTOFF = 0.50
+SYSTEM_LOG = Path(os.getenv("SELF_HEALING_SYSTEM_LOG", "logs/system_log.json"))
+HEALING_LOG = Path(os.getenv("SELF_HEALING_HEALING_LOG", "logs/healing_log.json"))
+LEARNING_KB_LOG = Path(os.getenv("SELF_HEALING_KB_PATH", "logs/learning_kb.json"))
 
 
 def _coerce_dashboard_dict(value):
@@ -155,7 +73,6 @@ def _file_signature(path):
         return {
             "path": str(path),
             "mtime": stat.st_mtime,
-            "mtime_ns": stat.st_mtime_ns,
             "size": stat.st_size,
             "age_seconds": max(0, time.time() - stat.st_mtime),
         }
@@ -163,14 +80,14 @@ def _file_signature(path):
         return {
             "path": str(path),
             "mtime": 0,
-            "mtime_ns": 0,
             "size": 0,
             "age_seconds": None,
         }
 
 
-@st.cache_data(ttl=DASHBOARD_CACHE_TTL_SECONDS)
+@st.cache_data(ttl=1)
 def _read_json_lines(path, signature):
+    del signature
     path = Path(path)
     if not path.exists():
         return pd.DataFrame()
@@ -188,21 +105,12 @@ def _read_json_lines(path, signature):
 
     frame = pd.DataFrame(rows).tail(DASHBOARD_MAX_ROWS)
     frame["_log_index"] = range(len(frame))
-    source_mtime = signature.get(
-        "mtime",
-        0,
-    ) if isinstance(signature, dict) else 0
-    frame["_source_mtime"] = pd.to_datetime(
-        source_mtime,
-        unit="s",
-        errors="coerce",
-    )
     if "timestamp" in frame.columns:
         frame["timestamp"] = pd.to_datetime(frame["timestamp"], errors="coerce")
     return frame
 
 
-@st.cache_data(ttl=DASHBOARD_CACHE_TTL_SECONDS)
+@st.cache_data(ttl=1)
 def load_learning_kb(signature):
     del signature
     if not LEARNING_KB_LOG.exists():
@@ -363,45 +271,18 @@ def _normalize_process_rows(frame):
     frame["strong_worm_score"] = frame["worm_score"].apply(
         lambda value: _normalize_risk_score(value) >= 0.65
     )
-    high_severity = frame["severity"].astype(str).str.lower().isin(
-        {"high", "critical"}
-    )
-    active_response = (
-        frame["stage"].astype(str).str.lower().isin(ACTIVE_RESPONSE_STAGES)
-        | frame["response"].astype(str).str.lower().str.contains(
-            ACTION_STATUS_PATTERN,
-            na=False,
-        )
-    )
-    high_confidence_label = (
-        frame["label"].astype(str).str.lower().isin({"worm", "forkbomb"})
-        & (
-            frame["strong_worm_score"].astype(bool)
-            | frame["confirmed_behavior"].astype(bool)
-        )
-    )
-    high_confidence_severity = (
-        high_severity
-        & (
-            frame["confirmed_behavior"].astype(bool)
-            | frame["strong_worm_score"].astype(bool)
-            | (frame["correlated_signal_count"] >= 2)
-            | (frame["final_trust"] < HIGH_CONFIDENCE_TRUST_CUTOFF)
-        )
-    )
     frame["flagged"] = (
         (
-            high_confidence_label
-            | high_confidence_severity
+            frame["label"].astype(str).str.lower().isin({"worm", "forkbomb"})
+            | frame["severity"].astype(str).str.lower().isin({"high", "critical"})
             | frame["confirmed_behavior"].astype(bool)
             | frame["strong_worm_score"].astype(bool)
-            | active_response
+            | (frame["final_trust"] < 0.75)
         )
         & (
             ~frame["category_suppressed"].astype(bool)
             | frame["confirmed_behavior"].astype(bool)
             | frame["severity"].astype(str).str.lower().eq("critical")
-            | active_response
         )
     )
     return frame
@@ -421,8 +302,16 @@ def _latest_by_pid(frame):
     return ordered.groupby("pid", as_index=False).tail(1)
 
 
-def _recent_rows(frame, seconds=45, trust_source_mtime=False):
-    if frame.empty:
+def _recent_rows(frame, seconds=45):
+    if frame.empty or "timestamp" not in frame.columns:
+        return frame
+
+    timestamps = pd.to_datetime(
+        frame["timestamp"],
+        errors="coerce"
+    )
+
+    if timestamps.dropna().empty:
         return frame
 
     now = pd.Timestamp.now()
@@ -432,318 +321,16 @@ def _recent_rows(frame, seconds=45, trust_source_mtime=False):
     cutoff = now - pd.Timedelta(
         seconds=seconds
     )
-
-    recent_mask = pd.Series(
-        False,
-        index=frame.index,
-    )
-
-    if "timestamp" in frame.columns:
-        timestamps = pd.to_datetime(
-            frame["timestamp"],
-            errors="coerce"
-        )
-        recent_mask = recent_mask | (
-            (timestamps >= cutoff)
-            &
-            (timestamps <= future_grace)
-        )
-    else:
-        timestamps = pd.Series(
-            pd.NaT,
-            index=frame.index,
-        )
-
-    if "_source_mtime" in frame.columns:
-        source_times = pd.to_datetime(
-            frame["_source_mtime"],
-            errors="coerce"
-        )
-        # Some test and demo generators replay fixed event timestamps while
-        # actively appending to the log. Treat a hot source file as live so the
-        # dashboard follows what is being written instead of freezing at zero.
-        if trust_source_mtime:
-            source_time_eligible = pd.Series(
-                True,
-                index=frame.index,
-            )
-        else:
-            source_time_eligible = timestamps.isna()
-        recent_mask = recent_mask | (
-            source_time_eligible
-            &
-            (source_times >= cutoff)
-            &
-            (source_times <= future_grace)
-        )
-
     recent = frame[
-        recent_mask
+        (timestamps >= cutoff)
+        &
+        (timestamps <= future_grace)
     ]
+
     if not recent.empty:
         return recent
 
-    return frame.iloc[0:0]
-
-
-def _live_latest_rows(frame, seconds=45, trust_source_mtime=False):
-    recent = _recent_rows(
-        frame,
-        seconds=seconds,
-        trust_source_mtime=trust_source_mtime,
-    )
-    return _latest_by_pid(
-        recent
-    )
-
-
-def _security_event_mask(frame):
-    if frame is None or frame.empty:
-        return pd.Series(dtype=bool)
-
-    index = frame.index
-    flagged = (
-        frame.get("flagged", pd.Series(False, index=index))
-        .astype(bool)
-    )
-    severe_with_evidence = (
-        frame.get("severity", pd.Series("", index=index))
-        .astype(str)
-        .str.lower()
-        .isin({"high", "critical"})
-        & (
-            frame.get("confirmed_behavior", pd.Series(False, index=index))
-            .astype(bool)
-            | frame.get("strong_worm_score", pd.Series(False, index=index))
-            .astype(bool)
-            | (
-                pd.to_numeric(
-                    frame.get(
-                        "correlated_signal_count",
-                        pd.Series(0, index=index),
-                    ),
-                    errors="coerce",
-                ).fillna(0)
-                >= 2
-            )
-            | (
-                pd.to_numeric(
-                    frame.get(
-                        "final_trust",
-                        pd.Series(1.0, index=index),
-                    ),
-                    errors="coerce",
-                ).fillna(1.0)
-                < HIGH_CONFIDENCE_TRUST_CUTOFF
-            )
-        )
-    )
-    response_stage = (
-        frame.get("stage", pd.Series("", index=index))
-        .astype(str)
-        .str.lower()
-        .isin(ACTIVE_RESPONSE_STAGES)
-    )
-    response_text = (
-        frame.get("response", pd.Series("", index=index))
-        .astype(str)
-        .str.lower()
-        .str.contains(ACTION_STATUS_PATTERN, na=False)
-    )
-
-    return flagged | severe_with_evidence | response_stage | response_text
-
-
-def _security_memory_rows(frame, seconds=60, trust_source_mtime=False):
-    recent = _recent_rows(
-        frame,
-        seconds=seconds,
-        trust_source_mtime=trust_source_mtime,
-    )
-    if recent.empty:
-        return recent
-
-    security_rows = recent[
-        _security_event_mask(
-            recent
-        )
-    ]
-    if security_rows.empty:
-        return security_rows
-
-    return _latest_by_pid(
-        security_rows
-    )
-
-
-def _dashboard_state_rows(
-    frame,
-    live_seconds=12,
-    event_seconds=60,
-    trust_source_mtime=False,
-):
-    live = _live_latest_rows(
-        frame,
-        seconds=live_seconds,
-        trust_source_mtime=trust_source_mtime,
-    )
-    memory = _security_memory_rows(
-        frame,
-        seconds=event_seconds,
-        trust_source_mtime=trust_source_mtime,
-    )
-
-    if live.empty:
-        return memory
-    if memory.empty:
-        return live
-
-    combined = pd.concat(
-        [live, memory],
-        ignore_index=True,
-    )
-    combined["_security_priority"] = _security_event_mask(
-        combined
-    ).astype(int)
-    sort_columns = [
-        column
-        for column in (
-            "pid",
-            "_security_priority",
-            "_log_index",
-            "timestamp",
-        )
-        if column in combined.columns
-    ]
-
-    return combined.sort_values(
-        sort_columns,
-    ).groupby(
-        "pid",
-        as_index=False,
-    ).tail(
-        1
-    ).drop(
-        columns=[
-            "_security_priority",
-        ],
-        errors="ignore",
-    )
-
-
-def _recent_security_rows(
-    frame,
-    seconds=180,
-    limit=100,
-    trust_source_mtime=False,
-):
-    recent = _recent_rows(
-        frame,
-        seconds=seconds,
-        trust_source_mtime=trust_source_mtime,
-    )
-    if recent.empty:
-        return recent
-
-    security = recent[
-        _security_event_mask(
-            recent
-        )
-    ]
-    if security.empty:
-        return security
-
-    sort_columns = [
-        column
-        for column in (
-            "_log_index",
-            "timestamp",
-        )
-        if column in security.columns
-    ]
-    if sort_columns:
-        security = security.sort_values(
-            sort_columns,
-        )
-
-    return security.tail(
-        limit
-    )
-
-
-def _tail_security_rows(frame, limit=300):
-    if frame is None or frame.empty:
-        return pd.DataFrame()
-
-    tail = frame.tail(
-        max(1, int(limit))
-    ).copy()
-    security = tail[
-        _security_event_mask(
-            tail
-        )
-    ]
-    if security.empty:
-        return security
-
-    sort_columns = [
-        column
-        for column in (
-            "_log_index",
-            "timestamp",
-        )
-        if column in security.columns
-    ]
-    if sort_columns:
-        security = security.sort_values(
-            sort_columns,
-        )
-
-    return security
-
-
-def _combine_dashboard_rows(*frames):
-    available = [
-        frame
-        for frame in frames
-        if frame is not None and not frame.empty
-    ]
-    if not available:
-        return pd.DataFrame()
-
-    combined = pd.concat(
-        available,
-        ignore_index=True,
-    )
-    if "_log_index" in combined.columns:
-        combined = combined.drop_duplicates(
-            subset=[
-                column
-                for column in (
-                    "pid",
-                    "stage",
-                    "response",
-                    "_log_index",
-                )
-                if column in combined.columns
-            ],
-            keep="last",
-        )
-    return combined
-
-
-def _dashboard_security_rows(frame, seconds=180, tail_limit=300):
-    return _combine_dashboard_rows(
-        _recent_security_rows(
-            frame,
-            seconds=seconds,
-            limit=tail_limit,
-        ),
-        _tail_security_rows(
-            frame,
-            limit=tail_limit,
-        ),
-    )
+    return frame.tail(100)
 
 
 def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
@@ -784,145 +371,33 @@ def _overlay_healing_status(process_rows, healing_rows, fallback_rows=None):
     return output
 
 
-def _healing_stage_trust(stage, action_taken=False):
-    stage = str(
-        stage
-        or "observe"
-    ).lower()
-    if stage == "terminate":
-        return 0.25
-    if stage == "quarantine":
-        return 0.45
-    if stage in {"throttle", "block_resources", "restrict"}:
-        return 0.65
-    if action_taken:
-        return 0.70
-    return 0.92
-
-
-def _healing_rows_as_process_rows(
-    healing_rows,
-    seconds=60,
-    trust_source_mtime=False,
-):
-    if healing_rows is None or healing_rows.empty:
-        return pd.DataFrame()
-
-    recent = _recent_rows(
-        healing_rows,
-        seconds=seconds,
-        trust_source_mtime=trust_source_mtime,
-    )
-    if recent.empty:
-        return pd.DataFrame()
-
-    stage = (
-        recent.get("stage", pd.Series("", index=recent.index))
-        .astype(str)
-        .str.lower()
-    )
-    status = (
-        recent.get("status", pd.Series("", index=recent.index))
-        .astype(str)
-        .str.lower()
-    )
-    action_taken = (
-        recent.get("action_taken", pd.Series(False, index=recent.index))
-        .astype(bool)
-    )
-    actionable = recent[
-        action_taken
-        | stage.isin(ACTIVE_RESPONSE_STAGES)
-        | status.str.contains(
-            ACTION_STATUS_PATTERN,
-            na=False,
-        )
-    ]
-
-    latest = _latest_by_pid(
-        actionable
-    )
-    if latest.empty:
-        return pd.DataFrame()
-
-    rows = []
-    for _, row in latest.iterrows():
-        stage = str(
-            row.get(
-                "stage",
-                "observe"
-            )
-            or "observe"
-        ).lower()
-        action_taken = bool(
-            row.get(
-                "action_taken",
-                False
-            )
-        )
-        final_trust = _healing_stage_trust(
-            stage,
-            action_taken=action_taken,
-        )
-        flagged = stage in ACTIVE_RESPONSE_STAGES or action_taken
-        rows.append({
-            "timestamp": row.get("timestamp"),
-            "_log_index": row.get("_log_index"),
-            "_source_mtime": row.get("_source_mtime"),
-            "pid": row.get("pid"),
-            "name": "healing-action",
-            "label": "response" if flagged else "normal",
-            "severity": "critical" if stage == "terminate" else ("high" if flagged else "low"),
-            "stage": stage,
-            "response": row.get("status", "healing event"),
-            "action_taken": action_taken,
-            "dynamic_trust": final_trust,
-            "final_trust": final_trust,
-            "static_trust": 0.85,
-            "worm_score": 0.90 if flagged else 0.0,
-            "confidence": 90 if flagged else 0,
-            "cpu": 0.0,
-            "memory": 0.0,
-            "threads": 0.0,
-            "connections": 0.0,
-            "file_events": 0.0,
-            "signals": {
-                "correlated_signal_count": 1 if flagged else 0,
-                "healing_event": flagged,
-            },
-            "anomalies": {},
-            "features": {
-                "healing_fallback": True,
-            },
-        })
-
-    return _normalize_process_rows(
-        pd.DataFrame(rows)
-    )
-
-
 def _active_flag_rows(rows):
     if rows is None or rows.empty:
         return pd.DataFrame()
 
     output = []
     for _, item in rows.iterrows():
-        active = _flag_terms(item)
+        signals = _coerce_dashboard_dict(item.get("signals"))
+        correlated = _coerce_dashboard_dict(signals.get("correlated_signals"))
+        active = [
+            name
+            for name, value in correlated.items()
+            if bool(value)
+        ]
+        for key in (
+            "forkbomb_detected",
+            "replication_detected",
+            "fanout_detected",
+            "artifact_abuse_detected",
+            "trust_anomaly_pattern",
+            "worm_like_behavior",
+            "catastrophic_behavior",
+        ):
+            if signals.get(key):
+                active.append(key)
 
         if not active and not bool(item.get("flagged", False)):
             continue
-
-        stage = str(
-            item.get(
-                "stage",
-                "observe",
-            )
-            or "observe"
-        ).lower()
-        explanation = "; ".join(
-            FLAG_EXPLANATIONS.get(flag, flag.replace("_", " "))
-            for flag in active[:4]
-        )
 
         output.append({
             "pid": item.get("pid"),
@@ -934,200 +409,9 @@ def _active_flag_rows(rows):
             "worm_score": item.get("worm_score"),
             "trust_anomaly_pressure": item.get("trust_anomaly_pressure"),
             "flags": ", ".join(sorted(set(active))) if active else "low_trust",
-            "why": explanation,
-            "self_healing_action": ACTION_EXPLANATIONS.get(
-                stage,
-                "Monitoring and keeping telemetry visible.",
-            ),
         })
 
     return pd.DataFrame(output)
-
-
-FLAG_EXPLANATIONS = {
-    "forkbomb_detected": "rapid recursive process spawning was detected",
-    "process_storm_burst": "process count rose fast enough to indicate a storm",
-    "large_or_growing_tree": "the process family is growing unusually large",
-    "repeated_similar_children": "many children share the same executable pattern",
-    "short_lived_recursive_children": "children are appearing and exiting in a recursive pattern",
-    "deep_recursive_tree": "the process lineage is deeper than normal",
-    "replication_detected": "file replication behavior was confirmed",
-    "file_replication": "files are being copied or rewritten in a replication pattern",
-    "high_file_velocity": "file events are arriving quickly",
-    "extreme_file_velocity": "file velocity is high enough to look destructive",
-    "mass_file_modification": "many files are being changed in a short window",
-    "suspicious_rename": "rename activity resembles staged encryption or evasion",
-    "fanout_detected": "network fanout behavior was confirmed",
-    "localhost_beaconing": "repeated localhost connections look like beaconing",
-    "network_fanout": "connections are spreading across endpoints or ports",
-    "artifact_abuse_detected": "persistence or sensitive artifact abuse was detected",
-    "persistence_artifact": "startup, script, or persistence artifacts were touched",
-    "sensitive_file_access": "sensitive paths or credential-like files were accessed",
-    "thread_storm_detected": "thread creation looks like a resource storm",
-    "thread_explosion": "thread count jumped sharply",
-    "cpu_memory_escalation": "resource usage is escalating",
-    "resource_pressure": "system pressure is high enough to affect trust",
-    "trust_anomaly_pattern": "trust dropped in a learned suspicious pattern",
-    "worm_like_behavior": "multiple signals combine into worm-like behavior",
-    "catastrophic_behavior": "catastrophic behavior is severe enough for immediate response",
-    "healing_event": "a self-healing action was recorded",
-    "low_trust": "final trust fell below the response threshold",
-}
-
-
-ACTION_EXPLANATIONS = {
-    "observe": "Monitoring only; evidence is not strong enough to intervene.",
-    "protected": "Action blocked because the target matches a protected workload.",
-    "trust_recovery": "Recovering trust after risk dropped below the response threshold.",
-    "throttle": "Reducing activity to slow the process while collecting more evidence.",
-    "block_resources": "Restricting resources to contain active pressure.",
-    "restrict": "Applying a reversible restriction before stronger containment.",
-    "quarantine": "Isolating the process or related behavior to prevent spread.",
-    "terminate": "Stopping the process family because evidence crossed the termination policy.",
-}
-
-
-def _flag_terms(row):
-    signals = _coerce_dashboard_dict(row.get("signals"))
-    correlated = _coerce_dashboard_dict(signals.get("correlated_signals"))
-    active = [
-        name
-        for name, value in correlated.items()
-        if bool(value)
-    ]
-    for key in (
-        "forkbomb_detected",
-        "replication_detected",
-        "fanout_detected",
-        "artifact_abuse_detected",
-        "thread_storm_detected",
-        "trust_anomaly_pattern",
-        "worm_like_behavior",
-        "catastrophic_behavior",
-        "healing_event",
-    ):
-        if signals.get(key):
-            active.append(key)
-
-    if not active and bool(row.get("flagged", False)):
-        active.append("low_trust")
-
-    return sorted(set(active))
-
-
-def _stage_tone(stage, flagged=False):
-    stage = str(stage or "observe").lower()
-    if stage == "terminate":
-        return "critical"
-    if stage in {"quarantine", "block_resources", "restrict"}:
-        return "high"
-    if stage == "throttle":
-        return "medium"
-    if flagged:
-        return "medium"
-    return "low"
-
-
-def _format_pct(value):
-    try:
-        return f"{float(value) * 100:.1f}%"
-    except Exception:
-        return "n/a"
-
-
-def _alert_rows(rows, limit=8):
-    if rows is None or rows.empty:
-        return []
-
-    candidates = rows[
-        _security_event_mask(
-            rows
-        )
-    ].copy()
-    if candidates.empty:
-        return []
-
-    if "timestamp" in candidates.columns:
-        candidates["timestamp"] = pd.to_datetime(
-            candidates["timestamp"],
-            errors="coerce",
-        )
-
-    sort_columns = [
-        column
-        for column in (
-            "timestamp",
-            "_log_index",
-        )
-        if column in candidates.columns
-    ]
-    if sort_columns:
-        candidates = candidates.sort_values(
-            sort_columns,
-            ascending=True,
-        )
-
-    alerts = []
-    for _, row in candidates.tail(limit).iloc[::-1].iterrows():
-        stage = str(row.get("stage", "observe") or "observe").lower()
-        flags = _flag_terms(row)
-        flag_text = "; ".join(
-            FLAG_EXPLANATIONS.get(flag, flag.replace("_", " "))
-            for flag in flags[:5]
-        )
-        if not flag_text:
-            flag_text = "risk evidence was recorded but no specific flag names were present"
-
-        severity = str(row.get("severity", "low") or "low").lower()
-        label = str(row.get("label", "normal") or "normal").lower()
-        response = row.get("response", "")
-        status = str(response or ACTION_EXPLANATIONS.get(stage, "Monitoring."))
-        alerts.append({
-            "pid": row.get("pid"),
-            "name": row.get("name", "unknown"),
-            "severity": severity,
-            "label": label,
-            "stage": stage,
-            "tone": _stage_tone(stage, bool(row.get("flagged", False))),
-            "trust": _format_pct(row.get("final_trust")),
-            "worm_score": _format_pct(_normalize_risk_score(row.get("worm_score"))),
-            "flags": ", ".join(flags) if flags else "none",
-            "why": flag_text,
-            "action": ACTION_EXPLANATIONS.get(stage, "Monitoring and keeping telemetry visible."),
-            "status": status,
-        })
-
-    return alerts
-
-
-def _render_alert_feed(alerts):
-    if not alerts:
-        st.success("No active self-healing alerts in the current dashboard window.")
-        return
-
-    for alert in alerts:
-        safe_alert = {
-            key: html.escape(str(value))
-            for key, value in alert.items()
-        }
-        st.markdown(
-            f"""
-            <div class="alert-card {safe_alert["tone"]}">
-                <div class="alert-top">
-                    <div>
-                        <div class="alert-title">{safe_alert["stage"].upper()} - {safe_alert["name"]}</div>
-                        <div class="alert-meta">pid {safe_alert["pid"]} - {safe_alert["label"]} - {safe_alert["severity"]} - trust {safe_alert["trust"]} - worm {safe_alert["worm_score"]}</div>
-                    </div>
-                    <div class="alert-stage">{safe_alert["stage"]}</div>
-                </div>
-                <div class="alert-body"><b>Why:</b> {safe_alert["why"]}</div>
-                <div class="alert-body"><b>Self-healing action:</b> {safe_alert["action"]}</div>
-                <div class="alert-body"><b>Status:</b> {safe_alert["status"]}</div>
-                <div class="alert-flags">{safe_alert["flags"]}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
 
 
 def _acceptance_coverage_rows(latest_rows, signal_rows):
@@ -1215,8 +499,42 @@ def _risk_band(value):
     return "low"
 
 
+def _has_active_dashboard_risk(frame):
+    if frame is None or frame.empty:
+        return False
+
+    flagged = (
+        frame.get("flagged", pd.Series(dtype=bool))
+        .astype(bool)
+        .any()
+    )
+    critical = (
+        frame.get("severity", pd.Series(dtype=str))
+        .astype(str)
+        .str.lower()
+        .eq("critical")
+        .any()
+    )
+    response_active = (
+        frame.get("stage", pd.Series(dtype=str))
+        .astype(str)
+        .str.lower()
+        .isin(["throttle", "quarantine", "terminate", "block_resources"])
+        .any()
+    )
+
+    return bool(
+        flagged
+        or critical
+        or response_active
+    )
+
+
 def _dashboard_trust_score(latest):
     if latest is None or latest.empty:
+        return 1.0
+
+    if not _has_active_dashboard_risk(latest):
         return 1.0
 
     return float(latest["final_trust"].mean())
@@ -1224,6 +542,9 @@ def _dashboard_trust_score(latest):
 
 def _dashboard_pressure_score(latest):
     if latest is None or latest.empty:
+        return 0.0
+
+    if not _has_active_dashboard_risk(latest):
         return 0.0
 
     return float(latest["trust_anomaly_pressure"].mean())
@@ -1263,93 +584,237 @@ def _info_box(title, body):
     )
 
 
-def _prepare_learning_rows(kb):
-    if kb is None or kb.empty:
-        return pd.DataFrame()
+def _plot_theme(fig, height=300, showlegend=True):
+    fig.update_layout(
+        height=height,
+        paper_bgcolor="#151922",
+        plot_bgcolor="#151922",
+        font={
+            "color": "#d6dde7",
+            "family": "Inter, Segoe UI, Arial, sans-serif",
+        },
+        margin=dict(l=18, r=18, t=24, b=18),
+        legend={
+            "orientation": "h",
+            "y": 1.08,
+            "x": 0.58,
+            "font": {"color": "#9aa7b7"},
+        },
+        showlegend=showlegend,
+    )
+    fig.update_xaxes(
+        gridcolor="rgba(148,163,184,0.12)",
+        zerolinecolor="rgba(148,163,184,0.14)",
+        linecolor="rgba(148,163,184,0.18)",
+        tickfont={"color": "#9aa7b7"},
+    )
+    fig.update_yaxes(
+        gridcolor="rgba(148,163,184,0.14)",
+        zerolinecolor="rgba(148,163,184,0.14)",
+        linecolor="rgba(148,163,184,0.18)",
+        tickfont={"color": "#9aa7b7"},
+    )
+    return fig
 
-    graph = kb.copy()
-    if "pattern_id" not in graph.columns:
-        graph["pattern_id"] = graph.index.astype(str)
 
-    if "attack_family" not in graph.columns:
-        graph["attack_family"] = "unknown"
+def _draw_security_score(avg_trust, trust_pressure):
+    score = max(
+        0,
+        min(
+            100,
+            round(
+                (
+                    avg_trust * 0.72
+                    + (1 - min(trust_pressure, 1.0)) * 0.28
+                )
+                * 100,
+                1,
+            ),
+        ),
+    )
+    fig = go.Figure()
+    fig.add_trace(go.Indicator(
+        mode="gauge+number",
+        value=score,
+        number={"suffix": "%"},
+        gauge={
+            "axis": {"range": [0, 100]},
+            "bgcolor": "#1f2937",
+            "bar": {"color": "#34d399"},
+            "borderwidth": 0,
+            "steps": [
+                {"range": [0, 40], "color": "#ef4444"},
+                {"range": [40, 70], "color": "#f59e0b"},
+                {"range": [70, 100], "color": "#22c55e"},
+            ],
+            "threshold": {
+                "line": {"color": "#06b6d4", "width": 5},
+                "thickness": 0.65,
+                "value": score,
+            },
+        },
+    ))
+    return _plot_theme(fig, height=300, showlegend=False)
 
-    for column in (
-        "confidence",
-        "observations",
-        "avg_pattern_strength",
-        "avg_trust_anomaly_pressure",
+
+def _draw_anomaly_timeline(frame):
+    if frame.empty or "timestamp" not in frame.columns:
+        return None
+    plot = frame.dropna(subset=["timestamp"]).tail(250).copy()
+    if plot.empty:
+        return None
+    plot["time_bucket"] = plot["timestamp"].dt.floor("10s")
+    grouped = (
+        plot.groupby("time_bucket", as_index=False)[
+            [
+                "aggregate_anomaly",
+                "worm_pattern_anomaly",
+                "trust_anomaly_pressure",
+            ]
+        ]
+        .mean()
+    )
+    for col in (
+        "aggregate_anomaly",
+        "worm_pattern_anomaly",
+        "trust_anomaly_pressure",
     ):
+        grouped[col] = grouped[col] * 100
+    fig = px.line(
+        grouped,
+        x="time_bucket",
+        y=["aggregate_anomaly", "worm_pattern_anomaly", "trust_anomaly_pressure"],
+        labels={"value": "score", "time_bucket": "", "variable": ""},
+        color_discrete_sequence=["#38bdf8", "#06b6d4", "#34d399"],
+    )
+    fig.update_traces(mode="lines+markers", line={"width": 2.2})
+    return _plot_theme(fig, height=320)
+
+
+def _draw_learning_graph(kb):
+    if kb.empty:
+        return None
+    graph = kb.copy()
+    for column in ("confidence", "observations", "avg_pattern_strength"):
         if column not in graph.columns:
             graph[column] = 0
-        graph[column] = pd.to_numeric(
-            graph[column],
-            errors="coerce",
-        ).fillna(0)
-
-    for column, default in {
-        "recommended_stage": "observe",
-        "disposition": "unknown",
-        "summary": "",
-        "last_process_name": "unknown",
-    }.items():
-        if column not in graph.columns:
-            graph[column] = default
-        graph[column] = (
-            graph[column]
-            .astype(str)
-            .replace("", default)
-        )
-
-    for column in ("confidence", "avg_pattern_strength", "avg_trust_anomaly_pressure"):
-        graph[column] = graph[column].apply(_normalize_risk_score)
-
-    graph["attack_family"] = (
+        graph[column] = pd.to_numeric(graph[column], errors="coerce").fillna(0)
+    if "attack_family" not in graph.columns:
+        graph["attack_family"] = "unknown"
+    family_counts = (
         graph["attack_family"]
         .astype(str)
         .replace("", "unknown")
+        .value_counts()
+        .head(5)
+        .reset_index()
     )
-    graph["recommended_stage"] = (
-        graph["recommended_stage"]
+    family_counts.columns = ["attack_family", "count"]
+    fig = px.pie(
+        family_counts,
+        names="attack_family",
+        values="count",
+        hole=0.72,
+        color_discrete_sequence=["#14b8a6", "#38bdf8", "#a3e635", "#f59e0b", "#f43f5e"],
+    )
+    fig.add_annotation(
+        text=f"{len(graph)}<br><span style='font-size:14px;color:#9aa7b7'>Total</span>",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font={"size": 34, "color": "#f8fafc"},
+    )
+    return _plot_theme(fig, height=300)
+
+
+def _draw_stage_graph(frame):
+    if frame.empty:
+        return None
+    counts = (
+        frame["stage"]
         .astype(str)
         .str.lower()
-        .replace("", "observe")
+        .value_counts()
+        .reset_index()
     )
-    graph["readiness_score"] = (
-        graph["confidence"] * 0.45
-        + graph["avg_pattern_strength"] * 0.35
-        + graph["avg_trust_anomaly_pressure"] * 0.20
+    counts.columns = ["stage", "count"]
+    fig = px.pie(
+        counts,
+        names="stage",
+        values="count",
+        hole=0.72,
+        color="stage",
+        color_discrete_sequence=["#22c55e", "#f59e0b", "#fb923c", "#f43f5e", "#38bdf8"],
     )
-    graph["confidence_pct"] = (
-        graph["confidence"] * 100
-    ).round(1)
-    graph["strength_pct"] = (
-        graph["avg_pattern_strength"] * 100
-    ).round(1)
-    graph["readiness_pct"] = (
-        graph["readiness_score"] * 100
-    ).round(1)
-    return graph
+    fig.add_annotation(
+        text=f"{int(counts['count'].sum())}<br><span style='font-size:14px;color:#9aa7b7'>Total</span>",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font={"size": 34, "color": "#f8fafc"},
+    )
+    return _plot_theme(fig, height=300)
 
 
-def _learning_action_summary(kb):
-    graph = _prepare_learning_rows(kb)
-    if graph.empty:
-        return pd.DataFrame()
-
-    summary = (
-        graph.groupby("recommended_stage", as_index=False)
-        .agg(
-            patterns=("pattern_id", "count"),
-            avg_confidence=("confidence_pct", "mean"),
-            avg_readiness=("readiness_pct", "mean"),
-            max_observations=("observations", "max"),
+def _draw_health_ring(latest, kb):
+    if latest.empty:
+        health = 100
+    elif not _has_active_dashboard_risk(latest):
+        health = 100
+    else:
+        trust = float(latest["final_trust"].mean())
+        pressure = float(latest["trust_anomaly_pressure"].mean())
+        flagged_ratio = float(latest["flagged"].mean())
+        health = round(
+            max(
+                0,
+                min(
+                    100,
+                    (
+                        trust * 0.60
+                        + (1 - pressure) * 0.25
+                        + (1 - flagged_ratio) * 0.15
+                    )
+                    * 100,
+                ),
+            ),
+            1,
         )
-        .sort_values("avg_readiness", ascending=False)
+
+    if not kb.empty and "recommended_stage" in kb.columns:
+        terminate_ready = int(
+            kb["recommended_stage"]
+            .astype(str)
+            .str.lower()
+            .eq("terminate")
+            .sum()
+        )
+    else:
+        terminate_ready = 0
+
+    fig = go.Figure()
+    fig.add_trace(go.Pie(
+        values=[health, max(0, 100 - health)],
+        hole=0.76,
+        marker={"colors": ["#34d399", "#243041"]},
+        textinfo="none",
+        sort=False,
+    ))
+    fig.add_annotation(
+        text=f"{health:.0f}%<br><span style='font-size:13px;color:#9aa7b7'>Health</span>",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font={"size": 34, "color": "#f8fafc"},
     )
-    summary["avg_confidence"] = summary["avg_confidence"].round(1)
-    summary["avg_readiness"] = summary["avg_readiness"].round(1)
-    return summary
+    fig.add_annotation(
+        text=f"{terminate_ready} terminate-ready patterns",
+        x=0.5,
+        y=-0.08,
+        showarrow=False,
+        font={"size": 12, "color": "#9aa7b7"},
+    )
+    return _plot_theme(fig, height=300, showlegend=False)
 
 
 def _card_header(title, note=""):
@@ -1371,582 +836,482 @@ def _compact_table(frame, columns, limit=8):
     return frame[selected].head(limit)
 
 
-def _safe_text(value, default=""):
-    if value is None:
-        value = default
-    return html.escape(str(value))
-
-
-def _compact_number(value):
-    try:
-        number = float(value)
-    except Exception:
-        return "0"
-    if abs(number) >= 1_000_000:
-        return f"{number / 1_000_000:.1f}M"
-    if abs(number) >= 10_000:
-        return f"{number:,.0f}"
-    if abs(number) >= 1000:
-        return f"{number:,.0f}"
-    if number.is_integer():
-        return f"{int(number):,}"
-    return f"{number:.1f}"
-
-
-def _spark_bars(values, tone="violet"):
-    if not values:
-        values = [0.18, 0.42, 0.74, 0.54]
-    bars = []
-    for value in values[-5:]:
-        try:
-            height = max(14, min(54, int(float(value) * 54)))
-        except Exception:
-            height = 18
-        bars.append(
-            f'<span class="spark-bar {tone}" style="height:{height}px"></span>'
-        )
-    return "".join(bars)
-
-
-def _metric_tile(title, value, note, tone, values):
-    return f"""
-    <div class="crm-kpi">
-        <div class="kpi-icon {tone}"></div>
-        <div class="kpi-spacer"></div>
-        <div class="kpi-label">{_safe_text(title)}</div>
-        <div class="kpi-row">
-            <div>
-                <div class="kpi-value">{_safe_text(value)}</div>
-                <div class="kpi-note">{_safe_text(note)}</div>
-            </div>
-            <div class="spark-bars">{_spark_bars(values, tone)}</div>
-        </div>
-    </div>
-    """
-
-
-def _chunked_metric_values(frame, column, chunks=9, default=1.0):
-    if frame is None or frame.empty or column not in frame.columns:
-        return [default for _ in range(chunks)]
-    series = pd.to_numeric(
-        frame[column],
-        errors="coerce",
-    ).dropna()
-    if series.empty:
-        return [default for _ in range(chunks)]
-    values = []
-    size = max(1, int(len(series) / chunks))
-    for index in range(chunks):
-        start = index * size
-        stop = len(series) if index == chunks - 1 else (index + 1) * size
-        segment = series.iloc[start:stop]
-        values.append(float(segment.mean()) if not segment.empty else default)
-    return values
-
-
-def _analytics_chart(values):
-    labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
-    bars = []
-    for label, value in zip(labels, values):
-        trust = max(0.0, min(1.0, float(value)))
-        height = int(28 + trust * 150)
-        ghost = max(22, height - 38)
-        dot = max(18, min(168, int(trust * 168)))
-        bars.append(
-            f"""
-            <div class="chart-col">
-                <div class="chart-track">
-                    <span class="chart-ghost" style="height:{ghost}px"></span>
-                    <span class="chart-main" style="height:{height}px"></span>
-                    <span class="chart-dot" style="bottom:{dot}px"></span>
-                </div>
-                <div class="chart-label">{label}</div>
-            </div>
-            """
-        )
-    return "".join(bars)
-
-
-def _risk_donut(total, critical, active, stable):
-    total = max(1, int(total))
-    critical_pct = max(0, min(100, critical / total * 100))
-    active_pct = max(0, min(100, active / total * 100))
-    critical_end = critical_pct
-    active_end = min(100, critical_pct + active_pct)
-    return f"""
-    <div class="donut-card">
-        <div class="card-menu">...</div>
-        <div class="side-title">Risk by Source</div>
-        <div class="donut-wrap">
-            <div class="donut" style="background: conic-gradient(#6a56d9 0 {critical_end:.1f}%, #f59adf {critical_end:.1f}% {active_end:.1f}%, #ffd069 {active_end:.1f}% 100%);">
-                <div class="donut-center">
-                    <span>Total</span>
-                    <b>{_compact_number(total)}</b>
-                </div>
-            </div>
-        </div>
-        <div class="donut-legend">
-            <div><span class="legend pink"></span><b>Critical</b><small>{_compact_number(critical)}</small></div>
-            <div><span class="legend purple"></span><b>Active</b><small>{_compact_number(active)}</small></div>
-            <div><span class="legend gold"></span><b>Stable</b><small>{_compact_number(stable)}</small></div>
-        </div>
-    </div>
-    """
-
-
-def _alerts_panel(alerts):
-    if not alerts:
-        return """
-        <div class="empty-state">
-            <b>No active self-healing alerts</b>
-            <span>The live window is stable.</span>
-        </div>
-        """
-    rows = []
-    for alert in alerts[:3]:
-        rows.append(
-            f"""
-            <div class="alert-line {alert.get("tone", "low")}">
-                <div>
-                    <b>{_safe_text(str(alert.get("stage", "observe")).upper())}</b>
-                    <span>{_safe_text(alert.get("name", "unknown"))} / pid {_safe_text(alert.get("pid", ""))}</span>
-                </div>
-                <small>{_safe_text(alert.get("status", "monitoring"))}</small>
-            </div>
-            """
-        )
-    return "".join(rows)
-
-
-def _process_table(frame):
-    if frame is None or frame.empty:
-        return """
-        <div class="crm-empty-row">
-            <span>Waiting for fresh process telemetry</span>
-        </div>
-        """
-    rows = []
-    table = frame.sort_values(
-        ["flagged", "trust_anomaly_pressure", "worm_score"],
-        ascending=[False, False, False],
-    ).head(5)
-    for _, row in table.iterrows():
-        trust = _normalize_trust(row.get("final_trust", 1.0))
-        tone = _risk_band(_normalize_risk_score(row.get("worm_score", 0.0)))
-        rows.append(
-            f"""
-            <div class="deal-row">
-                <div class="proc-id"><span></span><div><b>{_safe_text(row.get("name", "unknown"))}</b><small>pid {_safe_text(row.get("pid", ""))}</small></div></div>
-                <div>{_safe_text(row.get("label", "normal"))}</div>
-                <div>{_safe_text(row.get("stage", "observe"))}</div>
-                <div>{trust * 100:.1f}%</div>
-                <div><span class="risk-pill {tone}">{_safe_text(row.get("severity", "low"))}</span></div>
-            </div>
-            """
-        )
-    return "".join(rows)
-
-
-def _top_signal_rows(flags, historical_rows):
-    source = flags if flags is not None and not flags.empty else historical_rows
-    if source is None or source.empty:
-        return '<div class="top-deal-row"><b>No signals</b><span>Live system is quiet</span></div>'
-    rows = []
-    for _, row in source.head(4).iterrows():
-        score = _normalize_risk_score(row.get("worm_score", 0.0))
-        rows.append(
-            f"""
-            <div class="top-deal-row">
-                <div><b>{_safe_text(row.get("name", "unknown"))}</b><span>{_safe_text(row.get("stage", "observe"))}</span></div>
-                <strong>{score * 100:.0f}%</strong>
-            </div>
-            """
-        )
-    return "".join(rows)
-
-
-def _learning_rows(kb):
-    if kb is None or kb.empty:
-        return '<div class="top-deal-row"><b>No learned patterns</b><span>Knowledge base is empty</span></div>'
-    graph = _prepare_learning_rows(kb).sort_values(
-        ["readiness_score", "observations"],
-        ascending=[False, False],
-    ).head(4)
-    rows = []
-    for _, row in graph.iterrows():
-        rows.append(
-            f"""
-            <div class="top-deal-row">
-                <div><b>{_safe_text(row.get("attack_family", "unknown"))}</b><span>{_safe_text(row.get("recommended_stage", "observe"))}</span></div>
-                <strong>{float(row.get("readiness_pct", 0)):.0f}%</strong>
-            </div>
-            """
-        )
-    return "".join(rows)
-
-
 def run_dashboard():
     st.set_page_config(
-        page_title="Self-Healing Defense Dashboard",
-        page_icon=".",
+        page_title="Cyber Defense Command",
+        page_icon="shield",
         layout="wide",
     )
     st_autorefresh(
-        interval=DASHBOARD_REFRESH_MS,
+        interval=int(os.getenv("SELF_HEALING_DASHBOARD_REFRESH_MS", "2000")),
         key="refresh",
-    )
-
-    system_signature = _file_signature(SYSTEM_LOG)
-    healing_signature = _file_signature(HEALING_LOG)
-    kb_signature = _file_signature(LEARNING_KB_LOG)
-
-    process_rows = _normalize_process_rows(
-        _read_json_lines(
-            str(SYSTEM_LOG),
-            system_signature,
-        )
-    )
-    healing_rows = _read_json_lines(
-        str(HEALING_LOG),
-        healing_signature,
-    )
-    kb = load_learning_kb(kb_signature)
-
-    latest_process_rows = _latest_by_pid(
-        process_rows,
-    )
-    healing_fallback_rows = _healing_rows_as_process_rows(
-        healing_rows,
-        seconds=60 * 60 * 24 * 365,
-        trust_source_mtime=True,
-    )
-    latest = _combine_dashboard_rows(
-        latest_process_rows,
-        healing_fallback_rows,
-    )
-    latest = _latest_by_pid(
-        latest,
-    )
-    security_rows = _tail_security_rows(
-        process_rows,
-        limit=DASHBOARD_TAIL_SECURITY_ROWS,
-    )
-    alert_source_rows = _combine_dashboard_rows(
-        security_rows,
-        healing_fallback_rows,
-    )
-    alerts = _alert_rows(
-        alert_source_rows,
-        limit=12,
-    )
-    healing_actions = pd.DataFrame()
-    if healing_rows is not None and not healing_rows.empty:
-        healing_tail = healing_rows.tail(100).copy()
-        if "action_taken" not in healing_tail.columns:
-            healing_tail["action_taken"] = False
-        if "stage" not in healing_tail.columns:
-            healing_tail["stage"] = "observe"
-        healing_actions = healing_tail[
-            healing_tail["action_taken"].astype(bool)
-            | healing_tail["stage"].astype(str).str.lower().isin(ACTIVE_RESPONSE_STAGES)
-        ].copy()
-
-    if process_rows.empty and healing_rows.empty and kb.empty:
-        st.warning(
-            "No telemetry found. Start main.py, or set SELF_HEALING_SYSTEM_LOG and SELF_HEALING_HEALING_LOG to the active log files."
-        )
-        st.caption(f"System log checked: {SYSTEM_LOG}")
-        st.caption(f"Healing log checked: {HEALING_LOG}")
-        return
-
-    kpi_rows = latest
-    avg_trust = _dashboard_trust_score(kpi_rows)
-    raw_avg_pressure = _dashboard_pressure_score(kpi_rows)
-    flagged_count = int(
-        kpi_rows.get(
-            "flagged",
-            pd.Series(False, index=kpi_rows.index),
-        ).astype(bool).sum()
-    ) if not kpi_rows.empty else 0
-    critical_count = int(
-        kpi_rows.get(
-            "severity",
-            pd.Series("", index=kpi_rows.index),
-        )
-        .astype(str)
-        .str.lower()
-        .eq("critical")
-        .sum()
-    ) if not kpi_rows.empty else 0
-    action_count = int(
-        kpi_rows.get(
-            "stage",
-            pd.Series("", index=kpi_rows.index),
-        )
-        .astype(str)
-        .str.lower()
-        .isin(ACTIVE_RESPONSE_STAGES)
-        .sum()
-    ) if not kpi_rows.empty else 0
-    learned_patterns = len(kb)
-    terminate_ready = 0
-    if not kb.empty and "recommended_stage" in kb.columns:
-        terminate_ready = int(
-            kb["recommended_stage"]
-            .astype(str)
-            .str.lower()
-            .eq("terminate")
-            .sum()
-        )
-    anomaly_peak = (
-        float(
-            kpi_rows.get(
-                "worm_pattern_anomaly",
-                pd.Series(0.0, index=kpi_rows.index),
-            ).max()
-        )
-        if not kpi_rows.empty
-        else 0.0
     )
 
     st.markdown(
         """
         <style>
         .stApp {
-            background: #f5f7fb;
-            color: #172033;
+            color: #f8fafc;
+            background: #0f141b;
         }
         .block-container {
             max-width: 1360px;
-            padding: 22px 22px 34px 22px;
+            padding-top: 26px;
+            padding-bottom: 32px;
         }
+        section[data-testid="stSidebar"] { display: none; }
         header[data-testid="stHeader"] {
             background: transparent;
         }
-        div[data-testid="stMetric"] {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 14px 16px;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+        h1, h2, h3 {
+            color: #f8fafc;
+            letter-spacing: 0;
         }
-        div[data-testid="stMetricLabel"] {
-            color: #64748b;
+        .rail {
+            min-height: 820px;
+            background: #111827;
+            border: 1px solid rgba(148,163,184,0.14);
+            border-radius: 8px;
+            padding: 16px 8px;
+            text-align: center;
+        }
+        .logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 8px;
+            background: #14b8a6;
+            color: #06111a;
+            font-weight: 900;
+            font-size: 28px;
+            line-height: 42px;
+            margin: 0 auto 38px auto;
+        }
+        .rail-item {
+            width: 46px;
+            height: 38px;
+            border-radius: 8px;
+            margin: 0 auto 10px auto;
+            border: 1px solid rgba(148,163,184,0.14);
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .rail-item.active {
+            background: #123238;
+            color: #5eead4;
+            border-color: rgba(45,212,191,0.40);
+        }
+        .content-pad {
+            padding: 2px 4px 18px 4px;
+        }
+        .top-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #f8fafc;
+            margin: 0 0 14px 0;
+        }
+        .tabs {
+            display: flex;
+            gap: 30px;
+            border-bottom: 1px solid rgba(148,163,184,0.18);
+            margin-bottom: 24px;
+        }
+        .tab {
+            padding: 0 0 11px 0;
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 650;
+        }
+        .tab.active {
+            color: #f8fafc;
+            border-bottom: 2px solid #38bdf8;
+        }
+        div[data-testid="stVerticalBlock"] > div:has(.card-heading) {
+            background: #151922;
+            border-radius: 8px;
+            padding: 20px 22px;
+            border: 1px solid rgba(148,163,184,0.14);
+        }
+        .card-heading {
+            margin-bottom: 8px;
+        }
+        .card-title {
+            font-size: 20px;
+            font-weight: 720;
+            color: #f8fafc;
+        }
+        .card-note {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        [data-testid="stMetricValue"] { color: #5eead4; }
+        .metric-card {
+            border-radius: 8px;
+            padding: 18px 20px;
+            background: #151922;
+            min-height: 112px;
+            border: 1px solid rgba(148,163,184,0.14);
+        }
+        .metric-card.cyan { box-shadow: inset 0 3px 0 #38bdf8; }
+        .metric-card.red { box-shadow: inset 0 3px 0 #f43f5e; }
+        .metric-card.amber { box-shadow: inset 0 3px 0 #f59e0b; }
+        .metric-card.green { box-shadow: inset 0 3px 0 #34d399; }
+        .metric-title {
+            color: #94a3b8;
+            font-size: 12px;
+            text-transform: uppercase;
             font-weight: 700;
         }
-        div[data-testid="stMetricValue"] {
-            color: #0f172a;
+        .metric-value {
+            color: #f8fafc;
+            font-size: 32px;
+            font-weight: 760;
+            line-height: 1.2;
+            margin-top: 8px;
         }
-        .status-strip {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+        .metric-note {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+        .health-row {
+            display: flex;
             gap: 10px;
-            margin: 10px 0 20px 0;
+            flex-wrap: wrap;
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 8px;
         }
-        .status-pill {
-            background: #fff;
-            border: 1px solid #e2e8f0;
+        .health-pill {
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: #151922;
+            border: 1px solid rgba(148,163,184,0.16);
+        }
+        .info-box {
             border-radius: 8px;
             padding: 10px 12px;
-            font-size: 12px;
-            color: #475569;
-            overflow-wrap: anywhere;
+            margin: 8px 0 14px 0;
+            background: #111827;
+            border: 1px solid rgba(56,189,248,0.18);
         }
-        .status-pill b {
-            display: block;
-            color: #0f172a;
+        .info-title {
+            color: #bae6fd;
+            font-size: 12px;
+            font-weight: 720;
             margin-bottom: 3px;
         }
-        .danger-note {
-            border-left: 4px solid #dc2626;
-            background: #fff1f2;
-            color: #7f1d1d;
-            padding: 12px 14px;
-            border-radius: 8px;
-            margin: 10px 0 18px 0;
+        .info-body {
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.45;
         }
-        @media (max-width: 900px) {
-            .status-strip {
-                grid-template-columns: 1fr;
-            }
+        div[data-testid="stDataFrame"] {
+            border: 1px solid rgba(148,163,184,0.14);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .stDataFrame, .stTable {
+            background: #151922;
+        }
+        button[kind="secondary"] {
+            background: #151922;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    st.title("Self-Healing Defense")
-    st.caption("Live telemetry from the newest log rows. Focused on trust, alerts, and response actions.")
-    st.markdown(
-        f"""
-        <div class="status-strip">
-            <div class="status-pill"><b>System log</b>{_safe_text(str(SYSTEM_LOG))}<br>{_format_age(system_signature)}</div>
-            <div class="status-pill"><b>Healing log</b>{_safe_text(str(HEALING_LOG))}<br>{_format_age(healing_signature)}</div>
-            <div class="status-pill"><b>Learning KB</b>{_safe_text(str(LEARNING_KB_LOG))}<br>{_format_age(kb_signature)}</div>
-            <div class="status-pill"><b>Refresh</b>{DASHBOARD_REFRESH_MS} ms</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    system_signature = _file_signature(SYSTEM_LOG)
+    healing_signature = _file_signature(HEALING_LOG)
+    kb_signature = _file_signature(LEARNING_KB_LOG)
 
-    if system_signature.get("age_seconds") is None:
-        st.error("System telemetry log is missing.")
-    elif system_signature.get("age_seconds", 0) > 300:
+    process_rows = _read_json_lines(str(SYSTEM_LOG), system_signature)
+    healing_rows = _read_json_lines(str(HEALING_LOG), healing_signature)
+    kb = load_learning_kb(kb_signature)
+
+    process_rows = _normalize_process_rows(process_rows)
+    recent_process_rows = _recent_rows(
+        process_rows,
+        seconds=int(
+            os.getenv(
+                "SELF_HEALING_DASHBOARD_LIVE_WINDOW_SECONDS",
+                "45"
+            )
+        )
+    )
+    latest = _latest_by_pid(recent_process_rows)
+    if latest.empty:
+        latest = _latest_by_pid(process_rows)
+    latest = _overlay_healing_status(latest, healing_rows, latest)
+    flags = _active_flag_rows(latest)
+
+    if process_rows.empty and kb.empty:
+        st.warning("No telemetry yet. Start main.py and the dashboard will populate as the agent observes processes.")
+        return
+
+    raw_avg_trust = float(latest["final_trust"].mean()) if not latest.empty else 1.0
+    raw_avg_pressure = float(latest["trust_anomaly_pressure"].mean()) if not latest.empty else 0.0
+    avg_trust = _dashboard_trust_score(latest)
+    avg_pressure = _dashboard_pressure_score(latest)
+    flagged_count = int(latest["flagged"].sum()) if not latest.empty else 0
+    critical_count = int(latest["severity"].astype(str).str.lower().eq("critical").sum()) if not latest.empty else 0
+    learned_patterns = len(kb)
+    terminate_ready = 0
+    if not kb.empty and "recommended_stage" in kb.columns:
+        terminate_ready = int(kb["recommended_stage"].astype(str).str.lower().eq("terminate").sum())
+
+    anomaly_peak = (
+        float(recent_process_rows["worm_pattern_anomaly"].max())
+        if not recent_process_rows.empty
+        else 0.0
+    )
+    action_count = 0
+    if not latest.empty:
+        action_count = int(
+            latest["stage"]
+            .astype(str)
+            .str.lower()
+            .isin(["throttle", "quarantine", "terminate", "block_resources"])
+            .sum()
+        )
+
+    rail, body = st.columns([0.075, 0.925], gap="small")
+
+    with rail:
         st.markdown(
-            f"""
-            <div class="danger-note">
-                System telemetry has not changed for {_format_age(system_signature)}.
-                If main.py is running, the dashboard is probably reading a different log path.
+            """
+            <div class="rail">
+                <div class="logo">G</div>
+                <div class="rail-item active">TS</div>
+                <div class="rail-item">AN</div>
+                <div class="rail-item">ML</div>
+                <div class="rail-item">PR</div>
+                <div class="rail-item">HL</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    row_note = f"{len(process_rows)} process rows, {len(healing_rows)} healing rows"
-    alert_count = len(alerts)
-    healing_action_count = len(healing_actions)
-    trust_delta = f"pressure {raw_avg_pressure:.3f}"
-    active_delta = f"{critical_count} critical, {action_count} response stages"
-
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Telemetry Rows", _compact_number(len(process_rows)), row_note)
-    k2.metric("Tracked Processes", _compact_number(len(latest)), "latest row per PID")
-    k3.metric("Trust Score", f"{avg_trust * 100:.1f}%", trust_delta)
-    k4.metric("Alerts", _compact_number(alert_count), active_delta)
-    k5.metric("Healing Actions", _compact_number(healing_action_count), "latest 100 healing rows")
-
-    chart_rows = latest_process_rows.copy()
-    if not chart_rows.empty:
-        chart_rows = chart_rows.sort_values("_log_index" if "_log_index" in chart_rows.columns else "pid").tail(80)
-        chart_data = pd.DataFrame({
-            "trust": chart_rows["final_trust"].astype(float) * 100.0,
-            "risk": chart_rows["worm_score"].apply(_normalize_risk_score) * 100.0,
-        })
-        st.subheader("Trust And Risk Trend")
-        st.line_chart(chart_data, height=220)
-
-    st.subheader("Active Alerts")
-    alert_table = pd.DataFrame(alerts)
-    if alert_table.empty:
-        st.success("No active alerts in the newest telemetry rows.")
-    else:
-        display_columns = [
-            column
-            for column in (
-                "pid",
-                "name",
-                "stage",
-                "severity",
-                "trust",
-                "worm_score",
-                "why",
-                "action",
-                "status",
-            )
-            if column in alert_table.columns
-        ]
-        st.dataframe(
-            alert_table[display_columns],
-            width="stretch",
-            hide_index=True,
-            height=330,
+    with body:
+        st.markdown(
+            f"""
+            <div class="content-pad">
+                <div class="top-title">Threats</div>
+                <div class="tabs">
+                    <div class="tab">Overview</div>
+                    <div class="tab active">Insights</div>
+                    <div class="tab">Process Details</div>
+                    <div class="tab">Learnt Patterns</div>
+                </div>
+                <div class="health-row">
+                    <span class="health-pill">system log {_format_age(system_signature)}</span>
+                    <span class="health-pill">knowledge base {_format_age(kb_signature)}</span>
+                    <span class="health-pill">{terminate_ready} terminate-ready patterns</span>
+                    <span class="health-pill">{action_count} active responses</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        _info_box(
+            "Dashboard guide",
+            "Active flags are high-confidence alerts only. Medium suspicious rows stay visible in tables, but they do not count as active flags unless behavior, trust, or severity crosses the response threshold.",
         )
 
-    left, right = st.columns([1.35, 1.0])
-    with left:
-        st.subheader("Processes Being Watched")
-        process_table = latest_process_rows.copy()
-        if process_table.empty:
-            st.info("No process telemetry rows found.")
-        else:
-            for column in ("final_trust", "worm_score", "cpu", "memory"):
-                if column in process_table.columns:
-                    process_table[column] = pd.to_numeric(
-                        process_table[column],
-                        errors="coerce",
-                    ).fillna(0)
-            if "final_trust" in process_table.columns:
-                process_table["trust_pct"] = (process_table["final_trust"] * 100).round(1)
-            if "worm_score" in process_table.columns:
-                process_table["risk_pct"] = process_table["worm_score"].apply(
-                    lambda value: round(_normalize_risk_score(value) * 100, 1)
-                )
-            process_columns = [
-                column
-                for column in (
-                    "pid",
-                    "name",
-                    "label",
-                    "severity",
-                    "stage",
-                    "response",
-                    "trust_pct",
-                    "risk_pct",
-                    "cpu",
-                    "memory",
-                    "threads",
-                    "file_events",
-                )
-                if column in process_table.columns
-            ]
-            st.dataframe(
-                process_table.sort_values(
-                    "_log_index" if "_log_index" in process_table.columns else "pid",
-                    ascending=False,
-                )[process_columns].head(80),
+        kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+        with kpi1:
+            _metric_card(
+                "Trust Score",
+                f"{avg_trust * 100:.1f}%",
+                f"raw {raw_avg_trust * 100:.1f}% | pressure {raw_avg_pressure:.3f}",
+                "cyan",
+            )
+        with kpi2:
+            _metric_card(
+                "Active Flags",
+                flagged_count,
+                f"{critical_count} critical",
+                "red" if flagged_count else "green",
+            )
+        with kpi3:
+            _metric_card(
+                "Patterns Learnt",
+                learned_patterns,
+                f"{terminate_ready} terminate-ready",
+                "green",
+            )
+        with kpi4:
+            _metric_card(
+                "System Anomaly",
+                f"{anomaly_peak:.3f}",
+                _risk_band(anomaly_peak),
+                "amber",
+            )
+        with kpi5:
+            _metric_card(
+                "Process Details",
+                len(latest),
+                "latest process rows",
+                "cyan",
+            )
+        _info_box(
+            "Metric guide",
+            "Trust Score is operational health: it stays healthy when there are no active flags or critical responses. System Anomaly still shows medium behavior pressure separately.",
+        )
+
+        main_chart, score_card = st.columns([0.74, 0.26])
+        with main_chart:
+            _card_header("Anomalies Over Time", "aggregate, worm pattern, and trust pressure")
+            _info_box(
+                "How to read",
+                "Spikes show behavior becoming unusual. Aggregate is general anomaly, worm pattern is worm-like activity, and trust pressure rises when dynamic trust drops.",
+            )
+            anomaly_fig = _draw_anomaly_timeline(recent_process_rows)
+            if anomaly_fig:
+                st.plotly_chart(anomaly_fig, width="stretch")
+            else:
+                st.info("No anomaly timeline yet.")
+
+        with score_card:
+            _card_header("Security Score", "trust weighted system health")
+            _info_box(
+                "How to read",
+                "Higher is healthier. This combines average trust and anomaly pressure, so it can dip before a process is terminated.",
+            )
+            st.plotly_chart(
+                _draw_security_score(avg_trust, avg_pressure),
                 width="stretch",
-                hide_index=True,
-                height=430,
             )
 
-    with right:
-        st.subheader("Healing Actions")
-        if healing_actions.empty:
-            st.info("No healing actions in the latest healing rows.")
-        else:
-            healing_columns = [
-                column
-                for column in (
-                    "timestamp",
-                    "pid",
-                    "stage",
-                    "status",
-                    "action_taken",
-                )
-                if column in healing_actions.columns
-            ]
-            st.dataframe(
-                healing_actions.sort_values(
-                    "_log_index" if "_log_index" in healing_actions.columns else "timestamp",
-                    ascending=False,
-                )[healing_columns].head(50),
-                width="stretch",
-                hide_index=True,
-                height=250,
+        lower_left, lower_right = st.columns([0.49, 0.51])
+        with lower_left:
+            _card_header("Learnt Pattern Categories", "knowledge base attack families")
+            _info_box(
+                "How to read",
+                "This shows what the learning engine has remembered from previous detections, grouped by attack family.",
             )
+            learning_fig = _draw_learning_graph(kb)
+            if learning_fig:
+                st.plotly_chart(learning_fig, width="stretch")
+            else:
+                st.info("No learned patterns yet.")
 
-        st.subheader("Learned Patterns")
-        learning = _prepare_learning_rows(kb)
-        if learning.empty:
-            st.info("No learned behavior patterns yet.")
-        else:
-            learning_columns = [
-                column
-                for column in (
-                    "attack_family",
-                    "recommended_stage",
-                    "confidence_pct",
-                    "readiness_pct",
-                    "observations",
-                    "last_process_name",
+        with lower_right:
+            _card_header("System Health", "response stages and terminate readiness")
+            _info_box(
+                "How to read",
+                "Health summarizes trust across live processes. The stage chart shows how many processes are only observed versus throttled, quarantined, or terminated.",
+            )
+            health_a, health_b = st.columns([0.48, 0.52])
+            with health_a:
+                st.plotly_chart(
+                    _draw_health_ring(latest, kb),
+                    width="stretch",
                 )
-                if column in learning.columns
-            ]
+            with health_b:
+                stage_fig = _draw_stage_graph(latest)
+                if stage_fig:
+                    st.plotly_chart(stage_fig, width="stretch")
+                else:
+                    st.info("No response data yet.")
+
+        details_left, details_right = st.columns([0.52, 0.48])
+        with details_left:
+            _card_header("Process Details", "highest risk processes first")
+            _info_box(
+                "How to read",
+                "Rows are sorted by active flag, trust pressure, and worm score. A suspicious label alone is not an active alert.",
+            )
+            if latest.empty:
+                st.info("No live process rows.")
+            else:
+                process_table = latest.sort_values(
+                    ["flagged", "trust_anomaly_pressure", "worm_score"],
+                    ascending=[False, False, False],
+                )
+                st.dataframe(
+                    _compact_table(
+                        process_table,
+                        [
+                            "pid",
+                            "name",
+                            "label",
+                            "severity",
+                            "stage",
+                            "final_trust",
+                            "trust_anomaly_pressure",
+                            "worm_score",
+                        ],
+                        limit=12,
+                    ),
+                    width="stretch",
+                    hide_index=True,
+                )
+
+        with details_right:
+            _card_header("Flags", "active behavioral and trust flags")
+            _info_box(
+                "How to read",
+                "This table only lists strong evidence: confirmed worm behavior, high severity, strong worm score, or trust below the response threshold.",
+            )
+            if flags.empty:
+                st.success("No active flags.")
+            else:
+                st.dataframe(
+                    _compact_table(
+                        flags.sort_values(
+                            ["trust_anomaly_pressure", "worm_score"],
+                            ascending=[False, False],
+                        ),
+                        [
+                            "pid",
+                            "name",
+                            "severity",
+                            "stage",
+                            "final_trust",
+                            "flags",
+                        ],
+                        limit=12,
+                    ),
+                    width="stretch",
+                    hide_index=True,
+                )
+
+        _card_header("Learnt Patterns", "what the ML agent will escalate faster next time")
+        _info_box(
+            "How to read",
+            "Each row is a behavior pattern the learner can reuse. Higher confidence and observations mean the system has seen similar behavior more often.",
+        )
+        if kb.empty:
+            st.info("Knowledge base is empty.")
+        else:
+            kb_sorted = kb.sort_values(
+                [col for col in ("confidence", "observations") if col in kb.columns],
+                ascending=False,
+            )
             st.dataframe(
-                learning[learning_columns].head(12),
+                _compact_table(
+                    kb_sorted,
+                    [
+                        "attack_family",
+                        "disposition",
+                        "confidence",
+                        "recommended_stage",
+                        "observations",
+                        "avg_pattern_strength",
+                        "avg_trust_anomaly_pressure",
+                        "last_process_name",
+                        "summary",
+                    ],
+                    limit=16,
+                ),
                 width="stretch",
                 hide_index=True,
-                height=250,
             )
 
 

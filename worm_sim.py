@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import time
+import signal
 import tempfile
 
 # -----------------------------------
@@ -32,10 +33,10 @@ def create_temp_markers():
     for i in range(5):
         try:
             path = os.path.join(temp_dir, f"worm_copy_{i}.tmp")
-            with open(path, "w", encoding="utf-8") as f:
+            with open(path, "w") as f:
                 f.write("simulation")
-        except OSError as exc:
-            print(f"[!] Failed to write marker {path}: {exc}")
+        except:
+            pass
 
 
 # -----------------------------------
@@ -47,8 +48,8 @@ def cleanup():
     for p in children:
         try:
             p.terminate()
-        except OSError as exc:
-            print(f"[!] Failed to terminate child {getattr(p, 'pid', 'unknown')}: {exc}")
+        except:
+            pass
 
 
 # -----------------------------------

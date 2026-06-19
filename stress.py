@@ -2,8 +2,9 @@ import multiprocessing
 import threading
 import time
 import socket
+import os
+import random
 import subprocess
-import sys
 
 RUN = True
 
@@ -34,7 +35,7 @@ def memory_stress():
 # -----------------------------
 def file_stress():
     while RUN:
-        with open("temp_stress.txt", "a", encoding="utf-8") as f:
+        with open("temp_stress.txt", "a") as f:
             for _ in range(20):
                 f.write("malicious_data\n")
         time.sleep(0.05)
@@ -46,11 +47,12 @@ def file_stress():
 def network_stress():
     while RUN:
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(0.1)
-                s.connect(("8.8.8.8", 53))
-        except OSError:
-            time.sleep(0.05)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.1)
+            s.connect(("8.8.8.8", 53))
+            s.close()
+        except:
+            pass
         time.sleep(0.05)
 
 
@@ -59,13 +61,7 @@ def network_stress():
 # -----------------------------
 def spawn_process():
     while RUN:
-        subprocess.Popen(
-            [
-                sys.executable,
-                "-c",
-                "import time; time.sleep(0.5)",
-            ]
-        )
+        subprocess.Popen(["sleep", "0.5"])
         time.sleep(0.2)  # limit spawn rate
 
 

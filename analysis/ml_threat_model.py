@@ -1,6 +1,7 @@
 # analysis/ml_threat_model.py
 
 import json
+import glob
 import math
 import os
 import threading
@@ -12,7 +13,7 @@ from pathlib import Path
 import joblib
 import pandas as pd
 import sklearn
-from sklearn.ensemble import IsolationForest, RandomForestClassifier
+from sklearn.ensemble import ExtraTreesClassifier, IsolationForest, RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.multioutput import MultiOutputClassifier
@@ -36,6 +37,14 @@ AUTO_RETRAIN_MIN_SECONDS = int(
 DEFAULT_LOG_PATH = "logs/system_log.json"
 RESEARCH_DATASET_SOURCES = [
     {
+        "name": "CICIoT2023",
+        "url": "https://www.unb.ca/cic/datasets/iotdataset-2023.html",
+        "mapping": (
+            "47-column IoT flow CSV labels across DDoS, DoS, Recon, "
+            "Web-based, Brute Force, Spoofing, Mirai, and Benign"
+        ),
+    },
+    {
         "name": "CTU-13",
         "url": "https://www.stratosphereips.org/datasets-ctu13/",
         "mapping": "botnet/normal/background NetFlow labels",
@@ -56,6 +65,44 @@ RESEARCH_DATASET_SOURCES = [
         "mapping": "CICFlowMeter flow CSV labels",
     },
 ]
+
+CICIOT2023_ATTACK_FAMILIES = {
+    "Backdoor_Malware": "web",
+    "BenignTraffic": "benign",
+    "BrowserHijacking": "web",
+    "CommandInjection": "web",
+    "DDoS-ACK_Fragmentation": "ddos",
+    "DDoS-HTTP_Flood": "ddos",
+    "DDoS-ICMP_Flood": "ddos",
+    "DDoS-ICMP_Fragmentation": "ddos",
+    "DDoS-PSHACK_Flood": "ddos",
+    "DDoS-RSTFINFlood": "ddos",
+    "DDoS-SYN_Flood": "ddos",
+    "DDoS-SynonymousIP_Flood": "ddos",
+    "DDoS-TCP_Flood": "ddos",
+    "DDoS-UDP_Flood": "ddos",
+    "DDoS-UDP_Fragmentation": "ddos",
+    "DictionaryBruteForce": "bruteforce",
+    "DNS_Spoofing": "spoofing",
+    "DoS-HTTP_Flood": "dos",
+    "DoS-SYN_Flood": "dos",
+    "DoS-TCP_Flood": "dos",
+    "DoS-UDP_Flood": "dos",
+    "MITM-ArpSpoofing": "spoofing",
+    "Mirai-greeth_flood": "mirai",
+    "Mirai-greip_flood": "mirai",
+    "Mirai-udpplain": "mirai",
+    "Recon-HostDiscovery": "recon",
+    "Recon-OSScan": "recon",
+    "Recon-PingSweep": "recon",
+    "Recon-PortScan": "recon",
+    "SqlInjection": "web",
+    "Uploading_Attack": "web",
+    "VulnerabilityScan": "recon",
+    "XSS": "web",
+}
+
+CICIOT2023_ATTACK_LABELS = sorted(CICIOT2023_ATTACK_FAMILIES)
 
 
 def _training_n_jobs():
@@ -138,6 +185,41 @@ FEATURE_NAMES = [
     "static_trust",
 ]
 
+NETWORK_ISOLATION_FEATURES = [
+    "connections",
+    "f_connection_velocity",
+    "f_connection_rate",
+    "f_remote_ips",
+    "f_port_spread",
+    "f_loopback_connections",
+    "f_localhost_beaconing",
+    "f_scanning_score",
+    "f_scanning_detected",
+    "connections_anomaly",
+    "remote_ips_anomaly",
+    "network_anomaly",
+    "aggregate_anomaly",
+    "behavior_correlation_score",
+    "trust_anomaly_pressure",
+    "trust_drop_risk",
+    "dynamic_trust",
+    "final_trust",
+]
+
+NETWORK_LOG_FEATURES = {
+    "connections",
+    "f_connection_velocity",
+    "f_connection_rate",
+    "f_remote_ips",
+    "f_port_spread",
+    "f_loopback_connections",
+}
+
+NETWORK_TRUST_FEATURES = {
+    "dynamic_trust",
+    "final_trust",
+}
+
 THREAT_LABELS = ["normal", "suspicious", "worm", "forkbomb"]
 SEVERITY_BY_LABEL = {
     "normal": "low",
@@ -198,8 +280,10 @@ def _normalize_label(label):
 
 def _normalize_external_label(label):
     label = str(label or "normal").lower().strip()
+    compact_label = label.replace(" ", "").replace("_", "").replace("-", "")
     if label in {
         "benign",
+        "benigntraffic",
         "normal",
         "background",
         "legitimate",
@@ -212,17 +296,69 @@ def _normalize_external_label(label):
         for token in (
             "worm",
             "botnet",
+            "mirai",
             "infiltration",
             "ddos",
             "dos",
             "portscan",
             "scan",
+            "flood",
         )
     ):
         return "worm"
+    if any(
+        token in compact_label
+        for token in (
+            "bruteforce",
+            "spoof",
+            "injection",
+            "backdoormalware",
+            "browserhijacking",
+            "uploadingattack",
+            "xss",
+            "vulnerability",
+            "hostdiscovery",
+            "pingsweep",
+        )
+    ):
+        return "suspicious"
     if label in {"1", "attack", "malicious"}:
         return "suspicious"
     return "suspicious"
+
+
+def _ciciot2023_attack_family(label):
+    text = str(label or "").strip()
+    if text in CICIOT2023_ATTACK_FAMILIES:
+        return CICIOT2023_ATTACK_FAMILIES[text]
+
+    lowered = text.lower()
+    if "benign" in lowered:
+        return "benign"
+    if lowered.startswith("ddos"):
+        return "ddos"
+    if lowered.startswith("dos"):
+        return "dos"
+    if lowered.startswith("mirai"):
+        return "mirai"
+    if "recon" in lowered or "scan" in lowered or "sweep" in lowered:
+        return "recon"
+    if "spoof" in lowered or "mitm" in lowered:
+        return "spoofing"
+    if "bruteforce" in lowered or "brute" in lowered:
+        return "bruteforce"
+    if any(
+        token in lowered
+        for token in (
+            "injection",
+            "xss",
+            "backdoor",
+            "browser",
+            "upload",
+        )
+    ):
+        return "web"
+    return ""
 
 
 def _first_present(row, *names, default=0):
@@ -251,6 +387,7 @@ def _external_row_to_features(row, source_name="external"):
         default="normal",
     )
     label = _normalize_external_label(label_text)
+    attack_family = _ciciot2023_attack_family(label_text)
 
     packet_count = _safe_float(
         _first_present(
@@ -263,6 +400,8 @@ def _external_row_to_features(row, source_name="external"):
             "dpkts",
             "TotPkts",
             "total_packets",
+            "Number",
+            "Tot sum",
         )
     )
     byte_count = _safe_float(
@@ -276,6 +415,8 @@ def _external_row_to_features(row, source_name="external"):
             "dbytes",
             "TotBytes",
             "total_bytes",
+            "Header_Length",
+            "Tot size",
         )
     )
     flow_rate = _safe_float(
@@ -285,6 +426,8 @@ def _external_row_to_features(row, source_name="external"):
             "Flow Packets/s",
             "flow_pkts_s",
             "rate",
+            "Rate",
+            "Srate",
             "pkts",
         )
     )
@@ -296,15 +439,18 @@ def _external_row_to_features(row, source_name="external"):
             "flow_byts_s",
             "sload",
             "dload",
+            "Drate",
         )
     )
     duration = _safe_float(
         _first_present(
             row,
             "Flow Duration",
+            "flow_duration",
             "dur",
             "Dur",
             "duration",
+            "Duration",
         )
     )
     remote_ips = _safe_float(
@@ -327,6 +473,23 @@ def _external_row_to_features(row, source_name="external"):
             default=0,
         )
     )
+    syn_count = _safe_float(_first_present(row, "syn_count", "syn_flag_number"))
+    rst_count = _safe_float(_first_present(row, "rst_count", "rst_flag_number"))
+    ack_count = _safe_float(_first_present(row, "ack_count", "ack_flag_number"))
+    fin_count = _safe_float(_first_present(row, "fin_count", "fin_flag_number"))
+    urg_count = _safe_float(_first_present(row, "urg_count"))
+    icmp_flag = _safe_float(_first_present(row, "ICMP"))
+    udp_flag = _safe_float(_first_present(row, "UDP"))
+    tcp_flag = _safe_float(_first_present(row, "TCP"))
+    arp_flag = _safe_float(_first_present(row, "ARP"))
+    dns_flag = _safe_float(_first_present(row, "DNS"))
+    http_flag = max(
+        _safe_float(_first_present(row, "HTTP")),
+        _safe_float(_first_present(row, "HTTPS")),
+    )
+    size_avg = _safe_float(_first_present(row, "AVG", "Mean"))
+    size_std = _safe_float(_first_present(row, "Std"))
+    iat = _safe_float(_first_present(row, "IAT"))
 
     row_out = {
         name: 0
@@ -338,11 +501,34 @@ def _external_row_to_features(row, source_name="external"):
     })
     row_out["label"] = label
     row_out["external_dataset"] = source_name
+    row_out["external_attack_label"] = str(label_text)
+    row_out["external_attack_family"] = attack_family
     row_out["connections"] = min(100, max(0, packet_count / 8))
-    row_out["f_connection_velocity"] = min(100, max(flow_rate / 20, packet_count / max(duration, 1) / 10))
+    row_out["f_connection_velocity"] = min(
+        100,
+        max(
+            flow_rate / 20,
+            packet_count / max(duration, 1) / 10,
+            (syn_count + rst_count + ack_count + fin_count + urg_count) / 18,
+        )
+    )
     row_out["f_connection_rate"] = min(100, flow_rate / 25)
-    row_out["f_remote_ips"] = min(100, remote_ips)
-    row_out["f_port_spread"] = min(100, port_spread / 1000 if port_spread > 100 else port_spread)
+    row_out["f_remote_ips"] = min(
+        100,
+        max(
+            remote_ips,
+            16 if attack_family in {"ddos", "dos", "mirai"} else 0,
+            12 if attack_family in {"recon", "spoofing"} else 0,
+        )
+    )
+    row_out["f_port_spread"] = min(
+        100,
+        max(
+            port_spread / 1000 if port_spread > 100 else port_spread,
+            24 if attack_family == "recon" else 0,
+            12 if attack_family in {"web", "bruteforce"} else 0,
+        )
+    )
     row_out["f_loopback_connections"] = 0
     row_out["file_events"] = 0
     row_out["dynamic_trust"] = 0.94
@@ -355,11 +541,32 @@ def _external_row_to_features(row, source_name="external"):
         row_out["f_connection_rate"] / 100,
         min(1.0, byte_rate / 1000000),
         min(1.0, byte_count / 5000000),
+        min(1.0, row_out["connections"] / 40),
+        min(1.0, (syn_count + rst_count + ack_count + urg_count) / 90),
+        min(1.0, size_std / max(size_avg, 1) / 5) if size_avg else 0,
     )
+    protocol_pressure = max(
+        icmp_flag,
+        udp_flag * 0.8,
+        tcp_flag * 0.5,
+        arp_flag,
+        dns_flag,
+        http_flag * 0.7,
+    )
+    if attack_family in {"ddos", "dos", "mirai"}:
+        throughput_pressure = max(throughput_pressure, 0.72)
+    elif attack_family in {"recon", "spoofing"}:
+        throughput_pressure = max(throughput_pressure, 0.55)
+    elif attack_family in {"web", "bruteforce"}:
+        throughput_pressure = max(throughput_pressure, 0.42)
 
     if label != "normal":
         row_out["aggregate_anomaly"] = max(0.35, throughput_pressure)
         row_out["network_anomaly"] = row_out["aggregate_anomaly"]
+        row_out["connections_anomaly"] = min(
+            1.0,
+            max(row_out["connections"] / 50, protocol_pressure)
+        )
         row_out["remote_ips_anomaly"] = min(1.0, row_out["f_remote_ips"] / 12)
         row_out["behavior_correlation_score"] = row_out["aggregate_anomaly"]
         row_out["trust_anomaly_pressure"] = min(0.95, 0.45 + row_out["aggregate_anomaly"] * 0.35)
@@ -369,6 +576,14 @@ def _external_row_to_features(row, source_name="external"):
         row_out["network_fanout"] = 1
         row_out["resource_pressure"] = 1 if throughput_pressure >= 0.45 else 0
         row_out["source_worm_score"] = 72 if label == "worm" else 48
+        row_out["f_scanning_score"] = max(
+            row_out["f_scanning_score"],
+            1 if attack_family in {"recon", "spoofing"} else 0,
+            0.75 if attack_family in {"web", "bruteforce"} else 0,
+        )
+        row_out["f_scanning_detected"] = 1 if row_out["f_scanning_score"] >= 0.75 else 0
+        row_out["f_persistence_artifact"] = 1 if attack_family in {"web", "bruteforce"} else 0
+        row_out["persistence_events"] = 1 if attack_family in {"web", "bruteforce"} else 0
 
     if label == "worm":
         row_out["worm_pattern_anomaly"] = max(0.55, row_out["aggregate_anomaly"])
@@ -377,11 +592,177 @@ def _external_row_to_features(row, source_name="external"):
         row_out["worm_like_behavior"] = 1
         row_out["source_worm_score"] = max(row_out["source_worm_score"], 78)
 
+    if attack_family in {"ddos", "dos", "mirai"}:
+        row_out["network_fanout"] = 1
+        row_out["resource_pressure"] = 1
+        row_out["trust_anomaly_pattern"] = 1
+        row_out["worm_like_behavior"] = 1
+        row_out["source_worm_score"] = max(row_out["source_worm_score"], 82)
+    elif attack_family in {"recon", "spoofing"}:
+        row_out["network_fanout"] = 1
+        row_out["trust_anomaly_pattern"] = 1
+        row_out["source_worm_score"] = max(row_out["source_worm_score"], 62)
+    elif attack_family in {"web", "bruteforce"}:
+        row_out["network_fanout"] = 1
+        row_out["persistence_artifact"] = 1
+        row_out["sensitive_file_access"] = 1
+        row_out["trust_anomaly_pattern"] = 1
+        row_out["source_worm_score"] = max(row_out["source_worm_score"], 58)
+
     return row_out
 
 
 def _research_dataset_profiles():
     rows = []
+    ciciot_family_templates = {
+        "benign": {
+            "connections": 3,
+            "f_connection_rate": 0.7,
+            "f_remote_ips": 1,
+            "dynamic_trust": 0.96,
+            "final_trust": 0.96,
+            "static_trust": 0.92,
+        },
+        "ddos": {
+            "connections": 72,
+            "f_connection_velocity": 30,
+            "f_connection_rate": 45,
+            "f_remote_ips": 28,
+            "f_port_spread": 18,
+            "aggregate_anomaly": 0.88,
+            "network_anomaly": 0.92,
+            "connections_anomaly": 0.92,
+            "remote_ips_anomaly": 0.88,
+            "trust_anomaly_pressure": 0.86,
+            "source_worm_score": 92,
+        },
+        "dos": {
+            "connections": 54,
+            "f_connection_velocity": 24,
+            "f_connection_rate": 30,
+            "f_remote_ips": 18,
+            "f_port_spread": 12,
+            "aggregate_anomaly": 0.80,
+            "network_anomaly": 0.84,
+            "connections_anomaly": 0.80,
+            "remote_ips_anomaly": 0.68,
+            "trust_anomaly_pressure": 0.78,
+            "source_worm_score": 88,
+        },
+        "mirai": {
+            "connections": 64,
+            "f_connection_velocity": 26,
+            "f_connection_rate": 34,
+            "f_remote_ips": 24,
+            "f_port_spread": 20,
+            "aggregate_anomaly": 0.84,
+            "network_anomaly": 0.90,
+            "worm_pattern_anomaly": 0.90,
+            "trust_anomaly_pressure": 0.86,
+            "source_worm_score": 94,
+        },
+        "recon": {
+            "connections": 28,
+            "f_connection_velocity": 9,
+            "f_connection_rate": 8,
+            "f_remote_ips": 14,
+            "f_port_spread": 34,
+            "f_scanning_score": 1,
+            "f_scanning_detected": 1,
+            "aggregate_anomaly": 0.62,
+            "network_anomaly": 0.68,
+            "remote_ips_anomaly": 0.72,
+            "trust_anomaly_pressure": 0.58,
+            "source_worm_score": 64,
+        },
+        "spoofing": {
+            "connections": 24,
+            "f_connection_velocity": 7,
+            "f_connection_rate": 6,
+            "f_remote_ips": 10,
+            "f_port_spread": 12,
+            "f_scanning_score": 0.85,
+            "f_scanning_detected": 1,
+            "aggregate_anomaly": 0.58,
+            "network_anomaly": 0.64,
+            "trust_anomaly_pressure": 0.56,
+            "source_worm_score": 62,
+        },
+        "web": {
+            "connections": 18,
+            "f_connection_velocity": 5,
+            "f_connection_rate": 4,
+            "f_remote_ips": 6,
+            "f_port_spread": 14,
+            "f_scanning_score": 0.75,
+            "f_scanning_detected": 1,
+            "f_persistence_artifact": 1,
+            "f_sensitive_file_access": 1,
+            "aggregate_anomaly": 0.52,
+            "network_anomaly": 0.56,
+            "trust_anomaly_pressure": 0.54,
+            "source_worm_score": 58,
+        },
+        "bruteforce": {
+            "connections": 20,
+            "f_connection_velocity": 6,
+            "f_connection_rate": 5,
+            "f_remote_ips": 5,
+            "f_port_spread": 12,
+            "f_scanning_score": 0.8,
+            "f_scanning_detected": 1,
+            "f_persistence_artifact": 1,
+            "aggregate_anomaly": 0.55,
+            "network_anomaly": 0.58,
+            "trust_anomaly_pressure": 0.56,
+            "source_worm_score": 60,
+        },
+    }
+    for attack_label in CICIOT2023_ATTACK_LABELS:
+        family = CICIOT2023_ATTACK_FAMILIES[attack_label]
+        label = "normal" if family == "benign" else _normalize_external_label(attack_label)
+        tags = []
+        if family != "benign":
+            tags.extend(["network_fanout", "trust_anomaly_pattern"])
+        if family in {"ddos", "dos", "mirai"}:
+            tags.extend(["resource_pressure", "worm_like_behavior"])
+        if family in {"web", "bruteforce"}:
+            tags.extend(["persistence_artifact", "sensitive_file_access"])
+
+        for scale in range(1, 4):
+            row = {
+                name: 0
+                for name in FEATURE_NAMES
+            }
+            row.update({
+                tag: 0
+                for tag in BEHAVIOR_LABELS
+            })
+            row["label"] = label
+            row["external_dataset"] = "CICIoT2023-profile"
+            row["external_attack_label"] = attack_label
+            row["external_attack_family"] = family
+            row.update(ciciot_family_templates[family])
+            row["connections"] *= 0.85 + scale / 10
+            row["f_connection_velocity"] *= 0.85 + scale / 12
+            row["f_connection_rate"] *= 0.85 + scale / 12
+            row["f_remote_ips"] *= 0.85 + scale / 12
+            if family != "benign":
+                row["dynamic_trust"] = max(0.30, 0.74 - scale * 0.05)
+                row["final_trust"] = max(0.30, 0.76 - scale * 0.05)
+                row["static_trust"] = 0.84
+                row["trust_drop_risk"] = max(
+                    0.0,
+                    row["static_trust"] - row["dynamic_trust"]
+                )
+                row["behavior_correlation_score"] = max(
+                    row.get("aggregate_anomaly", 0),
+                    row.get("network_anomaly", 0),
+                )
+            for tag in tags:
+                row[tag] = 1
+            rows.append(row)
+
     templates = [
         (
             "normal",
@@ -669,6 +1050,37 @@ def vectorize(features, anomaly_data=None, trust_state=None):
     )
 
     return [_safe_float(merged.get(name, 0)) for name in FEATURE_NAMES]
+
+
+def _network_isolation_frame(frame):
+    transformed = pd.DataFrame(index=frame.index)
+    for name in NETWORK_ISOLATION_FEATURES:
+        if name in frame.columns:
+            values = pd.to_numeric(
+                frame[name],
+                errors="coerce"
+            ).fillna(0.0)
+        else:
+            values = pd.Series(0.0, index=frame.index)
+
+        if name in NETWORK_LOG_FEATURES:
+            values = values.clip(lower=0).map(math.log1p)
+        elif name in NETWORK_TRUST_FEATURES:
+            values = 1.0 - values.clip(lower=0.0, upper=1.0)
+        else:
+            values = values.clip(lower=0.0)
+
+        transformed[name] = values
+
+    return transformed
+
+
+def _isolation_anomaly_probability(model, frame):
+    if model is None or frame.empty:
+        return 0.0
+
+    score = float(model.decision_function(frame)[0])
+    return 1.0 / (1.0 + math.exp(5.0 * score))
 
 
 def _synthetic_profiles():
@@ -1092,8 +1504,52 @@ def _synthetic_profiles():
     return rows
 
 
-def load_external_dataset_rows(dataset_paths=None, max_rows_per_dataset=None):
+def _expand_dataset_paths(dataset_paths=None):
     dataset_paths = dataset_paths or []
+    if isinstance(dataset_paths, (str, Path)):
+        dataset_paths = [
+            part.strip()
+            for part in str(dataset_paths).replace(";", os.pathsep).split(os.pathsep)
+            if part.strip()
+        ]
+
+    expanded = []
+    for dataset_path in dataset_paths:
+        path_text = str(dataset_path)
+        path = Path(path_text)
+        if any(char in path_text for char in "*?[]"):
+            expanded.extend(Path(match) for match in sorted(glob.glob(path_text)))
+        elif path.is_dir():
+            expanded.extend(sorted(path.rglob("*.csv")))
+        elif path.exists() and path.is_file():
+            expanded.append(path)
+
+    return [
+        path
+        for path in expanded
+        if path.exists() and path.is_file()
+    ]
+
+
+def _external_label_key(raw):
+    return str(
+        _first_present(
+            raw,
+            "Label",
+            "label",
+            "attack_cat",
+            "Attack",
+            "class",
+            default="normal",
+        )
+    ).strip() or "normal"
+
+
+def load_external_dataset_rows(
+    dataset_paths=None,
+    max_rows_per_dataset=None,
+    max_rows_per_label=None
+):
     rows = []
     if max_rows_per_dataset is None:
         try:
@@ -1106,10 +1562,18 @@ def load_external_dataset_rows(dataset_paths=None, max_rows_per_dataset=None):
         except Exception:
             max_rows_per_dataset = 5000
 
-    for dataset_path in dataset_paths:
-        path = Path(dataset_path)
-        if not path.exists() or not path.is_file():
-            continue
+    if max_rows_per_label is None:
+        try:
+            max_rows_per_label = int(
+                os.getenv(
+                    "SELF_HEALING_DATASET_MAX_ROWS_PER_LABEL",
+                    "350"
+                )
+            )
+        except Exception:
+            max_rows_per_label = 350
+
+    for path in _expand_dataset_paths(dataset_paths):
 
         try:
             chunk_iter = pd.read_csv(
@@ -1118,14 +1582,23 @@ def load_external_dataset_rows(dataset_paths=None, max_rows_per_dataset=None):
                 low_memory=False,
             )
             loaded = 0
+            label_counts = {}
             for chunk in chunk_iter:
                 for raw in chunk.to_dict("records"):
+                    label_key = _external_label_key(raw)
+                    if (
+                        max_rows_per_label > 0
+                        and label_counts.get(label_key, 0) >= max_rows_per_label
+                    ):
+                        continue
+
                     rows.append(
                         _external_row_to_features(
                             raw,
                             source_name=path.name
                         )
                     )
+                    label_counts[label_key] = label_counts.get(label_key, 0) + 1
                     loaded += 1
                     if loaded >= max_rows_per_dataset:
                         break
@@ -1137,7 +1610,14 @@ def load_external_dataset_rows(dataset_paths=None, max_rows_per_dataset=None):
     return rows
 
 
-def load_training_rows(log_path="logs/system_log.json", dataset_paths=None):
+def load_training_rows(
+    log_path="logs/system_log.json",
+    dataset_paths=None,
+    max_rows_per_dataset=None,
+    max_rows_per_label=None
+):
+    if dataset_paths is None:
+        dataset_paths = os.getenv("SELF_HEALING_DATASET_PATHS", "")
     rows = []
     if os.path.exists(log_path):
         with open(log_path, "r", encoding="utf-8") as handle:
@@ -1150,7 +1630,13 @@ def load_training_rows(log_path="logs/system_log.json", dataset_paths=None):
                 rows.append(_flatten_runtime_row(raw))
 
     rows.extend(_research_dataset_profiles())
-    rows.extend(load_external_dataset_rows(dataset_paths))
+    rows.extend(
+        load_external_dataset_rows(
+            dataset_paths,
+            max_rows_per_dataset=max_rows_per_dataset,
+            max_rows_per_label=max_rows_per_label,
+        )
+    )
     rows.extend(_synthetic_profiles())
     return rows
 
@@ -1163,6 +1649,8 @@ class Prediction:
     confidence: float
     probabilities: dict
     anomaly_probability: float
+    network_anomaly_probability: float
+    network_attack_probability: float
     behavior_signals: dict
     behavior_probabilities: dict
     top_drivers: list
@@ -1173,11 +1661,17 @@ class MLThreatModel:
         self,
         classifier=None,
         isolation_model=None,
+        network_isolation_model=None,
+        network_classifier=None,
+        network_forest_classifier=None,
         behavior_model=None,
         report=None
     ):
         self.classifier = classifier
         self.isolation_model = isolation_model
+        self.network_isolation_model = network_isolation_model
+        self.network_classifier = network_classifier
+        self.network_forest_classifier = network_forest_classifier
         self.behavior_model = behavior_model
         self.report = report or {}
 
@@ -1248,10 +1742,45 @@ class MLThreatModel:
         isolation_model = IsolationForest(
             n_estimators=80,
             contamination="auto",
+            max_samples=min(256, len(normal_x)),
             random_state=42,
             n_jobs=n_jobs,
         )
         isolation_model.fit(normal_x)
+
+        normal_network_x = _network_isolation_frame(frame[y == "normal"])
+        if len(normal_network_x) < 8:
+            normal_network_x = _network_isolation_frame(frame)
+
+        network_isolation_model = IsolationForest(
+            n_estimators=120,
+            contamination=0.08,
+            max_samples=min(256, len(normal_network_x)),
+            random_state=43,
+            n_jobs=n_jobs,
+        )
+        network_isolation_model.fit(normal_network_x)
+
+        network_x = _network_isolation_frame(frame)
+        network_classifier = ExtraTreesClassifier(
+            n_estimators=160,
+            max_depth=12,
+            min_samples_leaf=2,
+            class_weight="balanced",
+            random_state=73,
+            n_jobs=n_jobs,
+        )
+        network_classifier.fit(network_x, y)
+
+        network_forest_classifier = RandomForestClassifier(
+            n_estimators=160,
+            max_depth=12,
+            min_samples_leaf=2,
+            class_weight="balanced",
+            random_state=79,
+            n_jobs=n_jobs,
+        )
+        network_forest_classifier.fit(network_x, y)
 
         report = {
             "rows": int(len(frame)),
@@ -1261,12 +1790,20 @@ class MLThreatModel:
                 for tag in BEHAVIOR_LABELS
             },
             "feature_names": FEATURE_NAMES,
+            "network_isolation_features": NETWORK_ISOLATION_FEATURES,
+            "model_strategy": (
+                "general random forest + network random forest/extra trees + "
+                "general/network isolation forests"
+            ),
             "sklearn_version": sklearn.__version__,
             "training_n_jobs": n_jobs,
             "estimators": {
                 "classifier": 120,
                 "behavior_model": 90,
                 "isolation_model": 80,
+                "network_isolation_model": 120,
+                "network_classifier": 160,
+                "network_forest_classifier": 160,
             },
         }
 
@@ -1318,6 +1855,9 @@ class MLThreatModel:
         return cls(
             classifier=classifier,
             isolation_model=isolation_model,
+            network_isolation_model=network_isolation_model,
+            network_classifier=network_classifier,
+            network_forest_classifier=network_forest_classifier,
             behavior_model=behavior_model,
             report=report,
         )._normalize_parallelism()
@@ -1337,6 +1877,9 @@ class MLThreatModel:
         for estimator in (
             self.classifier,
             self.isolation_model,
+            getattr(self, "network_isolation_model", None),
+            getattr(self, "network_classifier", None),
+            getattr(self, "network_forest_classifier", None),
         ):
             if hasattr(
                 estimator,
@@ -1390,8 +1933,47 @@ class MLThreatModel:
 
         anomaly_probability = 0.0
         if self.isolation_model is not None:
-            score = float(self.isolation_model.decision_function(x)[0])
-            anomaly_probability = 1.0 / (1.0 + math.exp(5.0 * score))
+            anomaly_probability = _isolation_anomaly_probability(
+                self.isolation_model,
+                x
+            )
+
+        network_anomaly_probability = _isolation_anomaly_probability(
+            getattr(self, "network_isolation_model", None),
+            _network_isolation_frame(x)
+        )
+        network_attack_probability = 0.0
+        network_label_probabilities = {}
+        network_x = _network_isolation_frame(x)
+        network_classifiers = [
+            getattr(self, "network_classifier", None),
+            getattr(self, "network_forest_classifier", None),
+        ]
+        for network_classifier in network_classifiers:
+            if network_classifier is None:
+                continue
+
+            network_probabilities = network_classifier.predict_proba(
+                network_x
+            )[0]
+            for label, probability in zip(
+                network_classifier.classes_,
+                network_probabilities
+            ):
+                normalized_label = _normalize_label(label)
+                network_label_probabilities[normalized_label] = max(
+                    network_label_probabilities.get(normalized_label, 0.0),
+                    float(probability)
+                )
+        network_attack_probability = max(
+            network_label_probabilities.get("suspicious", 0.0),
+            network_label_probabilities.get("worm", 0.0),
+            network_label_probabilities.get("forkbomb", 0.0),
+        )
+        anomaly_probability = max(
+            anomaly_probability,
+            network_anomaly_probability
+        )
 
         if not any(probabilities.values()):
             probabilities["suspicious"] = anomaly_probability
@@ -1429,6 +2011,29 @@ class MLThreatModel:
                 )
 
         row = x.iloc[0]
+        network_indicator_count = sum(
+            1
+            for active in (
+                _safe_float(row.get("connections", 0)) >= 12,
+                _safe_float(row.get("f_connection_velocity", 0)) >= 6,
+                _safe_float(row.get("f_connection_rate", 0)) >= 6,
+                _safe_float(row.get("f_remote_ips", 0)) >= 6,
+                _safe_float(row.get("f_port_spread", 0)) >= 12,
+                _safe_float(row.get("f_loopback_connections", 0)) >= 6,
+                _safe_float(row.get("f_localhost_beaconing", 0)) > 0,
+                _safe_float(row.get("f_scanning_score", 0)) >= 0.65,
+                _safe_float(row.get("f_scanning_detected", 0)) > 0,
+            )
+            if active
+        )
+        network_isolation_signal = (
+            network_anomaly_probability >= 0.58
+            and network_indicator_count >= 2
+        )
+        network_classifier_signal = (
+            network_attack_probability >= 0.58
+            and network_indicator_count >= 2
+        )
 
         direct_rules = {
             "file_replication": (
@@ -1449,6 +2054,8 @@ class MLThreatModel:
                 _safe_float(row.get("f_connection_velocity", 0)) >= 10
                 or _safe_float(row.get("f_remote_ips", 0)) >= 10
                 or _safe_float(row.get("f_loopback_connections", 0)) >= 8
+                or network_isolation_signal
+                or network_classifier_signal
             ),
             "localhost_beaconing": (
                 _safe_float(row.get("f_localhost_beaconing", 0)) > 0
@@ -1606,6 +2213,30 @@ class MLThreatModel:
                 0.30
             )
 
+        if network_isolation_signal:
+            probabilities["suspicious"] = max(
+                probabilities.get("suspicious", 0.0),
+                0.70
+            )
+            probabilities["normal"] = min(
+                probabilities.get("normal", 0.0),
+                0.12
+            )
+
+        if network_classifier_signal:
+            probabilities["suspicious"] = max(
+                probabilities.get("suspicious", 0.0),
+                min(0.88, network_attack_probability)
+            )
+            probabilities["worm"] = max(
+                probabilities.get("worm", 0.0),
+                min(0.92, network_label_probabilities.get("worm", 0.0))
+            )
+            probabilities["normal"] = min(
+                probabilities.get("normal", 0.0),
+                0.10
+            )
+
         worm_score = min(
             1.0,
             probabilities.get("worm", 0.0)
@@ -1631,6 +2262,14 @@ class MLThreatModel:
                 for key, value in probabilities.items()
             },
             anomaly_probability=round(float(anomaly_probability), 4),
+            network_anomaly_probability=round(
+                float(network_anomaly_probability),
+                4
+            ),
+            network_attack_probability=round(
+                float(network_attack_probability),
+                4
+            ),
             behavior_signals=behavior_signals,
             behavior_probabilities=behavior_probabilities,
             top_drivers=top_drivers,
@@ -1669,11 +2308,15 @@ class MLThreatModel:
 def train_and_save(
     log_path="logs/system_log.json",
     model_path=MODEL_PATH,
-    dataset_paths=None
+    dataset_paths=None,
+    max_rows_per_dataset=None,
+    max_rows_per_label=None
 ):
     rows = load_training_rows(
         log_path,
-        dataset_paths=dataset_paths
+        dataset_paths=dataset_paths,
+        max_rows_per_dataset=max_rows_per_dataset,
+        max_rows_per_label=max_rows_per_label,
     )
     model = MLThreatModel.train(rows)
     model.report["trained_at"] = time.time()
@@ -1701,6 +2344,33 @@ def load_or_train(model_path=MODEL_PATH, log_path="logs/system_log.json"):
                 )
 
             if metadata.get("feature_names") != FEATURE_NAMES:
+                return train_and_save(
+                    log_path=log_path,
+                    model_path=model_path
+                )
+
+            if (
+                metadata.get("network_isolation_features")
+                != NETWORK_ISOLATION_FEATURES
+            ):
+                return train_and_save(
+                    log_path=log_path,
+                    model_path=model_path
+                )
+
+            if (
+                metadata.get("estimators", {}).get("network_classifier")
+                != 160
+            ):
+                return train_and_save(
+                    log_path=log_path,
+                    model_path=model_path
+                )
+
+            if (
+                metadata.get("estimators", {}).get("network_forest_classifier")
+                != 160
+            ):
                 return train_and_save(
                     log_path=log_path,
                     model_path=model_path

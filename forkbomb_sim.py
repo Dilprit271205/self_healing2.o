@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import time
+import signal
 
 # Safe forkbomb simulator for testing. Spawns processes quickly but bounded.
 MAX_CHILDREN = int(os.getenv("FORKBOMB_MAX_CHILDREN", "80"))
@@ -21,8 +22,8 @@ def cleanup():
     for p in children:
         try:
             p.terminate()
-        except OSError as exc:
-            print(f"[!] Failed to terminate child {getattr(p, 'pid', 'unknown')}: {exc}")
+        except:
+            pass
 
 
 if __name__ == '__main__':

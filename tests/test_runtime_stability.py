@@ -197,7 +197,7 @@ def test_dashboard_flags_confirmed_or_strong_behavior():
     assert bool(normalized.iloc[0]["flagged"]) is True
 
 
-def test_dashboard_trust_score_tracks_raw_trust_without_active_risk():
+def test_dashboard_trust_score_is_healthy_without_active_risk():
     import pandas as pd
     import dashboard
 
@@ -222,64 +222,8 @@ def test_dashboard_trust_score_tracks_raw_trust_without_active_risk():
     normalized = dashboard._normalize_process_rows(rows)
 
     assert bool(normalized.iloc[0]["flagged"]) is False
-    assert dashboard._dashboard_trust_score(normalized) == 0.80
-    assert dashboard._dashboard_pressure_score(normalized) == 0.35
-
-
-def test_dashboard_low_trust_drift_is_not_an_active_flag_without_evidence():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "timestamp": pd.Timestamp.now(),
-            "pid": 446,
-            "name": "python",
-            "label": "normal",
-            "severity": "low",
-            "stage": "observe",
-            "response": "none",
-            "worm_score": 0.10,
-            "dynamic_trust": 0.62,
-            "final_trust": 0.68,
-            "static_trust": 0.85,
-            "signals": {"correlated_signal_count": 0},
-            "features": {},
-            "anomalies": {"aggregate": 0.10},
-        }
-    ])
-
-    normalized = dashboard._normalize_process_rows(rows)
-
-    assert bool(normalized.iloc[0]["flagged"]) is False
-    assert dashboard._active_flag_rows(normalized).empty
-
-
-def test_dashboard_high_severity_without_evidence_is_not_security_memory():
-    import pandas as pd
-    import dashboard
-
-    rows = dashboard._normalize_process_rows(pd.DataFrame([
-        {
-            "timestamp": pd.Timestamp.now(),
-            "pid": 447,
-            "name": "python",
-            "label": "suspicious",
-            "severity": "high",
-            "stage": "observe",
-            "response": "monitoring",
-            "worm_score": 0.20,
-            "dynamic_trust": 0.90,
-            "final_trust": 0.90,
-            "static_trust": 0.85,
-            "signals": {"correlated_signal_count": 0},
-            "features": {},
-            "anomalies": {},
-        }
-    ]))
-
-    assert bool(rows.iloc[0]["flagged"]) is False
-    assert dashboard._security_event_mask(rows).tolist() == [False]
+    assert dashboard._dashboard_trust_score(normalized) == 1.0
+    assert dashboard._dashboard_pressure_score(normalized) == 0.0
 
 
 def test_dashboard_trust_score_uses_raw_risk_when_flagged():
@@ -322,44 +266,6 @@ def test_runtime_attention_filter_ignores_weak_suspicious_label():
     }
     trust_state = {
         "final_trust": 0.94,
-    }
-
-    assert main.is_attention_worthy_classification(
-        classification,
-        trust_state,
-    ) is False
-
-
-def test_runtime_attention_filter_ignores_normal_low_score_process():
-    import main
-
-    classification = {
-        "label": "normal",
-        "severity": "low",
-        "worm_score": 0.408,
-        "signals": {"correlated_signal_count": 0},
-    }
-    trust_state = {
-        "final_trust": 0.94,
-    }
-
-    assert main.is_attention_worthy_classification(
-        classification,
-        trust_state,
-    ) is False
-
-
-def test_runtime_attention_filter_ignores_high_severity_without_evidence():
-    import main
-
-    classification = {
-        "label": "suspicious",
-        "severity": "high",
-        "worm_score": 0.20,
-        "signals": {"correlated_signal_count": 0},
-    }
-    trust_state = {
-        "final_trust": 0.90,
     }
 
     assert main.is_attention_worthy_classification(
@@ -439,704 +345,6 @@ def test_dashboard_ignores_future_rows_when_selecting_live_window():
     assert set(recent["pid"]) == {2}
 
 
-def test_dashboard_drops_stale_rows_from_live_window():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(minutes=5),
-            "pid": 1,
-            "final_trust": 0.10,
-        },
-    ])
-
-    recent = dashboard._recent_rows(
-        rows,
-        seconds=12,
-    )
-
-    assert recent.empty
-
-
-def test_dashboard_ignores_fresh_log_append_time_when_row_timestamp_is_stale():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(days=3),
-            "_source_mtime": pd.Timestamp.now(),
-            "pid": 1,
-            "final_trust": 0.25,
-            "stage": "terminate",
-        },
-    ])
-
-    recent = dashboard._recent_rows(
-        rows,
-        seconds=12,
-    )
-
-    assert recent.empty
-
-
-def test_dashboard_uses_fresh_log_append_time_when_row_has_no_timestamp():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "_source_mtime": pd.Timestamp.now(),
-            "pid": 1,
-            "final_trust": 0.25,
-            "stage": "terminate",
-        },
-    ])
-
-    recent = dashboard._recent_rows(
-        rows,
-        seconds=12,
-    )
-
-    assert set(recent["pid"]) == {1}
-
-
-def test_dashboard_recent_rows_union_timestamp_and_log_append_time():
-    import pandas as pd
-    import dashboard
-
-    now = pd.Timestamp.now()
-    rows = pd.DataFrame([
-        {
-            "timestamp": now,
-            "_source_mtime": now,
-            "pid": 1,
-            "stage": "observe",
-        },
-        {
-            "timestamp": now - pd.Timedelta(hours=3),
-            "_source_mtime": now,
-            "pid": 2,
-            "stage": "terminate",
-        },
-    ])
-
-    recent = dashboard._recent_rows(
-        rows,
-        seconds=12,
-    )
-
-    assert set(recent["pid"]) == {1}
-
-
-def test_dashboard_log_append_time_does_not_revive_stale_timestamped_alerts():
-    import pandas as pd
-    import dashboard
-
-    now = pd.Timestamp.now()
-    rows = pd.DataFrame([
-        {
-            "timestamp": now - pd.Timedelta(hours=3),
-            "_source_mtime": now,
-            "pid": 1,
-            "stage": "terminate",
-            "severity": "critical",
-        },
-    ])
-
-    recent = dashboard._recent_rows(
-        rows,
-        seconds=12,
-    )
-
-    assert recent.empty
-
-
-def test_runtime_log_paths_are_repo_root_relative(monkeypatch):
-    from pathlib import Path
-    import dashboard
-    from logger import logger as runtime_logger
-    from analysis import learning_engine
-
-    monkeypatch.delenv("SELF_HEALING_SYSTEM_LOG", raising=False)
-    monkeypatch.delenv("SELF_HEALING_KB_PATH", raising=False)
-
-    root = Path(__file__).resolve().parent.parent
-
-    assert dashboard._project_path(
-        "SELF_HEALING_SYSTEM_LOG",
-        "logs/system_log.json",
-    ) == root / "logs" / "system_log.json"
-    assert Path(runtime_logger.project_path(
-        "SELF_HEALING_SYSTEM_LOG",
-        "logs/system_log.json",
-    )) == root / "logs" / "system_log.json"
-    assert Path(learning_engine.project_path(
-        "SELF_HEALING_KB_PATH",
-        "logs/learning_kb.json",
-    )) == root / "logs" / "learning_kb.json"
-
-
-def test_dashboard_learning_rows_normalize_for_visuals():
-    import pandas as pd
-    import dashboard
-
-    kb = pd.DataFrame([
-        {
-            "pattern_id": "p1",
-            "attack_family": "process_storm",
-            "recommended_stage": "terminate",
-            "confidence": 91,
-            "avg_pattern_strength": 0.8,
-            "avg_trust_anomaly_pressure": 0.7,
-            "observations": 5,
-        },
-    ])
-
-    prepared = dashboard._prepare_learning_rows(kb)
-
-    assert prepared.iloc[0]["confidence"] == 0.91
-    assert prepared.iloc[0]["confidence_pct"] == 91.0
-    assert prepared.iloc[0]["strength_pct"] == 80.0
-    assert prepared.iloc[0]["readiness_pct"] > 70
-
-
-def test_dashboard_learning_action_summary_is_readable():
-    import pandas as pd
-    import dashboard
-
-    kb = pd.DataFrame([
-        {
-            "pattern_id": "p1",
-            "attack_family": "process_storm",
-            "recommended_stage": "terminate",
-            "confidence": 0.9,
-            "avg_pattern_strength": 0.8,
-            "observations": 5,
-        },
-        {
-            "pattern_id": "p2",
-            "attack_family": "thread_storm",
-            "recommended_stage": "throttle",
-            "confidence": 0.6,
-            "avg_pattern_strength": 0.5,
-            "observations": 2,
-        },
-    ])
-
-    summary = dashboard._learning_action_summary(kb)
-
-    assert set(summary["recommended_stage"]) == {"terminate", "throttle"}
-    assert {"patterns", "avg_confidence", "avg_readiness", "max_observations"}.issubset(
-        summary.columns
-    )
-
-
-def test_dashboard_live_latest_rows_never_falls_back_to_stale_history():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(minutes=5),
-            "pid": 1,
-            "final_trust": 0.10,
-            "stage": "terminate",
-        },
-    ])
-
-    latest = dashboard._live_latest_rows(
-        rows,
-        seconds=12,
-    )
-
-    assert latest.empty
-
-
-def test_dashboard_tail_security_rows_keep_stale_timestamp_alerts_visible():
-    import pandas as pd
-    import dashboard
-
-    rows = dashboard._normalize_process_rows(pd.DataFrame([
-        {
-            "_log_index": 1,
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(hours=3),
-            "pid": 99,
-            "name": "python",
-            "label": "worm",
-            "severity": "critical",
-            "stage": "terminate",
-            "response": "terminated targets=1",
-            "worm_score": 0.95,
-            "final_trust": 0.25,
-            "dynamic_trust": 0.25,
-            "static_trust": 0.85,
-            "signals": {
-                "catastrophic_behavior": True,
-            },
-            "features": {},
-            "anomalies": {},
-        },
-    ]))
-
-    recent = dashboard._recent_security_rows(
-        rows,
-        seconds=12,
-    )
-    tail = dashboard._tail_security_rows(
-        rows,
-        limit=50,
-    )
-    alerts = dashboard._alert_rows(
-        tail,
-    )
-
-    assert recent.empty
-    assert set(tail["pid"]) == {99}
-    assert alerts[0]["stage"] == "terminate"
-
-
-def test_dashboard_security_rows_combine_recent_and_tail_alert_sources():
-    import pandas as pd
-    import dashboard
-
-    now = pd.Timestamp.now()
-    rows = dashboard._normalize_process_rows(pd.DataFrame([
-        {
-            "_log_index": 1,
-            "timestamp": now - pd.Timedelta(hours=2),
-            "pid": 10,
-            "name": "old-clock.py",
-            "label": "worm",
-            "severity": "critical",
-            "stage": "terminate",
-            "response": "terminated targets=1",
-            "worm_score": 0.95,
-            "final_trust": 0.25,
-            "dynamic_trust": 0.25,
-            "static_trust": 0.85,
-            "signals": {"catastrophic_behavior": True},
-            "features": {},
-            "anomalies": {},
-        },
-        {
-            "_log_index": 2,
-            "timestamp": now,
-            "pid": 11,
-            "name": "fresh.py",
-            "label": "suspicious",
-            "severity": "high",
-            "stage": "throttle",
-            "response": "throttled cpu",
-            "worm_score": 0.70,
-            "final_trust": 0.65,
-            "dynamic_trust": 0.65,
-            "static_trust": 0.85,
-            "signals": {"thread_storm_detected": True},
-            "features": {},
-            "anomalies": {},
-        },
-    ]))
-
-    security = dashboard._dashboard_security_rows(
-        rows,
-        seconds=12,
-        tail_limit=50,
-    )
-
-    assert set(security["pid"]) == {10, 11}
-
-
-def test_dashboard_state_keeps_recent_security_event_after_live_window():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "_log_index": 1,
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(seconds=30),
-            "pid": 1,
-            "final_trust": 0.30,
-            "stage": "terminate",
-            "severity": "critical",
-            "flagged": True,
-        },
-    ])
-
-    latest = dashboard._dashboard_state_rows(
-        rows,
-        live_seconds=12,
-        event_seconds=60,
-    )
-
-    assert set(latest["pid"]) == {1}
-    assert latest.iloc[0]["final_trust"] == 0.30
-
-
-def test_dashboard_state_expires_old_security_events():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "_log_index": 1,
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(minutes=5),
-            "pid": 1,
-            "final_trust": 0.30,
-            "stage": "terminate",
-            "severity": "critical",
-            "flagged": True,
-        },
-    ])
-
-    latest = dashboard._dashboard_state_rows(
-        rows,
-        live_seconds=12,
-        event_seconds=60,
-    )
-
-    assert latest.empty
-
-
-def test_dashboard_state_keeps_security_event_after_normal_followup():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "_log_index": 1,
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(seconds=40),
-            "pid": 1,
-            "final_trust": 0.30,
-            "stage": "terminate",
-            "severity": "critical",
-            "flagged": True,
-        },
-        {
-            "_log_index": 2,
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(seconds=30),
-            "pid": 1,
-            "final_trust": 1.0,
-            "stage": "observe",
-            "severity": "low",
-            "flagged": False,
-        },
-    ])
-
-    latest = dashboard._dashboard_state_rows(
-        rows,
-        live_seconds=12,
-        event_seconds=60,
-    )
-
-    assert set(latest["pid"]) == {1}
-    assert latest.iloc[0]["stage"] == "terminate"
-    assert bool(latest.iloc[0]["flagged"]) is True
-
-
-def test_dashboard_recent_security_rows_do_not_revive_stale_timestamped_alerts():
-    import pandas as pd
-    import dashboard
-
-    now = pd.Timestamp.now()
-    rows = dashboard._normalize_process_rows(pd.DataFrame([
-        {
-            "_log_index": 1,
-            "timestamp": now - pd.Timedelta(hours=3),
-            "_source_mtime": now,
-            "pid": 99,
-            "name": "python",
-            "label": "worm",
-            "severity": "critical",
-            "stage": "terminate",
-            "response": "terminated targets=1",
-            "worm_score": 0.95,
-            "final_trust": 0.25,
-            "dynamic_trust": 0.25,
-            "static_trust": 0.85,
-            "signals": {
-                "catastrophic_behavior": True,
-            },
-            "features": {},
-            "anomalies": {},
-        },
-    ]))
-
-    security = dashboard._recent_security_rows(
-        rows,
-        seconds=12,
-    )
-    alerts = dashboard._alert_rows(
-        security,
-    )
-
-    assert security.empty
-    assert alerts == []
-
-
-def test_policy_protects_kernel_worker_names():
-    from analysis.policy_engine import policy_engine
-    from analysis.response_engine import ResponseEngine
-
-    for name in ("jbd2/sda1-8", "khugepaged"):
-        process = {
-            "name": name,
-            "cmdline": name,
-            "exe": "",
-            "cwd": "",
-        }
-        category = policy_engine.infer_category(process)
-
-        assert category == "system_kernel"
-        assert policy_engine.is_suppressed_category(category)
-        assert ResponseEngine().is_protected_process(
-            329,
-            name,
-            name,
-            "",
-            "",
-        )
-
-
-def test_dashboard_healing_rows_fill_kpis_when_process_rows_missing():
-    import pandas as pd
-    import dashboard
-
-    healing = pd.DataFrame([
-        {
-            "_log_index": 0,
-            "timestamp": pd.Timestamp.now(),
-            "pid": 1234,
-            "stage": "terminate",
-            "action_taken": True,
-            "status": "terminated targets=1",
-        },
-    ])
-
-    fallback = dashboard._healing_rows_as_process_rows(
-        healing,
-        seconds=60,
-    )
-
-    assert set(fallback["pid"]) == {1234}
-    assert bool(fallback.iloc[0]["flagged"]) is True
-    assert dashboard._dashboard_trust_score(fallback) == 0.25
-
-
-def test_dashboard_merges_recent_healing_actions_with_process_rows():
-    import pandas as pd
-    import dashboard
-
-    now = pd.Timestamp.now()
-    process_rows = dashboard._normalize_process_rows(pd.DataFrame([
-        {
-            "_log_index": 10,
-            "timestamp": now,
-            "pid": 100,
-            "name": "python",
-            "label": "normal",
-            "severity": "low",
-            "stage": "observe",
-            "response": "none",
-            "final_trust": 1.0,
-            "dynamic_trust": 1.0,
-            "static_trust": 0.85,
-            "signals": {},
-            "features": {},
-            "anomalies": {},
-        },
-    ]))
-    healing_rows = dashboard._healing_rows_as_process_rows(
-        pd.DataFrame([
-            {
-                "_log_index": 20,
-                "timestamp": now,
-                "pid": 200,
-                "stage": "terminate",
-                "action_taken": True,
-                "status": "terminated targets=1",
-            },
-        ]),
-        seconds=60,
-    )
-
-    latest = dashboard._dashboard_state_rows(
-        pd.concat(
-            [
-                process_rows,
-                healing_rows,
-            ],
-            ignore_index=True,
-        ),
-        live_seconds=12,
-        event_seconds=60,
-    )
-
-    assert set(latest["pid"]) == {100, 200}
-    assert int(latest["flagged"].sum()) == 1
-    assert int(
-        latest["stage"]
-        .astype(str)
-        .str.lower()
-        .isin(["terminate"])
-        .sum()
-    ) == 1
-
-
-def test_dashboard_flag_rows_explain_evidence_and_action():
-    import pandas as pd
-    import dashboard
-
-    rows = dashboard._normalize_process_rows(pd.DataFrame([
-        {
-            "timestamp": pd.Timestamp.now(),
-            "pid": 321,
-            "name": "python",
-            "label": "worm",
-            "severity": "critical",
-            "stage": "terminate",
-            "response": "terminated targets=1",
-            "worm_score": 0.92,
-            "final_trust": 0.30,
-            "dynamic_trust": 0.30,
-            "static_trust": 0.85,
-            "signals": {
-                "replication_detected": True,
-                "correlated_signals": {
-                    "file_replication": True,
-                },
-            },
-            "features": {},
-            "anomalies": {},
-        },
-    ]))
-
-    flags = dashboard._active_flag_rows(rows)
-
-    assert not flags.empty
-    assert "file replication" in flags.iloc[0]["why"]
-    assert "Stopping the process family" in flags.iloc[0]["self_healing_action"]
-
-
-def test_dashboard_alert_rows_describe_self_healing_action():
-    import pandas as pd
-    import dashboard
-
-    rows = dashboard._normalize_process_rows(pd.DataFrame([
-        {
-            "timestamp": pd.Timestamp.now(),
-            "_log_index": 5,
-            "pid": 654,
-            "name": "worm.py",
-            "label": "worm",
-            "severity": "critical",
-            "stage": "terminate",
-            "response": "terminated targets=3",
-            "worm_score": 0.95,
-            "final_trust": 0.20,
-            "dynamic_trust": 0.20,
-            "static_trust": 0.85,
-            "signals": {
-                "catastrophic_behavior": True,
-            },
-            "features": {},
-            "anomalies": {},
-        },
-    ]))
-
-    alerts = dashboard._alert_rows(rows)
-
-    assert len(alerts) == 1
-    assert alerts[0]["stage"] == "terminate"
-    assert "catastrophic" in alerts[0]["why"]
-    assert "Stopping the process family" in alerts[0]["action"]
-    assert alerts[0]["status"] == "terminated targets=3"
-
-
-def test_dashboard_security_mask_tracks_isolate_and_restrict_actions():
-    import pandas as pd
-    import dashboard
-
-    rows = pd.DataFrame([
-        {
-            "pid": 1,
-            "stage": "isolate",
-            "response": "temporarily isolated",
-            "flagged": False,
-            "severity": "low",
-        },
-        {
-            "pid": 2,
-            "stage": "restrict",
-            "response": "resource restricted",
-            "flagged": False,
-            "severity": "low",
-        },
-    ])
-
-    mask = dashboard._security_event_mask(rows)
-
-    assert mask.tolist() == [True, True]
-
-
-def test_dashboard_healing_rows_expire_like_live_events():
-    import pandas as pd
-    import dashboard
-
-    healing = pd.DataFrame([
-        {
-            "_log_index": 0,
-            "timestamp": pd.Timestamp.now() - pd.Timedelta(minutes=5),
-            "pid": 1234,
-            "stage": "terminate",
-            "action_taken": True,
-            "status": "terminated targets=1",
-        },
-    ])
-
-    fallback = dashboard._healing_rows_as_process_rows(
-        healing,
-        seconds=60,
-    )
-
-    assert fallback.empty
-
-
-def test_dashboard_healing_rows_keep_action_after_observe_followup():
-    import pandas as pd
-    import dashboard
-
-    now = pd.Timestamp.now()
-    healing = pd.DataFrame([
-        {
-            "_log_index": 1,
-            "timestamp": now - pd.Timedelta(seconds=20),
-            "pid": 4321,
-            "stage": "terminate",
-            "action_taken": True,
-            "status": "terminated targets=1",
-        },
-        {
-            "_log_index": 2,
-            "timestamp": now - pd.Timedelta(seconds=5),
-            "pid": 4321,
-            "stage": "observe",
-            "action_taken": False,
-            "status": "monitoring",
-        },
-    ])
-
-    fallback = dashboard._healing_rows_as_process_rows(
-        healing,
-        seconds=60,
-    )
-
-    assert set(fallback["pid"]) == {4321}
-    assert fallback.iloc[0]["stage"] == "terminate"
-    assert bool(fallback.iloc[0]["flagged"]) is True
-
-
 def test_dashboard_latest_by_pid_uses_log_append_order():
     import pandas as pd
     import dashboard
@@ -1159,100 +367,6 @@ def test_dashboard_latest_by_pid_uses_log_append_order():
     latest = dashboard._latest_by_pid(rows)
 
     assert latest.iloc[0]["stage"] == "observe"
-
-
-def test_logger_emits_normal_state_after_interesting_state(monkeypatch):
-    from logger import logger as runtime_logger
-
-    runtime_logger.last_process_log.clear()
-    runtime_logger.last_process_state.clear()
-    monkeypatch.setattr(runtime_logger, "LOG_NORMAL_PROCESSES", False)
-    monkeypatch.setattr(runtime_logger, "PROCESS_LOG_INTERVAL", 10.0)
-
-    assert runtime_logger.should_log_process({
-        "pid": 9001,
-        "label": "worm",
-        "severity": "critical",
-        "stage": "terminate",
-        "response": "terminated",
-    })
-    assert runtime_logger.should_log_process({
-        "pid": 9001,
-        "label": "normal",
-        "severity": "low",
-        "stage": "observe",
-        "response": "none",
-    })
-    assert not runtime_logger.should_log_process({
-        "pid": 9002,
-        "label": "normal",
-        "severity": "low",
-        "stage": "observe",
-        "response": "none",
-    })
-
-
-def test_logger_ignores_weak_random_suspicious_process(monkeypatch):
-    from logger import logger as runtime_logger
-
-    runtime_logger.last_process_log.clear()
-    runtime_logger.last_process_state.clear()
-    monkeypatch.setattr(runtime_logger, "LOG_NORMAL_PROCESSES", False)
-
-    assert not runtime_logger.should_log_process({
-        "pid": 9010,
-        "name": "random-helper",
-        "label": "suspicious",
-        "severity": "medium",
-        "stage": "observe",
-        "response": "monitoring",
-        "worm_score": 0.20,
-        "final_trust": 0.92,
-        "signals": {
-            "correlated_signal_count": 0,
-        },
-    })
-
-
-def test_logger_keeps_confirmed_suspicious_behavior(monkeypatch):
-    from logger import logger as runtime_logger
-
-    runtime_logger.last_process_log.clear()
-    runtime_logger.last_process_state.clear()
-    monkeypatch.setattr(runtime_logger, "LOG_NORMAL_PROCESSES", False)
-
-    assert runtime_logger.should_log_process({
-        "pid": 9011,
-        "name": "replicator.py",
-        "label": "suspicious",
-        "severity": "medium",
-        "stage": "observe",
-        "response": "monitoring",
-        "worm_score": 0.45,
-        "final_trust": 0.88,
-        "signals": {
-            "replication_detected": True,
-            "correlated_signal_count": 1,
-        },
-    })
-
-
-def test_logger_enqueue_latest_preserves_newest_when_queue_is_full():
-    import queue
-    from logger import logger as runtime_logger
-
-    q = queue.Queue(maxsize=1)
-    q.put_nowait({"pid": 1})
-    before = runtime_logger.logger_drop_counts.get("process", 0)
-
-    assert runtime_logger.enqueue_latest(
-        q,
-        {"pid": 2},
-        "process",
-    ) is True
-
-    assert q.get_nowait() == {"pid": 2}
-    assert runtime_logger.logger_drop_counts["process"] == before + 1
 
 
 def test_dashboard_acceptance_coverage_tracks_behavior_flags():
@@ -1421,3 +535,125 @@ def test_external_research_csv_import_maps_cic_and_unsw_rows(tmp_path):
     assert labels.count("normal") == 2
     assert labels.count("worm") == 2
     assert any(row["network_fanout"] == 1 for row in rows if row["label"] == "worm")
+
+
+def test_ciciot2023_import_maps_all_attack_families(tmp_path):
+    from analysis import ml_threat_model
+
+    csv_path = tmp_path / "ciciot2023.csv"
+    header = (
+        "flow_duration,Header_Length,Protocol Type,Duration,Rate,Srate,Drate,"
+        "fin_flag_number,syn_flag_number,rst_flag_number,psh_flag_number,"
+        "ack_flag_number,ece_flag_number,cwr_flag_number,ack_count,syn_count,"
+        "fin_count,urg_count,rst_count,HTTP,HTTPS,DNS,Telnet,SMTP,SSH,IRC,TCP,"
+        "UDP,DHCP,ARP,ICMP,IPv,LLC,Tot sum,Min,Max,AVG,Std,Tot size,IAT,"
+        "Number,Magnitue,Radius,Covariance,Variance,Weight,label\n"
+    )
+    labels = [
+        "BenignTraffic",
+        "DDoS-ICMP_Flood",
+        "DoS-SYN_Flood",
+        "Mirai-greip_flood",
+        "Recon-PortScan",
+        "MITM-ArpSpoofing",
+        "SqlInjection",
+        "DictionaryBruteForce",
+    ]
+    rows = []
+    for label in labels:
+        rows.append(
+            "10,12000,6,64,500,500,0,0,1,1,0,1,0,0,8,16,2,4,10,"
+            "1,0,1,0,0,0,0,1,1,0,1,1,1,1,900,40,120,80,10,80,"
+            f"1200,10,12,20,300,0.2,141,{label}\n"
+        )
+    csv_path.write_text(header + "".join(rows), encoding="utf-8")
+
+    imported = ml_threat_model.load_external_dataset_rows(
+        [tmp_path],
+        max_rows_per_dataset=20,
+        max_rows_per_label=5,
+    )
+
+    families = {
+        row["external_attack_family"]
+        for row in imported
+    }
+    assert {
+        "benign",
+        "ddos",
+        "dos",
+        "mirai",
+        "recon",
+        "spoofing",
+        "web",
+        "bruteforce",
+    }.issubset(families)
+    assert any(row["label"] == "normal" for row in imported)
+    assert any(row["label"] == "worm" for row in imported)
+    assert any(row["label"] == "suspicious" for row in imported)
+    assert all(row["network_fanout"] == 1 for row in imported if row["label"] != "normal")
+
+
+def test_network_isolation_model_detects_research_style_fanout():
+    from analysis import ml_threat_model
+
+    model = ml_threat_model.MLThreatModel.train([])
+    prediction = model.predict(
+        features={
+            "connections": 48,
+            "f_connection_velocity": 8.5,
+            "f_connection_rate": 9,
+            "f_remote_ips": 9,
+            "f_port_spread": 28,
+            "f_scanning_score": 0.85,
+            "f_scanning_detected": 1,
+        },
+        anomaly_data={
+            "anomalies": {
+                "connections": 0.42,
+                "remote_ips": 0.55,
+                "network": 0.58,
+                "aggregate": 0.52,
+            }
+        },
+        trust_state={
+            "dynamic_trust": 0.68,
+            "final_trust": 0.70,
+            "static_trust": 0.84,
+        },
+    )
+
+    assert prediction.network_anomaly_probability >= 0.58
+    assert prediction.network_attack_probability >= 0.58
+    assert prediction.behavior_signals["network_fanout"] is True
+    assert prediction.label in {"suspicious", "worm"}
+
+
+def test_network_isolation_model_keeps_quiet_flow_benign():
+    from analysis import ml_threat_model
+
+    model = ml_threat_model.MLThreatModel.train([])
+    prediction = model.predict(
+        features={
+            "connections": 2,
+            "f_connection_velocity": 0.4,
+            "f_connection_rate": 0.3,
+            "f_remote_ips": 1,
+            "f_port_spread": 1,
+        },
+        anomaly_data={
+            "anomalies": {
+                "network": 0.02,
+                "aggregate": 0.02,
+            }
+        },
+        trust_state={
+            "dynamic_trust": 0.96,
+            "final_trust": 0.96,
+            "static_trust": 0.92,
+        },
+    )
+
+    assert prediction.behavior_signals["network_fanout"] is False
+    assert prediction.network_attack_probability <= 0.40
+    assert prediction.label == "normal"

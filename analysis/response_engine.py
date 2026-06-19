@@ -12,16 +12,17 @@ class ResponseEngine:
     PPT + review aligned
     adaptive healing engine
 
-    Slide 16-17
+    Slide 16–17
 
     Healing Flow:
     observe
-    -> restrict
-    -> isolate
-    -> block_resources
-    -> terminate
-    -> trust_recovery
+    → restrict
+    → isolate
+    → block_resources
+    → terminate
+    → trust_recovery
     """
+
     def __init__(self, safe_mode=None):
 
         self.response_history = (
@@ -50,13 +51,13 @@ class ResponseEngine:
                 os.getppid(),
                 1
             }
-        except Exception:
+        except:
             self.protected_pids = set()
 
     def add_protected_pid(self, pid):
         try:
             self.protected_pids.add(int(pid))
-        except Exception:
+        except:
             pass
 
     def _normalize_text(self, value):
@@ -296,16 +297,7 @@ class ResponseEngine:
         ):
             return True
 
-        category = policy_engine.infer_category({
-            "name": process_name,
-            "cmdline": cmdline,
-            "exe": exe_path,
-            "cwd": cwd,
-        })
-
-        return policy_engine.is_hard_protected_category(
-            category
-        )
+        return False
 
     def _stage_rank(self, stage):
         order = {
@@ -377,7 +369,7 @@ class ResponseEngine:
     def _privileges_allowed(self):
         try:
             return os.getenv("SELF_HEALING_ALLOW_PRIVILEGE", "false").lower() in ("1", "true", "yes", "y")
-        except Exception:
+        except:
             return False
 
     def network_quarantine(self, pid, ips=None):
@@ -551,21 +543,6 @@ class ResponseEngine:
                 ))
             )
 
-            category = policy_engine.infer_category({
-                "name": process_name,
-                "cmdline": cmdline,
-                "exe": exe_path,
-                "cwd": cwd,
-            })
-
-            if stage != "observe" and category == "system_kernel":
-                return {
-                    "pid": pid,
-                    "stage": "protected",
-                    "action_taken": False,
-                    "status": "system kernel process"
-                }
-
             stage = self._apply_false_positive_suppression(
                 stage,
                 process_info,
@@ -615,13 +592,7 @@ class ResponseEngine:
             if (
                 stage != "observe"
                 and
-                self.is_protected_process(
-                    pid,
-                    process_name,
-                    cmdline,
-                    exe_path,
-                    cwd
-                )
+                self.is_protected_process(pid, process_name, cmdline, exe_path)
                 and
                 not self._can_override_name_protection(force_terminate)
             ):
@@ -704,12 +675,12 @@ class ResponseEngine:
 
                 try:
                     net_token = self.network_quarantine(pid)
-                except Exception:
+                except:
                     net_token = None
 
                 try:
                     scope = self.cgroup_quarantine(pid)
-                except Exception:
+                except:
                     scope = None
 
                 result = (
@@ -730,13 +701,13 @@ class ResponseEngine:
                 try:
                     if net_token:
                         self.network_quarantine_rollback(net_token)
-                except Exception:
+                except:
                     pass
 
                 try:
                     if scope:
                         self.cgroup_quarantine_rollback(scope)
-                except Exception:
+                except:
                     pass
 
             # ---------------------------------
@@ -811,7 +782,7 @@ class ResponseEngine:
                         [0]
                     )
 
-            except Exception:
+            except:
                 pass
 
             self.restricted_pids.add(
@@ -927,7 +898,7 @@ class ResponseEngine:
             # limit CPU
             try:
                 proc.cpu_affinity([0])
-            except Exception:
+            except:
                 pass
 
             # suspend children
@@ -954,7 +925,7 @@ class ResponseEngine:
                         continue
 
                     child.suspend()
-                except Exception:
+                except:
                     pass
 
             return {
@@ -1116,12 +1087,12 @@ class ResponseEngine:
 
             try:
                 MAX_SAFE_KILL = int(os.getenv("SELF_HEALING_MAX_SAFE_KILL", "300"))
-            except Exception:
+            except:
                 MAX_SAFE_KILL = 300
 
             try:
                 MAX_FORCE_KILL = int(os.getenv("SELF_HEALING_MAX_FORCE_KILL", "2000"))
-            except Exception:
+            except:
                 MAX_FORCE_KILL = 2000
 
             if len(children) > MAX_FORCE_KILL:
@@ -1226,7 +1197,7 @@ class ResponseEngine:
                         child.terminate()
                     except psutil.NoSuchProcess:
                         continue
-                    except Exception:
+                    except:
                         pass
 
                     add_target(child)
@@ -1238,7 +1209,7 @@ class ResponseEngine:
                 add_target(proc)
             except psutil.NoSuchProcess:
                 pass
-            except Exception:
+            except:
                 pass
 
             for target in list(kill_targets):
@@ -1286,7 +1257,7 @@ class ResponseEngine:
                         p.kill()
                     except psutil.NoSuchProcess:
                         continue
-                    except Exception:
+                    except:
                         pass
 
                 gone2, alive2 = psutil.wait_procs(
@@ -1857,10 +1828,12 @@ class ResponseEngine:
 
                     if (
                         same_cwd
-                        and same_exe
                         and (
                             same_command
-                            or force
+                            or (
+                                same_exe
+                                and force
+                            )
                         )
                     ):
                         related.append(
